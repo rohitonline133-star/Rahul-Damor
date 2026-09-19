@@ -10,7 +10,7 @@
       "avatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
       "bio": "Lead Engineer @ GB Official • Building next-gen mobile communications 🚀",
       "online": true,
-      "lastSeen": 1789813751175,
+      "lastSeen": 1789816205393,
       "createdAt": 1787209961029,
       "isVerified": true,
       "privacySettings": {
@@ -20,7 +20,10 @@
         "readReceipts": true
       },
       "blockedUserIds": [],
-      "role": "admin"
+      "role": "admin",
+      "phone": "+15550192834",
+      "mutedUserIds": [],
+      "restrictedUserIds": []
     },
     {
       "id": "user_alex",
@@ -42,7 +45,8 @@
         "readReceipts": true
       },
       "blockedUserIds": [],
-      "role": "user"
+      "role": "user",
+      "phone": "+15550192835"
     },
     {
       "id": "user_sarah",
@@ -64,7 +68,8 @@
         "readReceipts": true
       },
       "blockedUserIds": [],
-      "role": "moderator"
+      "role": "moderator",
+      "phone": "+15550192836"
     },
     {
       "id": "user_liam",
@@ -86,7 +91,8 @@
         "readReceipts": true
       },
       "blockedUserIds": [],
-      "role": "user"
+      "role": "user",
+      "phone": "+15550192837"
     },
     {
       "id": "user_kunal",
@@ -100,6 +106,30 @@
       "online": true,
       "lastSeen": 1789803081013,
       "createdAt": 1788939141013,
+      "isVerified": true,
+      "privacySettings": {
+        "lastSeen": "everyone",
+        "profilePhoto": "everyone",
+        "statusPrivacy": "everyone",
+        "readReceipts": true
+      },
+      "blockedUserIds": [],
+      "role": "user",
+      "phone": "+919876543210"
+    },
+    {
+      "id": "user_test_reg_1789816206040",
+      "username": "test_reg_6040",
+      "displayName": "Test Registered User",
+      "email": "test_reg_6040@gbofficial.app",
+      "phone": "+15550199991",
+      "passwordHash": "e13bf5d1b01f751092617c12ce4ed3bfdccf82885809a55faf1237d2ab0e5039c34c9ee8932062858e5b75e78512801fb2090e5b65757a3365e2201c6062dd0e",
+      "salt": "d2e2cbe27abb4d2aaf3791bacb4e4759",
+      "avatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150",
+      "bio": "Created via verified phone registration",
+      "online": true,
+      "lastSeen": 1789816206040,
+      "createdAt": 1789816206040,
       "isVerified": true,
       "privacySettings": {
         "lastSeen": "everyone",
@@ -234,10 +264,10 @@
       "readBy": [
         {
           "userId": "user_jordan",
-          "readAt": 1789813327273
+          "readAt": 1789816141649
         }
       ],
-      "createdAt": 1789813267273
+      "createdAt": 1789816081649
     },
     {
       "id": "msg_2",
@@ -258,10 +288,10 @@
       "readBy": [
         {
           "userId": "user_jordan",
-          "readAt": 1789812787273
+          "readAt": 1789815601649
         }
       ],
-      "createdAt": 1789812487273
+      "createdAt": 1789815301649
     },
     {
       "id": "msg_3",
@@ -287,10 +317,10 @@
       "readBy": [
         {
           "userId": "user_alex",
-          "readAt": 1789813087273
+          "readAt": 1789815901649
         }
       ],
-      "createdAt": 1789812787273
+      "createdAt": 1789815601649
     },
     {
       "id": "msg_4",
@@ -305,10 +335,10 @@
       "readBy": [
         {
           "userId": "user_kunal",
-          "readAt": 1789813267274
+          "readAt": 1789816081649
         }
       ],
-      "createdAt": 1789813207274
+      "createdAt": 1789816021649
     },
     {
       "id": "msg_5",
@@ -325,14 +355,9 @@
           "userName": "Jordan Miller"
         }
       ],
-      "status": "read",
-      "readBy": [
-        {
-          "userId": "user_jordan",
-          "readAt": 1789813443802
-        }
-      ],
-      "createdAt": 1789813327274
+      "status": "delivered",
+      "readBy": [],
+      "createdAt": 1789816141649
     },
     {
       "id": "msg_05167310-f29",
@@ -1122,6 +1147,112 @@
         "user_kunal"
       ],
       "createdAt": 1788776587269
+    }
+  ],
+  "phone_verifications": [
+    {
+      "id": "pv_test_1789816139451",
+      "phone": "+15550199991",
+      "code": "288006",
+      "purpose": "register",
+      "createdAt": 1789816139451,
+      "expiresAt": 1789816439451,
+      "attempts": 0,
+      "maxAttempts": 5,
+      "verified": true,
+      "verificationToken": "gb_pvtok_test_90271556d211129edafd7fd2c04f58a6"
+    },
+    {
+      "id": "pv_test_1789816187103",
+      "phone": "+15550199991",
+      "code": "708241",
+      "purpose": "register",
+      "createdAt": 1789816187103,
+      "expiresAt": 1789816487103,
+      "attempts": 0,
+      "maxAttempts": 5,
+      "verified": true,
+      "verificationToken": "gb_pvtok_test_f0f2e04037f63e07aa1b040b8949abd8"
+    },
+    {
+      "id": "pv_test_1789816206040",
+      "phone": "+15550199991",
+      "code": "423378",
+      "purpose": "register",
+      "createdAt": 1789816206040,
+      "expiresAt": 1789816506040,
+      "attempts": 0,
+      "maxAttempts": 5,
+      "verified": true,
+      "verificationToken": "gb_pvtok_test_9f30c81d99587fb47bf91ee83b15441e"
+    }
+  ],
+  "sessions": [
+    {
+      "id": "sess_ab15554a",
+      "token": "gb_tok_4a3d44742d4e00003eb36070b21ce14c7a168712b3a30f716dc60e172462fdb1",
+      "userId": "user_jordan",
+      "deviceName": "Android Device (GB Official)",
+      "ip": "127.0.0.1",
+      "userAgent": "GB Official Android Client",
+      "platform": "Android",
+      "createdAt": 1789816206045,
+      "lastActive": 1789816206045,
+      "expiresAt": 1792408206045,
+      "isRevoked": false
+    },
+    {
+      "id": "sess_829dc138",
+      "token": "gb_tok_84e45f9e9b57f38422aebbe327251f1ca8f95c9038bfdb66099f147c9c8c84aa",
+      "userId": "user_jordan",
+      "deviceName": "Android Device (GB Official)",
+      "ip": "127.0.0.1",
+      "userAgent": "GB Official Android Client",
+      "platform": "Android",
+      "createdAt": 1789816187108,
+      "lastActive": 1789816187108,
+      "expiresAt": 1792408187108,
+      "isRevoked": false
+    },
+    {
+      "id": "sess_2c5c49f7",
+      "token": "gb_tok_b3125daaf09c4105ddbda1ba35c56befd739de44c10c040d9b62c52f27c646ee",
+      "userId": "user_jordan",
+      "deviceName": "Android Device (GB Official)",
+      "ip": "127.0.0.1",
+      "userAgent": "GB Official Android Client",
+      "platform": "Android",
+      "createdAt": 1789816139470,
+      "lastActive": 1789816139470,
+      "expiresAt": 1792408139470,
+      "isRevoked": false
+    }
+  ],
+  "security_logs": [],
+  "security_notifications": [],
+  "two_factor_auth": {},
+  "oauth_accounts": [],
+  "password_resets": [
+    {
+      "phoneOrEmail": "user_recovery_test@example.com",
+      "code": "185220",
+      "expiresAt": 1789816739468,
+      "attempts": 0,
+      "verified": false
+    },
+    {
+      "phoneOrEmail": "user_recovery_test@example.com",
+      "code": "634105",
+      "expiresAt": 1789816787107,
+      "attempts": 0,
+      "verified": false
+    },
+    {
+      "phoneOrEmail": "user_recovery_test_1789816206044@example.com",
+      "code": "301804",
+      "expiresAt": 1789816806044,
+      "attempts": 0,
+      "verified": false
     }
   ]
 }

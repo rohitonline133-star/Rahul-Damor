@@ -461,4 +461,62 @@ export interface BroadcastList {
   createdAt: number;
 }
 
+// -------------------------------------------------------------
+// AUTHENTICATION & SECURITY
+// -------------------------------------------------------------
+export interface AuthSession {
+  id: string;
+  token: string;
+  userId: string;
+  deviceName: string;
+  ip: string;
+  userAgent: string;
+  platform: string;
+  createdAt: number;
+  lastActive: number;
+  expiresAt: number;
+  isRevoked: boolean;
+  isCurrent?: boolean;
+}
+
+export interface SecurityLog {
+  id: string;
+  userId?: string;
+  event: string;
+  status: 'success' | 'failure' | 'warning';
+  details: string;
+  ip: string;
+  userAgent: string;
+  timestamp: number;
+}
+
+export interface OAuthConfig {
+  google: { configured: boolean; clientId?: string; message: string };
+  facebook: { configured: boolean; appId?: string; message: string };
+  instagram: { configured: boolean; message: string };
+  smsGateway: { configured: boolean; provider?: string; message: string };
+}
+
+export interface PhoneOtpResponse {
+  success: boolean;
+  message: string;
+  expiresAt?: number;
+  cooldownSeconds?: number;
+  gatewayStatus?: string;
+  devOtp?: string;
+}
+
+export interface PhoneVerifyResponse {
+  success: boolean;
+  verified: boolean;
+  isNewUser?: boolean;
+  isExistingUser?: boolean;
+  verificationToken?: string;
+  token?: string;
+  user?: User;
+  session?: AuthSession;
+  message?: string;
+  requires2FA?: boolean;
+}
+
 
