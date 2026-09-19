@@ -28,6 +28,11 @@ import { ActiveCallOverlay } from './components/call/ActiveCallOverlay';
 import { ShopModal } from './components/shop/ShopModal';
 import { LinkedDevicesModal } from './components/devices/LinkedDevicesModal';
 import { BroadcastModal } from './components/broadcast/BroadcastModal';
+import { ProfileTab } from './components/profile/ProfileTab';
+import { CreateChannelModal } from './components/common/CreateChannelModal';
+import { CreatePostModal } from './components/common/CreatePostModal';
+import { CreatePollModal } from './components/common/CreatePollModal';
+import { CreateShopItemModal } from './components/common/CreateShopItemModal';
 import { UserStatus, Message } from './types';
 import { Sparkles, Shield, Lock, CircleDot, Plus } from 'lucide-react';
 
@@ -57,6 +62,10 @@ const GbMainApp: React.FC = () => {
   const [showShop, setShowShop] = useState(false);
   const [showLinkedDevices, setShowLinkedDevices] = useState(false);
   const [showBroadcast, setShowBroadcast] = useState(false);
+  const [showCreateChannel, setShowCreateChannel] = useState(false);
+  const [showCreatePost, setShowCreatePost] = useState(false);
+  const [showCreatePoll, setShowCreatePoll] = useState(false);
+  const [showCreateShopItem, setShowCreateShopItem] = useState(false);
   const [viewingUserId, setViewingUserId] = useState<string | null>(null);
   const [reportingTarget, setReportingTarget] = useState<{ id: string; type: 'user' | 'message' } | null>(null);
 
@@ -248,6 +257,19 @@ const GbMainApp: React.FC = () => {
 
             {/* CALLS TAB */}
             {activeTab === 'calls' && <CallsTab />}
+
+            {/* PROFILE TAB */}
+            {activeTab === 'profile' && (
+              <ProfileTab
+                viewingUserId={currentUser?.id}
+                onOpenSettings={() => setShowSettings(true)}
+                onOpenChatWith={async (userId) => {
+                  const convId = await createDirectChat(userId);
+                  if (convId) setActiveConversationId(convId);
+                }}
+                onOpenReport={(targetId, type) => setReportingTarget({ id: targetId, type })}
+              />
+            )}
           </div>
 
           {/* Bottom Bar + Action FAB */}
@@ -255,7 +277,13 @@ const GbMainApp: React.FC = () => {
             onOpenNewChat={() => setShowNewChat(true)}
             onOpenCreateGroup={() => setShowCreateGroup(true)}
             onOpenCreateCommunity={() => setShowCreateCommunity(true)}
+            onOpenCreateChannel={() => setShowCreateChannel(true)}
             onOpenCreateStatus={() => setShowCreateStatus(true)}
+            onOpenCreatePost={() => setShowCreatePost(true)}
+            onOpenCreatePoll={() => setShowCreatePoll(true)}
+            onOpenCreateShopItem={() => setShowCreateShopItem(true)}
+            onUploadPhoto={() => setShowCreateStatus(true)}
+            onUploadVideo={() => setShowCreateStatus(true)}
             onOpenBroadcast={() => setShowBroadcast(true)}
           />
         </div>
@@ -346,6 +374,28 @@ const GbMainApp: React.FC = () => {
           targetId={reportingTarget.id}
           targetType={reportingTarget.type}
           onClose={() => setReportingTarget(null)}
+        />
+      )}
+
+      {showCreateChannel && (
+        <CreateChannelModal
+          onClose={() => setShowCreateChannel(false)}
+          onChannelCreated={() => setActiveTab('communities')}
+        />
+      )}
+
+      {showCreatePost && (
+        <CreatePostModal onClose={() => setShowCreatePost(false)} />
+      )}
+
+      {showCreatePoll && (
+        <CreatePollModal onClose={() => setShowCreatePoll(false)} />
+      )}
+
+      {showCreateShopItem && (
+        <CreateShopItemModal
+          onClose={() => setShowCreateShopItem(false)}
+          onItemCreated={() => setShowShop(true)}
         />
       )}
     </AndroidFrame>

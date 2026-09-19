@@ -1,5 +1,5 @@
 export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'read';
-export type MessageType = 'text' | 'image' | 'video' | 'audio' | 'document' | 'location';
+export type MessageType = 'text' | 'image' | 'video' | 'audio' | 'document' | 'location' | 'poll';
 export type ConversationType = 'direct' | 'group';
 export type CallType = 'voice' | 'video';
 export type CallStatus = 'ringing' | 'ongoing' | 'completed' | 'declined' | 'missed';
@@ -9,7 +9,7 @@ export type PrivacyOption = 'everyone' | 'contacts' | 'nobody';
 export interface UserPrivacySettings {
   lastSeen: PrivacyOption;
   profilePhoto: PrivacyOption;
-  statusPrivacy: 'everyone' | 'contacts' | 'selected';
+  statusPrivacy?: 'everyone' | 'contacts' | 'selected';
   readReceipts: boolean;
   isPrivate?: boolean;
 }

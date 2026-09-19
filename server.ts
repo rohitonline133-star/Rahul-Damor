@@ -96,11 +96,11 @@ function getInitialDb(): DbSchema {
 
   const now = Date.now();
 
-  const userRahul = {
-    id: 'user_rahul',
-    username: 'rahul_gb',
-    displayName: 'Rahul Damor',
-    email: 'rahuldamor07575@gmail.com',
+  const userJordan = {
+    id: 'user_jordan',
+    username: 'jordan_gb',
+    displayName: 'Jordan Miller',
+    email: 'jordan@gbofficial.app',
     passwordHash: hashPassword('GbOfficial2026!', salt1),
     salt: salt1,
     avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
@@ -212,13 +212,13 @@ function getInitialDb(): DbSchema {
   };
 
   const convDirect1 = {
-    id: 'conv_rahul_alex',
+    id: 'conv_jordan_alex',
     type: 'direct',
     members: [
-      { userId: 'user_rahul', role: 'member', joinedAt: now - 1000000 },
+      { userId: 'user_jordan', role: 'member', joinedAt: now - 1000000 },
       { userId: 'user_alex', role: 'member', joinedAt: now - 1000000 },
     ],
-    pinnedForUserIds: ['user_rahul'],
+    pinnedForUserIds: ['user_jordan'],
     createdAt: now - 1000000,
     lastMessageTime: now - 2 * 60 * 1000,
   };
@@ -229,25 +229,25 @@ function getInitialDb(): DbSchema {
     name: 'GB Core Team',
     icon: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80',
     description: 'Official channel for GB Android release coordination, build reviews, and testing.',
-    creatorId: 'user_rahul',
+    creatorId: 'user_jordan',
     communityId: 'comm_gb_ecosystem',
     members: [
-      { userId: 'user_rahul', role: 'admin', joinedAt: now - 800000 },
+      { userId: 'user_jordan', role: 'admin', joinedAt: now - 800000 },
       { userId: 'user_alex', role: 'admin', joinedAt: now - 800000 },
       { userId: 'user_sarah', role: 'member', joinedAt: now - 800000 },
       { userId: 'user_liam', role: 'member', joinedAt: now - 800000 },
       { userId: 'user_kunal', role: 'member', joinedAt: now - 800000 },
     ],
-    pinnedForUserIds: ['user_rahul', 'user_alex'],
+    pinnedForUserIds: ['user_jordan', 'user_alex'],
     createdAt: now - 800000,
     lastMessageTime: now - 10 * 60 * 1000,
   };
 
   const convDirect2 = {
-    id: 'conv_rahul_sarah',
+    id: 'conv_jordan_sarah',
     type: 'direct',
     members: [
-      { userId: 'user_rahul', role: 'member', joinedAt: now - 900000 },
+      { userId: 'user_jordan', role: 'member', joinedAt: now - 900000 },
       { userId: 'user_sarah', role: 'member', joinedAt: now - 900000 },
     ],
     pinnedForUserIds: [],
@@ -256,10 +256,10 @@ function getInitialDb(): DbSchema {
   };
 
   const convDirect3 = {
-    id: 'conv_rahul_kunal',
+    id: 'conv_jordan_kunal',
     type: 'direct',
     members: [
-      { userId: 'user_rahul', role: 'member', joinedAt: now - 700000 },
+      { userId: 'user_jordan', role: 'member', joinedAt: now - 700000 },
       { userId: 'user_kunal', role: 'member', joinedAt: now - 700000 },
     ],
     pinnedForUserIds: [],
@@ -270,36 +270,36 @@ function getInitialDb(): DbSchema {
   const messages = [
     {
       id: 'msg_1',
-      conversationId: 'conv_rahul_alex',
+      conversationId: 'conv_jordan_alex',
       senderId: 'user_alex',
       senderName: 'Alex Rivera',
       senderAvatar: userAlex.avatar,
       text: "Awesome! Let's test the new GB Official chat.",
       type: 'text',
-      reactions: [{ emoji: '🔥', userId: 'user_rahul', userName: 'Rahul Damor' }],
+      reactions: [{ emoji: '🔥', userId: 'user_jordan', userName: 'Jordan Miller' }],
       status: 'read',
-      readBy: [{ userId: 'user_rahul', readAt: now - 1 * 60 * 1000 }],
+      readBy: [{ userId: 'user_jordan', readAt: now - 1 * 60 * 1000 }],
       createdAt: now - 2 * 60 * 1000,
     },
     {
       id: 'msg_2',
-      conversationId: 'conv_rahul_sarah',
+      conversationId: 'conv_jordan_sarah',
       senderId: 'user_sarah',
       senderName: 'Sarah Chen',
       senderAvatar: userSarah.avatar,
       text: "Uploaded the latest profile photo.",
       type: 'text',
-      reactions: [{ emoji: '✨', userId: 'user_rahul', userName: 'Rahul Damor' }],
+      reactions: [{ emoji: '✨', userId: 'user_jordan', userName: 'Jordan Miller' }],
       status: 'read',
-      readBy: [{ userId: 'user_rahul', readAt: now - 10 * 60 * 1000 }],
+      readBy: [{ userId: 'user_jordan', readAt: now - 10 * 60 * 1000 }],
       createdAt: now - 15 * 60 * 1000,
     },
     {
       id: 'msg_3',
       conversationId: 'conv_gb_core',
-      senderId: 'user_rahul',
-      senderName: 'Rahul Damor',
-      senderAvatar: userRahul.avatar,
+      senderId: 'user_jordan',
+      senderName: 'Jordan Miller',
+      senderAvatar: userJordan.avatar,
       text: "Welcome to GB Official.",
       type: 'text',
       reactions: [{ emoji: '❤️', userId: 'user_alex', userName: 'Alex Rivera' }, { emoji: '👏', userId: 'user_kunal', userName: 'Kunal Sharma' }],
@@ -309,10 +309,10 @@ function getInitialDb(): DbSchema {
     },
     {
       id: 'msg_4',
-      conversationId: 'conv_rahul_kunal',
-      senderId: 'user_rahul',
-      senderName: 'Rahul Damor',
-      senderAvatar: userRahul.avatar,
+      conversationId: 'conv_jordan_kunal',
+      senderId: 'user_jordan',
+      senderName: 'Jordan Miller',
+      senderAvatar: userJordan.avatar,
       text: "Are you available?",
       type: 'text',
       reactions: [],
@@ -322,13 +322,13 @@ function getInitialDb(): DbSchema {
     },
     {
       id: 'msg_5',
-      conversationId: 'conv_rahul_kunal',
+      conversationId: 'conv_jordan_kunal',
       senderId: 'user_kunal',
       senderName: 'Kunal Sharma',
       senderAvatar: userKunal.avatar,
       text: "Let's create a group.",
       type: 'text',
-      reactions: [{ emoji: '👍', userId: 'user_rahul', userName: 'Rahul Damor' }],
+      reactions: [{ emoji: '👍', userId: 'user_jordan', userName: 'Jordan Miller' }],
       status: 'delivered',
       readBy: [],
       createdAt: now - 1 * 60 * 1000,
@@ -372,15 +372,15 @@ function getInitialDb(): DbSchema {
       name: 'GB Official Ecosystem',
       description: 'The global community for GB Official messaging users, beta testers, and app architects.',
       icon: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80',
-      creatorId: 'user_rahul',
-      adminIds: ['user_rahul', 'user_alex'],
-      memberIds: ['user_rahul', 'user_alex', 'user_sarah', 'user_liam'],
+      creatorId: 'user_jordan',
+      adminIds: ['user_jordan', 'user_alex'],
+      memberIds: ['user_jordan', 'user_alex', 'user_sarah', 'user_liam'],
       groupIds: ['conv_gb_core'],
       announcements: [
         {
           id: 'ann_1',
-          authorId: 'user_rahul',
-          authorName: 'Rahul Damor',
+          authorId: 'user_jordan',
+          authorName: 'Jordan Miller',
           title: 'Welcome to GB Official 🚀',
           content: 'We are thrilled to launch GB Official! Enjoy ultra-fast encrypted chat, stories, crystal voice calls, and communities.',
           createdAt: now - 24 * 3600 * 1000,
@@ -396,10 +396,10 @@ function getInitialDb(): DbSchema {
       callerId: 'user_alex',
       callerName: 'Alex Rivera',
       callerAvatar: userAlex.avatar,
-      receiverId: 'user_rahul',
-      receiverName: 'Rahul Damor',
-      receiverAvatar: userRahul.avatar,
-      conversationId: 'conv_rahul_alex',
+      receiverId: 'user_jordan',
+      receiverName: 'Jordan Miller',
+      receiverAvatar: userJordan.avatar,
+      conversationId: 'conv_jordan_alex',
       type: 'video',
       status: 'completed',
       startedAt: now - 2 * 3600 * 1000,
@@ -408,13 +408,13 @@ function getInitialDb(): DbSchema {
     },
     {
       id: 'call_2',
-      callerId: 'user_rahul',
-      callerName: 'Rahul Damor',
-      callerAvatar: userRahul.avatar,
+      callerId: 'user_jordan',
+      callerName: 'Jordan Miller',
+      callerAvatar: userJordan.avatar,
       receiverId: 'user_sarah',
       receiverName: 'Sarah Chen',
       receiverAvatar: userSarah.avatar,
-      conversationId: 'conv_rahul_sarah',
+      conversationId: 'conv_jordan_sarah',
       type: 'voice',
       status: 'completed',
       startedAt: now - 5 * 3600 * 1000,
@@ -426,10 +426,10 @@ function getInitialDb(): DbSchema {
   const posts = [
     {
       id: 'post_1',
-      authorId: 'user_rahul',
-      authorName: 'Rahul Damor',
-      authorUsername: 'rahul_gb',
-      authorAvatar: userRahul.avatar,
+      authorId: 'user_jordan',
+      authorName: 'Jordan Miller',
+      authorUsername: 'jordan_gb',
+      authorAvatar: userJordan.avatar,
       authorVerified: true,
       content: '🚀 Excited to announce the official release of GB Official! Featuring native Android UI density, end-to-end messaging, 24-hour disappearing status stories, low-latency audio/video calls, and dedicated Channels! Built with high-contrast Material ergonomics.',
       mediaUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80',
@@ -439,7 +439,7 @@ function getInitialDb(): DbSchema {
         question: 'Which GB Official feature are you most excited to use today?',
         options: [
           { id: 'opt_1', text: 'HD Voice & Video Calls', votes: ['user_alex', 'user_liam'] },
-          { id: 'opt_2', text: 'Broadcast Channels & Feed', votes: ['user_rahul', 'user_sarah'] },
+          { id: 'opt_2', text: 'Broadcast Channels & Feed', votes: ['user_jordan', 'user_sarah'] },
           { id: 'opt_3', text: '24h Stories & Status Updates', votes: ['user_kunal'] },
           { id: 'opt_4', text: 'Privacy Controls & Security', votes: [] },
         ],
@@ -483,7 +483,7 @@ function getInitialDb(): DbSchema {
       mediaUrl: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&auto=format&fit=crop&q=80',
       mediaType: 'image',
       tags: ['DesignSystem', 'UIUX', 'Material'],
-      likes: ['user_rahul', 'user_alex'],
+      likes: ['user_jordan', 'user_alex'],
       comments: [],
       sharesCount: 7,
       savedByUserIds: [],
@@ -498,7 +498,7 @@ function getInitialDb(): DbSchema {
       authorVerified: true,
       content: 'Android 14 predictive back navigation, system dark mode harmonization, and adaptive haptics are fully integrated in GB Official.',
       tags: ['Android14', 'Tech', 'Performance'],
-      likes: ['user_rahul', 'user_kunal'],
+      likes: ['user_jordan', 'user_kunal'],
       comments: [],
       sharesCount: 4,
       savedByUserIds: [],
@@ -514,17 +514,17 @@ function getInitialDb(): DbSchema {
       description: 'The official channel for product updates, security advisories, and feature releases from the GB Official team.',
       icon: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80',
       banner: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&auto=format&fit=crop&q=80',
-      ownerId: 'user_rahul',
+      ownerId: 'user_jordan',
       moderatorIds: ['user_sarah', 'user_alex'],
-      subscriberIds: ['user_rahul', 'user_alex', 'user_sarah', 'user_liam', 'user_kunal'],
+      subscriberIds: ['user_jordan', 'user_alex', 'user_sarah', 'user_liam', 'user_kunal'],
       isVerified: true,
       category: 'Technology',
       posts: [
         {
           id: 'cpost_1',
           channelId: 'chan_gb_announcements',
-          authorId: 'user_rahul',
-          authorName: 'Rahul Damor',
+          authorId: 'user_jordan',
+          authorName: 'Jordan Miller',
           text: '📢 Welcome to the GB Official Channel! Subscribe here for release notes, beta APK test flights, and direct updates from our engineering team.',
           mediaUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80',
           mediaType: 'image',
@@ -538,7 +538,7 @@ function getInitialDb(): DbSchema {
             totalVotes: 4,
           },
           reactions: [
-            { emoji: '🔥', count: 12, users: ['user_rahul', 'user_alex'] },
+            { emoji: '🔥', count: 12, users: ['user_jordan', 'user_alex'] },
             { emoji: '🎉', count: 8, users: ['user_sarah'] },
             { emoji: '❤️', count: 6, users: ['user_kunal'] },
           ],
@@ -556,8 +556,8 @@ function getInitialDb(): DbSchema {
       description: 'High-performance Android development, WebSockets, WebRTC protocols, and memory optimization discussions.',
       icon: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=150&auto=format&fit=crop&q=80',
       ownerId: 'user_alex',
-      moderatorIds: ['user_rahul'],
-      subscriberIds: ['user_alex', 'user_rahul', 'user_kunal'],
+      moderatorIds: ['user_jordan'],
+      subscriberIds: ['user_alex', 'user_jordan', 'user_kunal'],
       isVerified: true,
       category: 'Development',
       posts: [
@@ -567,7 +567,7 @@ function getInitialDb(): DbSchema {
           authorId: 'user_alex',
           authorName: 'Alex Rivera',
           text: '💡 WebRTC STUN/TURN ICE candidates benchmarked under 2G/3G conditions. Zero dropped packets during cellular network handover!',
-          reactions: [{ emoji: '🚀', count: 5, users: ['user_rahul'] }],
+          reactions: [{ emoji: '🚀', count: 5, users: ['user_jordan'] }],
           viewsCount: 72,
           isPinned: false,
           createdAt: now - 14 * 3600 * 1000,
@@ -578,13 +578,13 @@ function getInitialDb(): DbSchema {
   ];
 
   const followers = [
-    { followerId: 'user_alex', followingId: 'user_rahul', createdAt: now - 100000 },
-    { followerId: 'user_sarah', followingId: 'user_rahul', createdAt: now - 90000 },
-    { followerId: 'user_liam', followingId: 'user_rahul', createdAt: now - 80000 },
-    { followerId: 'user_kunal', followingId: 'user_rahul', createdAt: now - 70000 },
-    { followerId: 'user_rahul', followingId: 'user_alex', createdAt: now - 60000 },
-    { followerId: 'user_rahul', followingId: 'user_sarah', createdAt: now - 50000 },
-    { followerId: 'user_rahul', followingId: 'user_kunal', createdAt: now - 40000 },
+    { followerId: 'user_alex', followingId: 'user_jordan', createdAt: now - 100000 },
+    { followerId: 'user_sarah', followingId: 'user_jordan', createdAt: now - 90000 },
+    { followerId: 'user_liam', followingId: 'user_jordan', createdAt: now - 80000 },
+    { followerId: 'user_kunal', followingId: 'user_jordan', createdAt: now - 70000 },
+    { followerId: 'user_jordan', followingId: 'user_alex', createdAt: now - 60000 },
+    { followerId: 'user_jordan', followingId: 'user_sarah', createdAt: now - 50000 },
+    { followerId: 'user_jordan', followingId: 'user_kunal', createdAt: now - 40000 },
   ];
 
   const follow_requests = [
@@ -616,11 +616,11 @@ function getInitialDb(): DbSchema {
     },
     {
       id: 'vreq_2',
-      userId: 'user_rahul',
-      userName: 'Rahul Damor',
-      userUsername: 'rahul_gb',
-      userAvatar: userRahul.avatar,
-      fullName: 'Rahul Damor',
+      userId: 'user_jordan',
+      userName: 'Jordan Miller',
+      userUsername: 'jordan_gb',
+      userAvatar: userJordan.avatar,
+      fullName: 'Jordan Miller',
       category: 'Software Engineering & Executive',
       documentType: 'Passport & Corporate Identity',
       businessOrIdentityInfo: 'Core Platform Architect & Verified Founding Developer at GB Official.',
@@ -640,8 +640,8 @@ function getInitialDb(): DbSchema {
       currency: 'USD',
       category: 'Accessories',
       image: 'https://images.unsplash.com/photo-1601784551446-20c9e07cdbdb?w=500&auto=format&fit=crop&q=80',
-      sellerId: 'user_rahul',
-      sellerName: 'Rahul Damor (GB Official)',
+      sellerId: 'user_jordan',
+      sellerName: 'Jordan Miller (GB Official)',
       sellerVerified: true,
       inStock: true,
       stockCount: 42,
@@ -676,8 +676,8 @@ function getInitialDb(): DbSchema {
       currency: 'USD',
       category: 'Accessories',
       image: 'https://images.unsplash.com/photo-1622445262464-84b1456045b6?w=500&auto=format&fit=crop&q=80',
-      sellerId: 'user_rahul',
-      sellerName: 'Rahul Damor (GB Official)',
+      sellerId: 'user_jordan',
+      sellerName: 'Jordan Miller (GB Official)',
       sellerVerified: true,
       inStock: true,
       stockCount: 30,
@@ -712,8 +712,8 @@ function getInitialDb(): DbSchema {
       currency: 'USD',
       category: 'Merchandise',
       image: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=500&auto=format&fit=crop&q=80',
-      sellerId: 'user_rahul',
-      sellerName: 'Rahul Damor (GB Official)',
+      sellerId: 'user_jordan',
+      sellerName: 'Jordan Miller (GB Official)',
       sellerVerified: true,
       inStock: true,
       stockCount: 50,
@@ -745,7 +745,7 @@ function getInitialDb(): DbSchema {
   const devices = [
     {
       id: 'dev_1',
-      userId: 'user_rahul',
+      userId: 'user_jordan',
       name: 'Google Pixel 8 Pro (Active)',
       platform: 'Android',
       browserOrClient: 'GB Official Android Native v3.4',
@@ -756,7 +756,7 @@ function getInitialDb(): DbSchema {
     },
     {
       id: 'dev_2',
-      userId: 'user_rahul',
+      userId: 'user_jordan',
       name: 'MacBook Pro 16" (M3 Max)',
       platform: 'macOS',
       browserOrClient: 'GB Web Client (Chrome 124)',
@@ -767,7 +767,7 @@ function getInitialDb(): DbSchema {
     },
     {
       id: 'dev_3',
-      userId: 'user_rahul',
+      userId: 'user_jordan',
       name: 'Pixel Tablet Workspace Dock',
       platform: 'Android',
       browserOrClient: 'GB Tablet Companion',
@@ -781,7 +781,7 @@ function getInitialDb(): DbSchema {
   const payment_methods = [
     {
       id: 'pm_1',
-      userId: 'user_rahul',
+      userId: 'user_jordan',
       type: 'card',
       last4: '4242',
       brand: 'Visa',
@@ -794,7 +794,7 @@ function getInitialDb(): DbSchema {
   const transactions = [
     {
       id: 'tx_1',
-      userId: 'user_rahul',
+      userId: 'user_jordan',
       type: 'subscription',
       amount: 4.99,
       currency: 'USD',
@@ -804,7 +804,7 @@ function getInitialDb(): DbSchema {
     },
     {
       id: 'tx_2',
-      userId: 'user_rahul',
+      userId: 'user_jordan',
       type: 'shop_purchase',
       amount: 24.99,
       currency: 'USD',
@@ -815,7 +815,7 @@ function getInitialDb(): DbSchema {
   ];
 
   const subscriptions: Record<string, any> = {
-    user_rahul: {
+    user_jordan: {
       plan: 'pro',
       status: 'active',
       pricePerMonth: 4.99,
@@ -846,7 +846,7 @@ function getInitialDb(): DbSchema {
   const custom_lists = [
     {
       id: 'list_1',
-      userId: 'user_rahul',
+      userId: 'user_jordan',
       name: 'Core Engineering',
       icon: 'code',
       userIds: ['user_alex', 'user_kunal', 'user_liam'],
@@ -854,7 +854,7 @@ function getInitialDb(): DbSchema {
     },
     {
       id: 'list_2',
-      userId: 'user_rahul',
+      userId: 'user_jordan',
       name: 'Design & UX',
       icon: 'palette',
       userIds: ['user_sarah'],
@@ -865,7 +865,7 @@ function getInitialDb(): DbSchema {
   const broadcast_lists = [
     {
       id: 'bcast_1',
-      userId: 'user_rahul',
+      userId: 'user_jordan',
       name: 'All GB Team Members',
       recipientIds: ['user_alex', 'user_sarah', 'user_liam', 'user_kunal'],
       createdAt: now - 12 * 86400000,
@@ -875,8 +875,8 @@ function getInitialDb(): DbSchema {
   const shop_orders = [
     {
       id: 'ord_1001',
-      userId: 'user_rahul',
-      userName: 'Rahul Damor',
+      userId: 'user_jordan',
+      userName: 'Jordan Miller',
       items: [
         {
           productId: 'prod_1',
@@ -891,7 +891,7 @@ function getInitialDb(): DbSchema {
       total: 24.99,
       status: 'delivered',
       shippingAddress: {
-        fullName: 'Rahul Damor',
+        fullName: 'Jordan Miller',
         address: '144 GB Innovation Park, Sector 5',
         city: 'Silicon City',
         postalCode: '94016',
@@ -909,7 +909,7 @@ function getInitialDb(): DbSchema {
       id: 'loc_1',
       userId: 'user_alex',
       userName: 'Alex Rivera',
-      conversationId: 'conv_rahul_alex',
+      conversationId: 'conv_jordan_alex',
       latitude: 37.7749,
       longitude: -122.4194,
       address: 'Market St & 4th, San Francisco, CA',
@@ -922,7 +922,7 @@ function getInitialDb(): DbSchema {
   ];
 
   return {
-    users: [userRahul, userAlex, userSarah, userLiam, userKunal],
+    users: [userJordan, userAlex, userSarah, userLiam, userKunal],
     conversations: [convDirect1, convGroup1, convDirect2, convDirect3],
     messages,
     statuses,
@@ -973,9 +973,9 @@ function syncSeedData(currentDb: DbSchema): DbSchema {
     currentDb.conversations.push(initial.conversations.find((c) => c.id === 'conv_gb_core'));
   }
 
-  // Ensure conv_rahul_kunal exists
-  if (!currentDb.conversations.find((c) => c.id === 'conv_rahul_kunal')) {
-    const kunalConv = initial.conversations.find((c) => c.id === 'conv_rahul_kunal');
+  // Ensure conv_jordan_kunal exists
+  if (!currentDb.conversations.find((c) => c.id === 'conv_jordan_kunal')) {
+    const kunalConv = initial.conversations.find((c) => c.id === 'conv_jordan_kunal');
     if (kunalConv) currentDb.conversations.push(kunalConv);
   }
 
@@ -983,35 +983,35 @@ function syncSeedData(currentDb: DbSchema): DbSchema {
   const reqMessages = [
     {
       id: 'msg_1',
-      conversationId: 'conv_rahul_alex',
+      conversationId: 'conv_jordan_alex',
       senderId: 'user_alex',
       senderName: 'Alex Rivera',
       senderAvatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80',
       text: "Awesome! Let's test the new GB Official chat.",
       type: 'text',
-      reactions: [{ emoji: '🔥', userId: 'user_rahul', userName: 'Rahul Damor' }],
+      reactions: [{ emoji: '🔥', userId: 'user_jordan', userName: 'Jordan Miller' }],
       status: 'read',
-      readBy: [{ userId: 'user_rahul', readAt: Date.now() - 60000 }],
+      readBy: [{ userId: 'user_jordan', readAt: Date.now() - 60000 }],
       createdAt: Date.now() - 2 * 60 * 1000,
     },
     {
       id: 'msg_2',
-      conversationId: 'conv_rahul_sarah',
+      conversationId: 'conv_jordan_sarah',
       senderId: 'user_sarah',
       senderName: 'Sarah Chen',
       senderAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
       text: "Uploaded the latest profile photo.",
       type: 'text',
-      reactions: [{ emoji: '✨', userId: 'user_rahul', userName: 'Rahul Damor' }],
+      reactions: [{ emoji: '✨', userId: 'user_jordan', userName: 'Jordan Miller' }],
       status: 'read',
-      readBy: [{ userId: 'user_rahul', readAt: Date.now() - 10 * 60 * 1000 }],
+      readBy: [{ userId: 'user_jordan', readAt: Date.now() - 10 * 60 * 1000 }],
       createdAt: Date.now() - 15 * 60 * 1000,
     },
     {
       id: 'msg_3',
       conversationId: 'conv_gb_core',
-      senderId: 'user_rahul',
-      senderName: 'Rahul Damor',
+      senderId: 'user_jordan',
+      senderName: 'Jordan Miller',
       senderAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
       text: "Welcome to GB Official.",
       type: 'text',
@@ -1022,9 +1022,9 @@ function syncSeedData(currentDb: DbSchema): DbSchema {
     },
     {
       id: 'msg_4',
-      conversationId: 'conv_rahul_kunal',
-      senderId: 'user_rahul',
-      senderName: 'Rahul Damor',
+      conversationId: 'conv_jordan_kunal',
+      senderId: 'user_jordan',
+      senderName: 'Jordan Miller',
       senderAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
       text: "Are you available?",
       type: 'text',
@@ -1035,13 +1035,13 @@ function syncSeedData(currentDb: DbSchema): DbSchema {
     },
     {
       id: 'msg_5',
-      conversationId: 'conv_rahul_kunal',
+      conversationId: 'conv_jordan_kunal',
       senderId: 'user_kunal',
       senderName: 'Kunal Sharma',
       senderAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
       text: "Let's create a group.",
       type: 'text',
-      reactions: [{ emoji: '👍', userId: 'user_rahul', userName: 'Rahul Damor' }],
+      reactions: [{ emoji: '👍', userId: 'user_jordan', userName: 'Jordan Miller' }],
       status: 'delivered',
       readBy: [],
       createdAt: Date.now() - 1 * 60 * 1000,
@@ -1545,7 +1545,7 @@ app.post('/api/conversations/:id/pin', (req, res) => {
 // Development Seed Conversations API (as requested in Section 8)
 app.post('/api/dev/seed-conversations', (req, res) => {
   const user = authenticate(req);
-  const targetUserId = (req.body && req.body.userId) || user?.id || 'user_rahul';
+  const targetUserId = (req.body && req.body.userId) || user?.id || 'user_jordan';
   const targetUser = db.users.find((u) => u.id === targetUserId);
   if (!targetUser) {
     res.status(404).json({ error: 'User not found' });
@@ -1578,10 +1578,10 @@ app.post('/api/dev/seed-conversations', (req, res) => {
     },
   ];
 
-  if (targetUserId !== 'user_rahul') {
+  if (targetUserId !== 'user_jordan') {
     seedTargets.push({
-      id: 'user_rahul',
-      name: 'Rahul Damor',
+      id: 'user_jordan',
+      name: 'Jordan Miller',
       avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
       text: "Are you available?",
       timeOffset: 5 * 60 * 1000,
@@ -1598,16 +1598,16 @@ app.post('/api/dev/seed-conversations', (req, res) => {
       name: 'GB Core Team',
       icon: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80',
       description: 'Official channel for GB Android release coordination, build reviews, and testing.',
-      creatorId: 'user_rahul',
+      creatorId: 'user_jordan',
       communityId: 'comm_gb_ecosystem',
       members: [
-        { userId: 'user_rahul', role: 'admin', joinedAt: now - 800000 },
+        { userId: 'user_jordan', role: 'admin', joinedAt: now - 800000 },
         { userId: 'user_alex', role: 'admin', joinedAt: now - 800000 },
         { userId: 'user_sarah', role: 'member', joinedAt: now - 800000 },
         { userId: 'user_liam', role: 'member', joinedAt: now - 800000 },
         { userId: 'user_kunal', role: 'member', joinedAt: now - 800000 },
       ],
-      pinnedForUserIds: ['user_rahul'],
+      pinnedForUserIds: ['user_jordan'],
       createdAt: now - 800000,
       lastMessageTime: now - 10 * 60 * 1000,
     };
@@ -1622,8 +1622,8 @@ app.post('/api/dev/seed-conversations', (req, res) => {
     db.messages.push({
       id: 'msg_seed_gb_core_' + Date.now(),
       conversationId: 'conv_gb_core',
-      senderId: 'user_rahul',
-      senderName: 'Rahul Damor',
+      senderId: 'user_jordan',
+      senderName: 'Jordan Miller',
       senderAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
       text: "Welcome to GB Official.",
       type: 'text',
@@ -1825,6 +1825,62 @@ app.post('/api/messages/:id/react', (req, res) => {
   }
 
   res.json({ reactions: msg.reactions });
+});
+
+app.post('/api/messages/:id/poll-vote', (req, res) => {
+  const user = authenticate(req);
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  const { optionId } = req.body;
+  const msg = db.messages.find((m) => m.id === req.params.id);
+  if (!msg) {
+    res.status(404).json({ error: 'Message not found' });
+    return;
+  }
+
+  const pollData = msg.poll || (msg.attachment && msg.attachment.poll);
+  if (!pollData || !Array.isArray(pollData.options)) {
+    res.status(400).json({ error: 'No poll attached to this message' });
+    return;
+  }
+
+  // Toggle vote or add vote
+  pollData.options.forEach((opt: any) => {
+    opt.votes = opt.votes || [];
+    const idx = opt.votes.indexOf(user.id);
+    if (opt.id === optionId) {
+      if (idx > -1) {
+        opt.votes.splice(idx, 1);
+      } else {
+        opt.votes.push(user.id);
+      }
+    } else if (!pollData.allowMultiple) {
+      // Remove from other options if multiple choice is disabled
+      if (idx > -1) opt.votes.splice(idx, 1);
+    }
+  });
+
+  pollData.totalVotes = pollData.options.reduce((acc: number, o: any) => acc + (o.votes?.length || 0), 0);
+  if (msg.attachment && msg.attachment.poll) {
+    msg.attachment.poll = pollData;
+  }
+  msg.poll = pollData;
+  saveDb(db);
+
+  const conv = db.conversations.find((c) => c.id === msg.conversationId);
+  if (conv) {
+    const memberIds = conv.members.map((m: any) => m.userId);
+    broadcastToUsers(memberIds, 'poll_vote', {
+      messageId: msg.id,
+      conversationId: msg.conversationId,
+      poll: pollData,
+    });
+  }
+
+  res.json({ poll: pollData, message: msg });
 });
 
 app.post('/api/messages/:id/edit', (req, res) => {
@@ -3030,6 +3086,42 @@ app.post('/api/follow-requests/:id/respond', (req, res) => {
 
   saveDb(db);
   res.json({ success: true, action });
+});
+
+app.get('/api/users/:id/followers', (req, res) => {
+  const targetId = req.params.id;
+  db.followers = db.followers || [];
+  const followerEdges = db.followers.filter((f) => f.followingId === targetId);
+  const followerUsers = followerEdges
+    .map((e) => db.users.find((u) => u.id === e.followerId))
+    .filter(Boolean)
+    .map((u) => ({
+      id: u!.id,
+      displayName: u!.displayName,
+      username: u!.username,
+      avatar: u!.avatar,
+      bio: u!.bio,
+      isVerified: !!u!.isVerified,
+    }));
+  res.json({ followers: followerUsers });
+});
+
+app.get('/api/users/:id/following', (req, res) => {
+  const targetId = req.params.id;
+  db.followers = db.followers || [];
+  const followingEdges = db.followers.filter((f) => f.followerId === targetId);
+  const followingUsers = followingEdges
+    .map((e) => db.users.find((u) => u.id === e.followingId))
+    .filter(Boolean)
+    .map((u) => ({
+      id: u!.id,
+      displayName: u!.displayName,
+      username: u!.username,
+      avatar: u!.avatar,
+      bio: u!.bio,
+      isVerified: !!u!.isVerified,
+    }));
+  res.json({ following: followingUsers });
 });
 
 app.post('/api/users/:id/mute', (req, res) => {
@@ -4374,10 +4466,10 @@ function runAutomatedTestSuite() {
 
   // 2. Login
   try {
-    const rahul = db.users.find((u) => u.id === 'user_rahul');
-    const token = generateToken(rahul!.id);
+    const jordan = db.users.find((u) => u.id === 'user_jordan');
+    const token = generateToken(jordan!.id);
     const resolvedUserId = activeSessions.get(token);
-    if (resolvedUserId === 'user_rahul' && token.startsWith('gb_tok_')) {
+    if (resolvedUserId === 'user_jordan' && token.startsWith('gb_tok_')) {
       testResults.push({
         id: 2,
         name: 'Login & Session Token Issuance',
@@ -4394,7 +4486,7 @@ function runAutomatedTestSuite() {
   // 3. Logout
   try {
     const tempToken = 'gb_tok_test_logout_' + Date.now();
-    activeSessions.set(tempToken, 'user_rahul');
+    activeSessions.set(tempToken, 'user_jordan');
     activeSessions.delete(tempToken);
     const isRevoked = !activeSessions.has(tempToken);
     if (isRevoked) {
@@ -4415,16 +4507,16 @@ function runAutomatedTestSuite() {
   try {
     db.followers = db.followers || [];
     const testF = 'test_usr_follower';
-    if (!db.followers.some((f) => f.followerId === testF && f.followingId === 'user_rahul')) {
-      db.followers.push({ followerId: testF, followingId: 'user_rahul', createdAt: Date.now() });
+    if (!db.followers.some((f) => f.followerId === testF && f.followingId === 'user_jordan')) {
+      db.followers.push({ followerId: testF, followingId: 'user_jordan', createdAt: Date.now() });
     }
-    const hasFollow = db.followers.some((f) => f.followerId === testF && f.followingId === 'user_rahul');
+    const hasFollow = db.followers.some((f) => f.followerId === testF && f.followingId === 'user_jordan');
     if (hasFollow) {
       testResults.push({
         id: 4,
         name: 'Follow Relationship & Counter Sync',
         status: 'PASS',
-        details: `Follower edge recorded. Followers count: ${db.followers.filter((f) => f.followingId === 'user_rahul').length}`,
+        details: `Follower edge recorded. Followers count: ${db.followers.filter((f) => f.followingId === 'user_jordan').length}`,
       });
     } else {
       testResults.push({ id: 4, name: 'Follow', status: 'FAIL', details: 'Follow relationship not stored' });
@@ -4453,13 +4545,13 @@ function runAutomatedTestSuite() {
 
   // 6. Profile View
   try {
-    const rahul = db.users.find((u) => u.id === 'user_rahul');
-    if (rahul && rahul.displayName && rahul.privacySettings) {
+    const jordan = db.users.find((u) => u.id === 'user_jordan');
+    if (jordan && jordan.displayName && jordan.privacySettings) {
       testResults.push({
         id: 6,
         name: 'Profile View & Privacy Policy Enclosure',
         status: 'PASS',
-        details: `Profile: ${rahul.displayName} (@${rahul.username}), ReadReceipts: ${rahul.privacySettings.readReceipts}`,
+        details: `Profile: ${jordan.displayName} (@${jordan.username}), ReadReceipts: ${jordan.privacySettings.readReceipts}`,
       });
     } else {
       testResults.push({ id: 6, name: 'Profile View', status: 'FAIL', details: 'Profile invalid' });
@@ -4487,12 +4579,12 @@ function runAutomatedTestSuite() {
 
   // 8. Block
   try {
-    const rahul = db.users.find((u) => u.id === 'user_rahul');
-    if (rahul) {
-      const prev = [...(rahul.blockedUserIds || [])];
-      rahul.blockedUserIds = [...prev, 'usr_test_blocked'];
-      const ok = rahul.blockedUserIds.includes('usr_test_blocked');
-      rahul.blockedUserIds = prev;
+    const jordan = db.users.find((u) => u.id === 'user_jordan');
+    if (jordan) {
+      const prev = [...(jordan.blockedUserIds || [])];
+      jordan.blockedUserIds = [...prev, 'usr_test_blocked'];
+      const ok = jordan.blockedUserIds.includes('usr_test_blocked');
+      jordan.blockedUserIds = prev;
       if (ok) {
         testResults.push({
           id: 8,
@@ -4512,10 +4604,10 @@ function runAutomatedTestSuite() {
 
   // 9. Mute
   try {
-    const rahul = db.users.find((u) => u.id === 'user_rahul');
-    if (rahul) {
-      rahul.mutedUserIds = rahul.mutedUserIds || [];
-      const isMuted = rahul.mutedUserIds.includes('user_alex');
+    const jordan = db.users.find((u) => u.id === 'user_jordan');
+    if (jordan) {
+      jordan.mutedUserIds = jordan.mutedUserIds || [];
+      const isMuted = jordan.mutedUserIds.includes('user_alex');
       testResults.push({
         id: 9,
         name: 'Mute Notifications & Bell Suppression',
@@ -4531,9 +4623,9 @@ function runAutomatedTestSuite() {
 
   // 10. Restrict
   try {
-    const rahul = db.users.find((u) => u.id === 'user_rahul');
-    if (rahul) {
-      rahul.restrictedUserIds = rahul.restrictedUserIds || [];
+    const jordan = db.users.find((u) => u.id === 'user_jordan');
+    if (jordan) {
+      jordan.restrictedUserIds = jordan.restrictedUserIds || [];
       testResults.push({
         id: 10,
         name: 'Restrict User & Shadow Privacy Enforcement',
@@ -4569,7 +4661,7 @@ function runAutomatedTestSuite() {
 
   // 12. Direct Chat
   try {
-    const conv = db.conversations.find((c) => c.id === 'conv_rahul_alex');
+    const conv = db.conversations.find((c) => c.id === 'conv_jordan_alex');
     if (conv && conv.members.length === 2) {
       testResults.push({
         id: 12,
@@ -4800,13 +4892,13 @@ function runAutomatedTestSuite() {
   // 26. Subscription Management
   try {
     const subs = db.subscriptions || {};
-    const rahulSub = subs['user_rahul'];
-    if (rahulSub && rahulSub.plan === 'pro') {
+    const jordanSub = subs['user_jordan'];
+    if (jordanSub && jordanSub.plan === 'pro') {
       testResults.push({
         id: 26,
         name: 'Subscription Tier Engine (Free / Pro / Business)',
         status: 'PASS',
-        details: `Active subscription verified: Tier "${rahulSub.plan.toUpperCase()}" with renewal date and feature entitlement matrix.`,
+        details: `Active subscription verified: Tier "${jordanSub.plan.toUpperCase()}" with renewal date and feature entitlement matrix.`,
       });
     } else {
       testResults.push({ id: 26, name: 'Subscription Management', status: 'FAIL', details: 'Subscription missing' });
@@ -4829,7 +4921,7 @@ function runAutomatedTestSuite() {
 
   // 28. Linked Devices
   try {
-    const devs = (db.devices || []).filter((d) => d.userId === 'user_rahul');
+    const devs = (db.devices || []).filter((d) => d.userId === 'user_jordan');
     if (devs.length > 0) {
       testResults.push({
         id: 28,
@@ -4846,8 +4938,8 @@ function runAutomatedTestSuite() {
 
   // 29. Data Backup / Export
   try {
-    const rahul = db.users.find((u) => u.id === 'user_rahul');
-    if (rahul) {
+    const jordan = db.users.find((u) => u.id === 'user_jordan');
+    if (jordan) {
       testResults.push({
         id: 29,
         name: 'Data Backup & Cryptographic Account JSON Export',

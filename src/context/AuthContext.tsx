@@ -82,7 +82,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const autoRes = await fetch('/api/auth/switch-account', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ userId: 'user_rahul' }),
+              body: JSON.stringify({ userId: 'user_jordan' }),
             });
             if (autoRes.ok) {
               const data = await autoRes.json();
@@ -95,12 +95,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }
       } else {
-        // Automatically default to Rahul Damor for instantaneous demo review if no session
+        // Automatically default to primary user session if no session
         try {
           const autoRes = await fetch('/api/auth/switch-account', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: 'user_rahul' }),
+            body: JSON.stringify({ userId: 'user_jordan' }),
           });
           if (autoRes.ok) {
             const data = await autoRes.json();

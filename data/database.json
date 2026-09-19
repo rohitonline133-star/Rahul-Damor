@@ -1,16 +1,16 @@
 {
   "users": [
     {
-      "id": "user_rahul",
-      "username": "rahul_gb",
-      "displayName": "Rahul Damor",
-      "email": "rahuldamor07575@gmail.com",
+      "id": "user_jordan",
+      "username": "jordan_gb",
+      "displayName": "Jordan Miller",
+      "email": "jordan@gbofficial.app",
       "passwordHash": "f0c8b3e082baff22c47f5ad9f8f8076e41f53c5e919363abad03bd264231cf2df7133fe23c9378d150d8565557d03cfd15f6a469de677f8e9c8b5cb5c1300006",
       "salt": "83cccbd75a7e782a8320a48290e43fc5",
       "avatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
       "bio": "Lead Engineer @ GB Official • Building next-gen mobile communications 🚀",
-      "online": false,
-      "lastSeen": 1789803746764,
+      "online": true,
+      "lastSeen": 1789813751175,
       "createdAt": 1787209961029,
       "isVerified": true,
       "privacySettings": {
@@ -113,11 +113,11 @@
   ],
   "conversations": [
     {
-      "id": "conv_rahul_alex",
+      "id": "conv_jordan_alex",
       "type": "direct",
       "members": [
         {
-          "userId": "user_rahul",
+          "userId": "user_jordan",
           "role": "member",
           "joinedAt": 1789800961029
         },
@@ -128,7 +128,7 @@
         }
       ],
       "pinnedForUserIds": [
-        "user_rahul"
+        "user_jordan"
       ],
       "createdAt": 1789800961029,
       "lastMessageTime": 1789802604753
@@ -139,11 +139,11 @@
       "name": "GB Core Team",
       "icon": "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80",
       "description": "Official channel for GB Android release coordination, build reviews, and testing.",
-      "creatorId": "user_rahul",
+      "creatorId": "user_jordan",
       "communityId": "comm_gb_ecosystem",
       "members": [
         {
-          "userId": "user_rahul",
+          "userId": "user_jordan",
           "role": "admin",
           "joinedAt": 1789801161029
         },
@@ -169,18 +169,18 @@
         }
       ],
       "pinnedForUserIds": [
-        "user_rahul",
+        "user_jordan",
         "user_alex"
       ],
       "createdAt": 1789801161029,
       "lastMessageTime": 1789801241029
     },
     {
-      "id": "conv_rahul_sarah",
+      "id": "conv_jordan_sarah",
       "type": "direct",
       "members": [
         {
-          "userId": "user_rahul",
+          "userId": "user_jordan",
           "role": "member",
           "joinedAt": 1789801061029
         },
@@ -195,11 +195,11 @@
       "lastMessageTime": 1789799261029
     },
     {
-      "id": "conv_rahul_kunal",
+      "id": "conv_jordan_kunal",
       "type": "direct",
       "members": [
         {
-          "userId": "user_rahul",
+          "userId": "user_jordan",
           "role": "member",
           "joinedAt": 1789802441013
         },
@@ -217,7 +217,7 @@
   "messages": [
     {
       "id": "msg_1",
-      "conversationId": "conv_rahul_alex",
+      "conversationId": "conv_jordan_alex",
       "senderId": "user_alex",
       "senderName": "Alex Rivera",
       "senderAvatar": "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80",
@@ -226,22 +226,22 @@
       "reactions": [
         {
           "emoji": "🔥",
-          "userId": "user_rahul",
-          "userName": "Rahul Damor"
+          "userId": "user_jordan",
+          "userName": "Jordan Miller"
         }
       ],
       "status": "read",
       "readBy": [
         {
-          "userId": "user_rahul",
-          "readAt": 1789803376039
+          "userId": "user_jordan",
+          "readAt": 1789813327273
         }
       ],
-      "createdAt": 1789803316039
+      "createdAt": 1789813267273
     },
     {
       "id": "msg_2",
-      "conversationId": "conv_rahul_sarah",
+      "conversationId": "conv_jordan_sarah",
       "senderId": "user_sarah",
       "senderName": "Sarah Chen",
       "senderAvatar": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80",
@@ -250,24 +250,24 @@
       "reactions": [
         {
           "emoji": "✨",
-          "userId": "user_rahul",
-          "userName": "Rahul Damor"
+          "userId": "user_jordan",
+          "userName": "Jordan Miller"
         }
       ],
       "status": "read",
       "readBy": [
         {
-          "userId": "user_rahul",
-          "readAt": 1789802836039
+          "userId": "user_jordan",
+          "readAt": 1789812787273
         }
       ],
-      "createdAt": 1789802536039
+      "createdAt": 1789812487273
     },
     {
       "id": "msg_3",
       "conversationId": "conv_gb_core",
-      "senderId": "user_rahul",
-      "senderName": "Rahul Damor",
+      "senderId": "user_jordan",
+      "senderName": "Jordan Miller",
       "senderAvatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
       "text": "Welcome to GB Official.",
       "type": "text",
@@ -287,16 +287,16 @@
       "readBy": [
         {
           "userId": "user_alex",
-          "readAt": 1789803136039
+          "readAt": 1789813087273
         }
       ],
-      "createdAt": 1789802836039
+      "createdAt": 1789812787273
     },
     {
       "id": "msg_4",
-      "conversationId": "conv_rahul_kunal",
-      "senderId": "user_rahul",
-      "senderName": "Rahul Damor",
+      "conversationId": "conv_jordan_kunal",
+      "senderId": "user_jordan",
+      "senderName": "Jordan Miller",
       "senderAvatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
       "text": "Are you available?",
       "type": "text",
@@ -305,14 +305,14 @@
       "readBy": [
         {
           "userId": "user_kunal",
-          "readAt": 1789803316039
+          "readAt": 1789813267274
         }
       ],
-      "createdAt": 1789803256039
+      "createdAt": 1789813207274
     },
     {
       "id": "msg_5",
-      "conversationId": "conv_rahul_kunal",
+      "conversationId": "conv_jordan_kunal",
       "senderId": "user_kunal",
       "senderName": "Kunal Sharma",
       "senderAvatar": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
@@ -321,19 +321,24 @@
       "reactions": [
         {
           "emoji": "👍",
-          "userId": "user_rahul",
-          "userName": "Rahul Damor"
+          "userId": "user_jordan",
+          "userName": "Jordan Miller"
         }
       ],
-      "status": "delivered",
-      "readBy": [],
-      "createdAt": 1789803376039
+      "status": "read",
+      "readBy": [
+        {
+          "userId": "user_jordan",
+          "readAt": 1789813443802
+        }
+      ],
+      "createdAt": 1789813327274
     },
     {
       "id": "msg_05167310-f29",
-      "conversationId": "conv_rahul_alex",
-      "senderId": "user_rahul",
-      "senderName": "Rahul Damor",
+      "conversationId": "conv_jordan_alex",
+      "senderId": "user_jordan",
+      "senderName": "Jordan Miller",
       "senderAvatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
       "text": "Hy",
       "type": "text",
@@ -341,7 +346,7 @@
       "status": "sent",
       "readBy": [
         {
-          "userId": "user_rahul",
+          "userId": "user_jordan",
           "readAt": 1789802604753
         }
       ],
@@ -379,8 +384,8 @@
       "backgroundColor": "linear-gradient(135deg, #059669 0%, #0d9488 100%)",
       "viewers": [
         {
-          "userId": "user_rahul",
-          "userName": "Rahul Damor",
+          "userId": "user_jordan",
+          "userName": "Jordan Miller",
           "userAvatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
           "viewedAt": 1789802399259
         }
@@ -396,13 +401,13 @@
       "name": "GB Official Ecosystem",
       "description": "The global community for GB Official messaging users, beta testers, and app architects.",
       "icon": "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80",
-      "creatorId": "user_rahul",
+      "creatorId": "user_jordan",
       "adminIds": [
-        "user_rahul",
+        "user_jordan",
         "user_alex"
       ],
       "memberIds": [
-        "user_rahul",
+        "user_jordan",
         "user_alex",
         "user_sarah",
         "user_liam"
@@ -413,8 +418,8 @@
       "announcements": [
         {
           "id": "ann_1",
-          "authorId": "user_rahul",
-          "authorName": "Rahul Damor",
+          "authorId": "user_jordan",
+          "authorName": "Jordan Miller",
           "title": "Welcome to GB Official 🚀",
           "content": "We are thrilled to launch GB Official! Enjoy ultra-fast encrypted chat, stories, crystal voice calls, and communities.",
           "createdAt": 1789715561029
@@ -429,10 +434,10 @@
       "callerId": "user_alex",
       "callerName": "Alex Rivera",
       "callerAvatar": "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80",
-      "receiverId": "user_rahul",
-      "receiverName": "Rahul Damor",
+      "receiverId": "user_jordan",
+      "receiverName": "Jordan Miller",
       "receiverAvatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
-      "conversationId": "conv_rahul_alex",
+      "conversationId": "conv_jordan_alex",
       "type": "video",
       "status": "completed",
       "startedAt": 1789794761029,
@@ -441,13 +446,13 @@
     },
     {
       "id": "call_2",
-      "callerId": "user_rahul",
-      "callerName": "Rahul Damor",
+      "callerId": "user_jordan",
+      "callerName": "Jordan Miller",
       "callerAvatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
       "receiverId": "user_sarah",
       "receiverName": "Sarah Chen",
       "receiverAvatar": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80",
-      "conversationId": "conv_rahul_sarah",
+      "conversationId": "conv_jordan_sarah",
       "type": "voice",
       "status": "completed",
       "startedAt": 1789783961029,
@@ -456,5 +461,667 @@
     }
   ],
   "reports": [],
-  "notifications": []
+  "notifications": [],
+  "posts": [
+    {
+      "id": "post_1",
+      "authorId": "user_jordan",
+      "authorName": "Jordan Miller",
+      "authorUsername": "jordan_gb",
+      "authorAvatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
+      "authorVerified": true,
+      "content": "🚀 Excited to announce the official release of GB Official! Featuring native Android UI density, end-to-end messaging, 24-hour disappearing status stories, low-latency audio/video calls, and dedicated Channels! Built with high-contrast Material ergonomics.",
+      "mediaUrl": "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80",
+      "mediaType": "image",
+      "tags": [
+        "GBOfficial",
+        "Android",
+        "MobileDesign",
+        "Release"
+      ],
+      "poll": {
+        "question": "Which GB Official feature are you most excited to use today?",
+        "options": [
+          {
+            "id": "opt_1",
+            "text": "HD Voice & Video Calls",
+            "votes": [
+              "user_alex",
+              "user_liam"
+            ]
+          },
+          {
+            "id": "opt_2",
+            "text": "Broadcast Channels & Feed",
+            "votes": [
+              "user_jordan",
+              "user_sarah"
+            ]
+          },
+          {
+            "id": "opt_3",
+            "text": "24h Stories & Status Updates",
+            "votes": [
+              "user_kunal"
+            ]
+          },
+          {
+            "id": "opt_4",
+            "text": "Privacy Controls & Security",
+            "votes": []
+          }
+        ],
+        "totalVotes": 5
+      },
+      "likes": [
+        "user_alex",
+        "user_sarah",
+        "user_liam",
+        "user_kunal"
+      ],
+      "comments": [
+        {
+          "id": "comm_1",
+          "postId": "post_1",
+          "authorId": "user_sarah",
+          "authorName": "Sarah Chen",
+          "authorAvatar": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80",
+          "authorVerified": true,
+          "text": "The UI typography pairing and green-cyan accent palette look phenomenal on AMOLED displays! ✨",
+          "createdAt": 1789801912997
+        },
+        {
+          "id": "comm_2",
+          "postId": "post_1",
+          "authorId": "user_alex",
+          "authorName": "Alex Rivera",
+          "authorAvatar": "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80",
+          "authorVerified": true,
+          "text": "WebRTC signaling latency is under 15ms. Super responsive!",
+          "createdAt": 1789805512997
+        }
+      ],
+      "sharesCount": 18,
+      "savedByUserIds": [
+        "user_alex"
+      ],
+      "createdAt": 1789791112997
+    },
+    {
+      "id": "post_2",
+      "authorId": "user_sarah",
+      "authorName": "Sarah Chen",
+      "authorUsername": "sarah_chen",
+      "authorAvatar": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80",
+      "authorVerified": true,
+      "content": "🎨 GB Official Design System Update: We adhered to strict mathematical padding (inner radius = outer radius - padding) and subtle dark charcoal mode (#111b21) for zero eye strain.",
+      "mediaUrl": "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&auto=format&fit=crop&q=80",
+      "mediaType": "image",
+      "tags": [
+        "DesignSystem",
+        "UIUX",
+        "Material"
+      ],
+      "likes": [
+        "user_jordan",
+        "user_alex"
+      ],
+      "comments": [],
+      "sharesCount": 7,
+      "savedByUserIds": [],
+      "createdAt": 1789769512997
+    },
+    {
+      "id": "post_3",
+      "authorId": "user_alex",
+      "authorName": "Alex Rivera",
+      "authorUsername": "alex_gb",
+      "authorAvatar": "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80",
+      "authorVerified": true,
+      "content": "Android 14 predictive back navigation, system dark mode harmonization, and adaptive haptics are fully integrated in GB Official.",
+      "tags": [
+        "Android14",
+        "Tech",
+        "Performance"
+      ],
+      "likes": [
+        "user_jordan",
+        "user_kunal"
+      ],
+      "comments": [],
+      "sharesCount": 4,
+      "savedByUserIds": [],
+      "createdAt": 1789747912997
+    }
+  ],
+  "channels": [
+    {
+      "id": "chan_gb_announcements",
+      "name": "GB Official Announcements",
+      "username": "gbofficial_announcements",
+      "description": "The official channel for product updates, security advisories, and feature releases from the GB Official team.",
+      "icon": "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80",
+      "banner": "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&auto=format&fit=crop&q=80",
+      "ownerId": "user_jordan",
+      "moderatorIds": [
+        "user_sarah",
+        "user_alex"
+      ],
+      "subscriberIds": [
+        "user_jordan",
+        "user_alex",
+        "user_sarah",
+        "user_liam",
+        "user_kunal"
+      ],
+      "isVerified": true,
+      "category": "Technology",
+      "posts": [
+        {
+          "id": "cpost_1",
+          "channelId": "chan_gb_announcements",
+          "authorId": "user_jordan",
+          "authorName": "Jordan Miller",
+          "text": "📢 Welcome to the GB Official Channel! Subscribe here for release notes, beta APK test flights, and direct updates from our engineering team.",
+          "mediaUrl": "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80",
+          "mediaType": "image",
+          "poll": {
+            "question": "Rate the GB Official Android experience so far:",
+            "options": [
+              {
+                "id": "cp_1",
+                "text": "⭐⭐⭐⭐⭐ 5 Stars - Fast & Elegant",
+                "votes": [
+                  "user_alex",
+                  "user_sarah",
+                  "user_kunal"
+                ]
+              },
+              {
+                "id": "cp_2",
+                "text": "⭐⭐⭐⭐ 4 Stars - Very Good",
+                "votes": [
+                  "user_liam"
+                ]
+              },
+              {
+                "id": "cp_3",
+                "text": "⭐⭐⭐ 3 Stars - Average",
+                "votes": []
+              }
+            ],
+            "totalVotes": 4
+          },
+          "reactions": [
+            {
+              "emoji": "🔥",
+              "count": 12,
+              "users": [
+                "user_jordan",
+                "user_alex"
+              ]
+            },
+            {
+              "emoji": "🎉",
+              "count": 8,
+              "users": [
+                "user_sarah"
+              ]
+            },
+            {
+              "emoji": "❤️",
+              "count": 6,
+              "users": [
+                "user_kunal"
+              ]
+            }
+          ],
+          "viewsCount": 148,
+          "isPinned": true,
+          "createdAt": 1789783912997
+        }
+      ],
+      "createdAt": 1787220712997
+    },
+    {
+      "id": "chan_android_devs",
+      "name": "Android & Mobile Architecture",
+      "username": "android_devs",
+      "description": "High-performance Android development, WebSockets, WebRTC protocols, and memory optimization discussions.",
+      "icon": "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=150&auto=format&fit=crop&q=80",
+      "ownerId": "user_alex",
+      "moderatorIds": [
+        "user_jordan"
+      ],
+      "subscriberIds": [
+        "user_alex",
+        "user_jordan",
+        "user_kunal"
+      ],
+      "isVerified": true,
+      "category": "Development",
+      "posts": [
+        {
+          "id": "cpost_2",
+          "channelId": "chan_android_devs",
+          "authorId": "user_alex",
+          "authorName": "Alex Rivera",
+          "text": "💡 WebRTC STUN/TURN ICE candidates benchmarked under 2G/3G conditions. Zero dropped packets during cellular network handover!",
+          "reactions": [
+            {
+              "emoji": "🚀",
+              "count": 5,
+              "users": [
+                "user_jordan"
+              ]
+            }
+          ],
+          "viewsCount": 72,
+          "isPinned": false,
+          "createdAt": 1789762312997
+        }
+      ],
+      "createdAt": 1788084712997
+    }
+  ],
+  "followers": [
+    {
+      "followerId": "user_alex",
+      "followingId": "user_jordan",
+      "createdAt": 1789812612997
+    },
+    {
+      "followerId": "user_sarah",
+      "followingId": "user_jordan",
+      "createdAt": 1789812622997
+    },
+    {
+      "followerId": "user_liam",
+      "followingId": "user_jordan",
+      "createdAt": 1789812632997
+    },
+    {
+      "followerId": "user_kunal",
+      "followingId": "user_jordan",
+      "createdAt": 1789812642997
+    },
+    {
+      "followerId": "user_jordan",
+      "followingId": "user_alex",
+      "createdAt": 1789812652997
+    },
+    {
+      "followerId": "user_jordan",
+      "followingId": "user_sarah",
+      "createdAt": 1789812662997
+    },
+    {
+      "followerId": "user_jordan",
+      "followingId": "user_kunal",
+      "createdAt": 1789812672997
+    }
+  ],
+  "follow_requests": [
+    {
+      "id": "freq_1",
+      "requesterId": "user_liam",
+      "requesterName": "Liam Vance",
+      "requesterUsername": "liam_v",
+      "requesterAvatar": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+      "targetUserId": "user_alex",
+      "status": "pending",
+      "createdAt": 1789809112997
+    }
+  ],
+  "verification_requests": [
+    {
+      "id": "vreq_1",
+      "userId": "user_liam",
+      "userName": "Liam Vance",
+      "userUsername": "liam_v",
+      "userAvatar": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+      "fullName": "Liam Vance",
+      "category": "Security & Research",
+      "documentType": "Official Government ID / Work Credential",
+      "businessOrIdentityInfo": "Lead WebRTC Security Researcher & Independent Penetration Tester for GB Official Ecosystem.",
+      "status": "pending",
+      "submittedAt": 1789794712997
+    },
+    {
+      "id": "vreq_2",
+      "userId": "user_jordan",
+      "userName": "Jordan Miller",
+      "userUsername": "jordan_gb",
+      "userAvatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
+      "fullName": "Jordan Miller",
+      "category": "Software Engineering & Executive",
+      "documentType": "Passport & Corporate Identity",
+      "businessOrIdentityInfo": "Core Platform Architect & Verified Founding Developer at GB Official.",
+      "status": "approved",
+      "submittedAt": 1787220712997,
+      "reviewedAt": 1787307112997,
+      "reviewedBy": "system_admin"
+    }
+  ],
+  "blocked_users": [],
+  "muted_users": [],
+  "location_shares": [
+    {
+      "id": "loc_1",
+      "userId": "user_alex",
+      "userName": "Alex Rivera",
+      "conversationId": "conv_jordan_alex",
+      "latitude": 37.7749,
+      "longitude": -122.4194,
+      "address": "Market St & 4th, San Francisco, CA",
+      "isLive": false,
+      "durationMinutes": 0,
+      "expiresAt": 1789816987269,
+      "isActive": true,
+      "createdAt": 1789812487269
+    }
+  ],
+  "shop_products": [
+    {
+      "id": "prod_1",
+      "name": "GB Official Signature AMOLED Shield Case",
+      "description": "Military-grade shock absorption with custom GB dark green and teal accents. Raised bezels protect cameras and OLED screens.",
+      "price": 24.99,
+      "currency": "USD",
+      "category": "Accessories",
+      "image": "https://images.unsplash.com/photo-1601784551446-20c9e07cdbdb?w=500&auto=format&fit=crop&q=80",
+      "sellerId": "user_jordan",
+      "sellerName": "Jordan Miller (GB Official)",
+      "sellerVerified": true,
+      "inStock": true,
+      "stockCount": 42,
+      "rating": 4.9,
+      "reviewsCount": 128,
+      "tags": [
+        "Case",
+        "Protection",
+        "Accessories",
+        "Official"
+      ],
+      "createdAt": 1788517387269
+    },
+    {
+      "id": "prod_2",
+      "name": "GB ANC Wireless Studio Earbuds Pro",
+      "description": "Active Noise Cancellation, sub-15ms low-latency gaming mode, 32-hour battery life with USB-C wireless charging case.",
+      "price": 79.99,
+      "currency": "USD",
+      "category": "Audio",
+      "image": "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=500&auto=format&fit=crop&q=80",
+      "sellerId": "user_alex",
+      "sellerName": "Alex Rivera (Hardware Lab)",
+      "sellerVerified": true,
+      "inStock": true,
+      "stockCount": 18,
+      "rating": 4.8,
+      "reviewsCount": 84,
+      "tags": [
+        "Audio",
+        "Earbuds",
+        "ANC",
+        "Wireless"
+      ],
+      "createdAt": 1788776587269
+    },
+    {
+      "id": "prod_3",
+      "name": "GB MagCharge Fast Qi2 Wireless Dock 30W",
+      "description": "Ultra-slim aluminum alloy wireless charging pad compatible with Android and smart wearables with overheat protection.",
+      "price": 34.99,
+      "currency": "USD",
+      "category": "Accessories",
+      "image": "https://images.unsplash.com/photo-1622445262464-84b1456045b6?w=500&auto=format&fit=crop&q=80",
+      "sellerId": "user_jordan",
+      "sellerName": "Jordan Miller (GB Official)",
+      "sellerVerified": true,
+      "inStock": true,
+      "stockCount": 30,
+      "rating": 4.7,
+      "reviewsCount": 56,
+      "tags": [
+        "Charger",
+        "Wireless",
+        "FastCharge"
+      ],
+      "createdAt": 1788949387269
+    },
+    {
+      "id": "prod_4",
+      "name": "GB CyberFit AMOLED Smart Fitness Tracker",
+      "description": "Always-on 1.4\" AMOLED display, continuous SpO2 and heart-rate monitoring, 5ATM water resistance and 14-day battery.",
+      "price": 49.99,
+      "currency": "USD",
+      "category": "Wearables",
+      "image": "https://images.unsplash.com/photo-1575311373937-040b8e1fd5b6?w=500&auto=format&fit=crop&q=80",
+      "sellerId": "user_sarah",
+      "sellerName": "Sarah Chen (Wearables)",
+      "sellerVerified": true,
+      "inStock": true,
+      "stockCount": 25,
+      "rating": 4.9,
+      "reviewsCount": 62,
+      "tags": [
+        "Wearables",
+        "Smartwatch",
+        "Fitness"
+      ],
+      "createdAt": 1789122187269
+    },
+    {
+      "id": "prod_5",
+      "name": "GB Official Heavyweight Developer Hoodie",
+      "description": "450 GSM French Terry cotton hoodie with embroidered GB Official chest mark and subtle binary sleeve motif. Deep charcoal & teal.",
+      "price": 59.99,
+      "currency": "USD",
+      "category": "Merchandise",
+      "image": "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=500&auto=format&fit=crop&q=80",
+      "sellerId": "user_jordan",
+      "sellerName": "Jordan Miller (GB Official)",
+      "sellerVerified": true,
+      "inStock": true,
+      "stockCount": 50,
+      "rating": 5,
+      "reviewsCount": 95,
+      "tags": [
+        "Merch",
+        "Apparel",
+        "Hoodie"
+      ],
+      "createdAt": 1789381387269
+    },
+    {
+      "id": "prod_6",
+      "name": "GB Mechanical 75% Wireless Keyboard",
+      "description": "Hot-swappable tactile mechanical switches, sound-dampening gasket mount, PBT keycaps with custom GB Android legends.",
+      "price": 109.99,
+      "currency": "USD",
+      "category": "Electronics",
+      "image": "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=500&auto=format&fit=crop&q=80",
+      "sellerId": "user_liam",
+      "sellerName": "Liam Vance (Tech Gear)",
+      "sellerVerified": false,
+      "inStock": true,
+      "stockCount": 12,
+      "rating": 4.8,
+      "reviewsCount": 41,
+      "tags": [
+        "Keyboard",
+        "Electronics",
+        "Gaming"
+      ],
+      "createdAt": 1789554187269
+    }
+  ],
+  "shop_cart": {},
+  "shop_orders": [
+    {
+      "id": "ord_1001",
+      "userId": "user_jordan",
+      "userName": "Jordan Miller",
+      "items": [
+        {
+          "productId": "prod_1",
+          "name": "GB Official Signature AMOLED Shield Case",
+          "quantity": 1,
+          "unitPrice": 24.99,
+          "image": "https://images.unsplash.com/photo-1601784551446-20c9e07cdbdb?w=500&auto=format&fit=crop&q=80"
+        }
+      ],
+      "subtotal": 24.99,
+      "shipping": 0,
+      "total": 24.99,
+      "status": "delivered",
+      "shippingAddress": {
+        "fullName": "Jordan Miller",
+        "address": "144 GB Innovation Park, Sector 5",
+        "city": "Silicon City",
+        "postalCode": "94016",
+        "country": "India"
+      },
+      "paymentMethod": "card",
+      "paymentStatus": "paid",
+      "trackingNumber": "GB-EXP-772914",
+      "createdAt": 1789467787269
+    }
+  ],
+  "payment_methods": [
+    {
+      "id": "pm_1",
+      "userId": "user_jordan",
+      "type": "card",
+      "last4": "4242",
+      "brand": "Visa",
+      "expMonth": 12,
+      "expYear": 2028,
+      "isDefault": true
+    }
+  ],
+  "transactions": [
+    {
+      "id": "tx_1",
+      "userId": "user_jordan",
+      "type": "subscription",
+      "amount": 4.99,
+      "currency": "USD",
+      "status": "completed",
+      "description": "GB Official Pro Monthly Membership",
+      "createdAt": 1788949387269
+    },
+    {
+      "id": "tx_2",
+      "userId": "user_jordan",
+      "type": "shop_purchase",
+      "amount": 24.99,
+      "currency": "USD",
+      "status": "completed",
+      "description": "GB Official Signature AMOLED Shield Case",
+      "createdAt": 1789467787269
+    }
+  ],
+  "subscriptions": {
+    "user_jordan": {
+      "plan": "pro",
+      "status": "active",
+      "pricePerMonth": 4.99,
+      "renewalDate": 1791541387269,
+      "features": [
+        "Verified Pro Badge & Custom Profile Flair",
+        "Large 2GB File & Media Uploads",
+        "Unlimited HD Video & Audio Calling",
+        "Priority Broadcast Channels & Polls",
+        "Custom Chat Themes, Wallpapers & App Icons",
+        "End-to-End Cryptographic Cloud Backup"
+      ]
+    },
+    "user_alex": {
+      "plan": "free",
+      "status": "active",
+      "pricePerMonth": 0,
+      "renewalDate": 1821349387269,
+      "features": [
+        "Standard Encrypted Chat & Media (up to 100MB)",
+        "Status Updates & Disappearing Stories",
+        "Group Chats & Communities",
+        "Standard WebRTC Calls"
+      ]
+    }
+  },
+  "devices": [
+    {
+      "id": "dev_1",
+      "userId": "user_jordan",
+      "name": "Google Pixel 8 Pro (Active)",
+      "platform": "Android",
+      "browserOrClient": "GB Official Android Native v3.4",
+      "ip": "192.168.1.45",
+      "lastActive": 1789813387269,
+      "loginDate": 1788517387269,
+      "isCurrent": true
+    },
+    {
+      "id": "dev_2",
+      "userId": "user_jordan",
+      "name": "MacBook Pro 16\" (M3 Max)",
+      "platform": "macOS",
+      "browserOrClient": "GB Web Client (Chrome 124)",
+      "ip": "192.168.1.52",
+      "lastActive": 1789813267269,
+      "loginDate": 1789554187269,
+      "isCurrent": false
+    },
+    {
+      "id": "dev_3",
+      "userId": "user_jordan",
+      "name": "Pixel Tablet Workspace Dock",
+      "platform": "Android",
+      "browserOrClient": "GB Tablet Companion",
+      "ip": "192.168.1.88",
+      "lastActive": 1789726987269,
+      "loginDate": 1788949387269,
+      "isCurrent": false
+    }
+  ],
+  "custom_lists": [
+    {
+      "id": "list_1",
+      "userId": "user_jordan",
+      "name": "Core Engineering",
+      "icon": "code",
+      "userIds": [
+        "user_alex",
+        "user_kunal",
+        "user_liam"
+      ],
+      "createdAt": 1788949387269
+    },
+    {
+      "id": "list_2",
+      "userId": "user_jordan",
+      "name": "Design & UX",
+      "icon": "palette",
+      "userIds": [
+        "user_sarah"
+      ],
+      "createdAt": 1789122187269
+    }
+  ],
+  "broadcast_lists": [
+    {
+      "id": "bcast_1",
+      "userId": "user_jordan",
+      "name": "All GB Team Members",
+      "recipientIds": [
+        "user_alex",
+        "user_sarah",
+        "user_liam",
+        "user_kunal"
+      ],
+      "createdAt": 1788776587269
+    }
+  ]
 }

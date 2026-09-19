@@ -3,7 +3,7 @@ import { Conversation, Message, UserStatus, Community, MessageType, MessageAttac
 import { useAuth } from './AuthContext';
 import { sounds } from '../utils/sound';
 
-export type MainTab = 'chats' | 'communities' | 'status' | 'calls';
+export type MainTab = 'chats' | 'communities' | 'status' | 'calls' | 'profile';
 
 interface ToastAlert {
   id: string;
@@ -597,7 +597,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setToast({
           id: 'toast_seed_' + Date.now(),
           title: 'Demo Conversations Seeded',
-          body: 'Loaded development sample conversations (Alex, Sarah, GB Core Team, Kunal, Rahul).',
+          body: 'Loaded development sample conversations (Alex, Sarah, GB Core Team, Kunal, Jordan).',
         });
         return true;
       }
