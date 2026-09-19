@@ -23,25 +23,12 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { GbLogo } from '../common/GbLogo';
 import { OAuthConfig } from '../../types';
+import { COUNTRIES, validateInternationalE164, Country } from '../../data/countries';
 
 interface AuthModalProps {
   onClose: () => void;
   initialMode?: 'register' | 'login';
 }
-
-// Preset country list for phone registration
-const COUNTRIES = [
-  { name: 'United States', code: '+1', flag: '🇺🇸', placeholder: '(555) 019-2834' },
-  { name: 'United Kingdom', code: '+44', flag: '🇬🇧', placeholder: '7911 123456' },
-  { name: 'India', code: '+91', flag: '🇮🇳', placeholder: '98765 43210' },
-  { name: 'Canada', code: '+1', flag: '🇨🇦', placeholder: '(555) 019-9922' },
-  { name: 'Germany', code: '+49', flag: '🇩🇪', placeholder: '151 23456789' },
-  { name: 'France', code: '+33', flag: '🇫🇷', placeholder: '6 12 34 56 78' },
-  { name: 'Australia', code: '+61', flag: '🇦🇺', placeholder: '412 345 678' },
-  { name: 'Japan', code: '+81', flag: '🇯🇵', placeholder: '90 1234 5678' },
-  { name: 'Brazil', code: '+55', flag: '🇧🇷', placeholder: '11 98765-4321' },
-  { name: 'Nigeria', code: '+234', flag: '🇳🇬', placeholder: '802 123 4567' },
-];
 
 // Preset profile avatars
 const PRESET_AVATARS = [
