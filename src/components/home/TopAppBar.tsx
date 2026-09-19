@@ -26,7 +26,7 @@ interface TopAppBarProps {
   onOpenSettings: () => void;
   onOpenTests: () => void;
   onOpenAdmin: () => void;
-  onOpenAuth: () => void;
+  onOpenAuth: (mode?: 'register' | 'login') => void;
   onOpenCamera?: () => void;
   onOpenShop?: () => void;
   onOpenLinkedDevices?: () => void;
@@ -264,12 +264,34 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
             <button
               onClick={() => {
                 setShowMenu(false);
-                onOpenAuth();
+                onOpenAuth('register');
+              }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 transition"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>Register New Account</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setShowMenu(false);
+                onOpenAuth('login');
               }}
               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition"
             >
-              <UserPlus className="w-4 h-4 text-cyan-500" />
-              <span>Sign in another user</span>
+              <UserCheck className="w-4 h-4 text-cyan-500" />
+              <span>Switch / Sign In</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setShowMenu(false);
+                logout();
+              }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold hover:bg-red-50 dark:hover:bg-red-950/40 text-red-600 dark:text-red-400 transition"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Log Out</span>
             </button>
           </div>
         )}

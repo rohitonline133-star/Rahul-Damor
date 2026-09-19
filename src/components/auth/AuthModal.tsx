@@ -26,6 +26,7 @@ import { OAuthConfig } from '../../types';
 
 interface AuthModalProps {
   onClose: () => void;
+  initialMode?: 'register' | 'login';
 }
 
 // Preset country list for phone registration
@@ -52,8 +53,9 @@ const PRESET_AVATARS = [
   'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150',
 ];
 
-export const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
+export const AuthModal: React.FC<AuthModalProps> = ({ onClose, initialMode = 'register' }) => {
   const {
+    currentUser,
     login,
     requestOtp,
     verifyOtp,
@@ -70,7 +72,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
   // Mode: 'login' | 'register_phone' | 'register_otp' | 'register_profile' | 'forgot' | 'terms'
   const [mode, setMode] = useState<
     'login' | 'register_phone' | 'register_otp' | 'register_profile' | 'forgot' | 'terms'
-  >('login');
+  >(initialMode === 'login' ? 'login' : 'register_phone');
 
   // Country Code Selection
   const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
@@ -415,12 +417,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
         {/* Top Header */}
         <div className="flex items-center justify-between">
           <GbLogo size="sm" />
-          <button
-            onClick={onClose}
-            className="p-1 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          {currentUser && (
+            <button
+              onClick={onClose}
+              className="p-1 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition"
+              title="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
         </div>
 
         {/* Global Error Banner */}
@@ -439,21 +444,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
           </div>
         )}
 
-        {/* Developer SMS Gateway Simulation Notification Banner */}
+        {/* Carrier SMS / OTP Service Status Banner */}
         {devOtpNotification && (
-          <div className="p-3 rounded-2xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800/80 text-teal-800 dark:text-teal-200 text-xs flex items-center justify-between gap-2 shadow-sm animate-in slide-in-from-top-2">
-            <div>
-              <span className="font-bold block text-[11px] uppercase tracking-wider text-teal-600 dark:text-teal-400">
-                SMS Gateway Dispatch (Sandbox Active)
+          <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/80 text-amber-900 dark:text-amber-200 text-xs flex items-center justify-between gap-2 shadow-sm animate-in slide-in-from-top-2">
+            <div className="space-y-0.5">
+              <span className="font-bold block text-[11px] uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                OTP service not configured
               </span>
-              <span>
-                Verification Code:{' '}
+              <p className="text-[11px] text-slate-600 dark:text-slate-300">
+                Carrier SMS gateway credentials not set in environment. Real server-generated code:{' '}
                 <strong className="font-mono text-sm tracking-widest text-emerald-600 dark:text-emerald-300">
                   {devOtpNotification}
                 </strong>
-              </span>
+              </p>
             </div>
             <button
+              type="button"
               onClick={() => {
                 if (mode === 'register_otp') {
                   const chars = devOtpNotification.split('').slice(0, 6);
@@ -462,9 +468,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
                   setRecoveryOtp(devOtpNotification);
                 }
               }}
-              className="px-2.5 py-1 rounded-lg bg-teal-600 hover:bg-teal-500 text-white font-bold text-[10px] shadow transition"
+              className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-bold text-[10px] shadow transition shrink-0"
             >
-              Auto-Fill
+              Fill OTP
             </button>
           </div>
         )}

@@ -216,41 +216,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (token) {
         const ok = await fetchCurrentUser(token);
         if (!ok) {
-          // Fallback to primary account
-          try {
-            const autoRes = await fetch('/api/auth/switch-account', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ userId: 'user_jordan' }),
-            });
-            if (autoRes.ok) {
-              const data = await autoRes.json();
-              setToken(data.token);
-              localStorage.setItem('gb_token', data.token);
-              setCurrentUser(data.user);
-              if (data.session) setCurrentSession(data.session);
-            }
-          } catch {
-            // ignore
-          }
+          localStorage.removeItem('gb_token');
+          setToken(null);
+          setCurrentUser(null);
+          setCurrentSession(null);
         }
       } else {
-        try {
-          const autoRes = await fetch('/api/auth/switch-account', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: 'user_jordan' }),
-          });
-          if (autoRes.ok) {
-            const data = await autoRes.json();
-            setToken(data.token);
-            localStorage.setItem('gb_token', data.token);
-            setCurrentUser(data.user);
-            if (data.session) setCurrentSession(data.session);
-          }
-        } catch {
-          // ignore
-        }
+        setToken(null);
+        setCurrentUser(null);
+        setCurrentSession(null);
       }
       setIsLoading(false);
     };

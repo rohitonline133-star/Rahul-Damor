@@ -59,6 +59,7 @@ const GbMainApp: React.FC = () => {
   const [showSearch, setShowSearch] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
+  const [authInitialMode, setAuthInitialMode] = useState<'register' | 'login'>('register');
   const [showShop, setShowShop] = useState(false);
   const [showLinkedDevices, setShowLinkedDevices] = useState(false);
   const [showBroadcast, setShowBroadcast] = useState(false);
@@ -74,8 +75,14 @@ const GbMainApp: React.FC = () => {
 
   return (
     <AndroidFrame>
-      {/* 1. If currently inside a chat room */}
-      {activeConversationId ? (
+      {/* 0. If unauthenticated, show Registration / Auth directly */}
+      {!currentUser ? (
+        <AuthModal
+          onClose={() => {}}
+          initialMode={authInitialMode}
+        />
+      ) : activeConversationId ? (
+        /* 1. If currently inside a chat room */
         <ChatRoom
           onBack={() => setActiveConversationId(null)}
           onOpenProfile={(uid) => setViewingUserId(uid)}
@@ -90,7 +97,10 @@ const GbMainApp: React.FC = () => {
             onOpenSettings={() => setShowSettings(true)}
             onOpenTests={() => setShowTests(true)}
             onOpenAdmin={() => setShowAdmin(true)}
-            onOpenAuth={() => setShowAuth(true)}
+            onOpenAuth={(mode = 'register') => {
+              setAuthInitialMode(mode);
+              setShowAuth(true);
+            }}
             onOpenCamera={() => setShowCreateStatus(true)}
             onOpenShop={() => setShowShop(true)}
             onOpenLinkedDevices={() => setShowLinkedDevices(true)}
@@ -349,7 +359,9 @@ const GbMainApp: React.FC = () => {
 
       {showAdmin && <AdminModerationModal onClose={() => setShowAdmin(false)} />}
 
-      {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
+      {showAuth && currentUser && (
+        <AuthModal onClose={() => setShowAuth(false)} initialMode={authInitialMode} />
+      )}
 
       {showShop && <ShopModal onClose={() => setShowShop(false)} />}
 
