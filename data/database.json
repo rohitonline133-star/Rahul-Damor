@@ -1,0 +1,460 @@
+{
+  "users": [
+    {
+      "id": "user_rahul",
+      "username": "rahul_gb",
+      "displayName": "Rahul Damor",
+      "email": "rahuldamor07575@gmail.com",
+      "passwordHash": "f0c8b3e082baff22c47f5ad9f8f8076e41f53c5e919363abad03bd264231cf2df7133fe23c9378d150d8565557d03cfd15f6a469de677f8e9c8b5cb5c1300006",
+      "salt": "83cccbd75a7e782a8320a48290e43fc5",
+      "avatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
+      "bio": "Lead Engineer @ GB Official • Building next-gen mobile communications 🚀",
+      "online": false,
+      "lastSeen": 1789803746764,
+      "createdAt": 1787209961029,
+      "isVerified": true,
+      "privacySettings": {
+        "lastSeen": "everyone",
+        "profilePhoto": "everyone",
+        "statusPrivacy": "everyone",
+        "readReceipts": true
+      },
+      "blockedUserIds": [],
+      "role": "admin"
+    },
+    {
+      "id": "user_alex",
+      "username": "alex_gb",
+      "displayName": "Alex Rivera",
+      "email": "alex@gbofficial.app",
+      "passwordHash": "fc36a4cc634faffe349f77f2e666b37775a56533667684c38fb7150fa2a3647baf9b11a59149bdb5790ddcb7b7663d07b7b3941b66a872141edf2202978808af",
+      "salt": "2d3f61c23f2764d9067e6f1e10a1751b",
+      "avatar": "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80",
+      "bio": "Android Core Architect. Clean architecture & reactive streams.",
+      "online": true,
+      "lastSeen": 1789801841029,
+      "createdAt": 1787641961029,
+      "isVerified": true,
+      "privacySettings": {
+        "lastSeen": "everyone",
+        "profilePhoto": "everyone",
+        "statusPrivacy": "everyone",
+        "readReceipts": true
+      },
+      "blockedUserIds": [],
+      "role": "user"
+    },
+    {
+      "id": "user_sarah",
+      "username": "sarah_chen",
+      "displayName": "Sarah Chen",
+      "email": "sarah@gbofficial.app",
+      "passwordHash": "4c9dcb3775fdad5b3b438eb358489925dc60fd45c1380521a60ff3224424c2ff0f3d9859a33f919549cff008d9cbf997603a1556815bb87780ca5e9c1b2d0dc0",
+      "salt": "28e3392483837f5d90254c47983f6078",
+      "avatar": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80",
+      "bio": "Product Design Lead • GB Design System & Android Motion ✨",
+      "online": false,
+      "lastSeen": 1789791161029,
+      "createdAt": 1788073961029,
+      "isVerified": true,
+      "privacySettings": {
+        "lastSeen": "contacts",
+        "profilePhoto": "everyone",
+        "statusPrivacy": "everyone",
+        "readReceipts": true
+      },
+      "blockedUserIds": [],
+      "role": "moderator"
+    },
+    {
+      "id": "user_liam",
+      "username": "liam_v",
+      "displayName": "Liam Vance",
+      "email": "liam@gbofficial.app",
+      "passwordHash": "c217fbcf86d18b4414efefcff885c67d253c43662e52e6281989f791e639c1175d0bea3a2a61bad6712af3bf770ff431e06a43ccb0fd22f01c651f74ddbdac14",
+      "salt": "1c2d1fddf91dd006aea44a4c93b0dde7",
+      "avatar": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+      "bio": "Security & WebRTC specialist. High performance encrypted streams.",
+      "online": true,
+      "lastSeen": 1789801961029,
+      "createdAt": 1788505961029,
+      "isVerified": false,
+      "privacySettings": {
+        "lastSeen": "everyone",
+        "profilePhoto": "everyone",
+        "statusPrivacy": "everyone",
+        "readReceipts": true
+      },
+      "blockedUserIds": [],
+      "role": "user"
+    },
+    {
+      "id": "user_kunal",
+      "username": "kunal_s",
+      "displayName": "Kunal Sharma",
+      "email": "kunal@gbofficial.app",
+      "passwordHash": "5e987aa9e1e05d3ae2202cfe2ffacf15d4ca2972e679f8e9daa4ec1ea2d450ed0baa97edf066d5d5cacad63fec2fe01ae76fc646f20522c154d0c0b42bc2082a",
+      "salt": "f9364475ef4181c07775b760ad0b3025",
+      "avatar": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
+      "bio": "Mobile Systems & Real-time protocol engineer",
+      "online": true,
+      "lastSeen": 1789803081013,
+      "createdAt": 1788939141013,
+      "isVerified": true,
+      "privacySettings": {
+        "lastSeen": "everyone",
+        "profilePhoto": "everyone",
+        "statusPrivacy": "everyone",
+        "readReceipts": true
+      },
+      "blockedUserIds": [],
+      "role": "user"
+    }
+  ],
+  "conversations": [
+    {
+      "id": "conv_rahul_alex",
+      "type": "direct",
+      "members": [
+        {
+          "userId": "user_rahul",
+          "role": "member",
+          "joinedAt": 1789800961029
+        },
+        {
+          "userId": "user_alex",
+          "role": "member",
+          "joinedAt": 1789800961029
+        }
+      ],
+      "pinnedForUserIds": [
+        "user_rahul"
+      ],
+      "createdAt": 1789800961029,
+      "lastMessageTime": 1789802604753
+    },
+    {
+      "id": "conv_gb_core",
+      "type": "group",
+      "name": "GB Core Team",
+      "icon": "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80",
+      "description": "Official channel for GB Android release coordination, build reviews, and testing.",
+      "creatorId": "user_rahul",
+      "communityId": "comm_gb_ecosystem",
+      "members": [
+        {
+          "userId": "user_rahul",
+          "role": "admin",
+          "joinedAt": 1789801161029
+        },
+        {
+          "userId": "user_alex",
+          "role": "admin",
+          "joinedAt": 1789801161029
+        },
+        {
+          "userId": "user_sarah",
+          "role": "member",
+          "joinedAt": 1789801161029
+        },
+        {
+          "userId": "user_liam",
+          "role": "member",
+          "joinedAt": 1789801161029
+        },
+        {
+          "userId": "user_kunal",
+          "role": "member",
+          "joinedAt": 1789803141017
+        }
+      ],
+      "pinnedForUserIds": [
+        "user_rahul",
+        "user_alex"
+      ],
+      "createdAt": 1789801161029,
+      "lastMessageTime": 1789801241029
+    },
+    {
+      "id": "conv_rahul_sarah",
+      "type": "direct",
+      "members": [
+        {
+          "userId": "user_rahul",
+          "role": "member",
+          "joinedAt": 1789801061029
+        },
+        {
+          "userId": "user_sarah",
+          "role": "member",
+          "joinedAt": 1789801061029
+        }
+      ],
+      "pinnedForUserIds": [],
+      "createdAt": 1789801061029,
+      "lastMessageTime": 1789799261029
+    },
+    {
+      "id": "conv_rahul_kunal",
+      "type": "direct",
+      "members": [
+        {
+          "userId": "user_rahul",
+          "role": "member",
+          "joinedAt": 1789802441013
+        },
+        {
+          "userId": "user_kunal",
+          "role": "member",
+          "joinedAt": 1789802441013
+        }
+      ],
+      "pinnedForUserIds": [],
+      "createdAt": 1789802441013,
+      "lastMessageTime": 1789803081013
+    }
+  ],
+  "messages": [
+    {
+      "id": "msg_1",
+      "conversationId": "conv_rahul_alex",
+      "senderId": "user_alex",
+      "senderName": "Alex Rivera",
+      "senderAvatar": "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80",
+      "text": "Awesome! Let's test the new GB Official chat.",
+      "type": "text",
+      "reactions": [
+        {
+          "emoji": "🔥",
+          "userId": "user_rahul",
+          "userName": "Rahul Damor"
+        }
+      ],
+      "status": "read",
+      "readBy": [
+        {
+          "userId": "user_rahul",
+          "readAt": 1789803376039
+        }
+      ],
+      "createdAt": 1789803316039
+    },
+    {
+      "id": "msg_2",
+      "conversationId": "conv_rahul_sarah",
+      "senderId": "user_sarah",
+      "senderName": "Sarah Chen",
+      "senderAvatar": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80",
+      "text": "Uploaded the latest profile photo.",
+      "type": "text",
+      "reactions": [
+        {
+          "emoji": "✨",
+          "userId": "user_rahul",
+          "userName": "Rahul Damor"
+        }
+      ],
+      "status": "read",
+      "readBy": [
+        {
+          "userId": "user_rahul",
+          "readAt": 1789802836039
+        }
+      ],
+      "createdAt": 1789802536039
+    },
+    {
+      "id": "msg_3",
+      "conversationId": "conv_gb_core",
+      "senderId": "user_rahul",
+      "senderName": "Rahul Damor",
+      "senderAvatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
+      "text": "Welcome to GB Official.",
+      "type": "text",
+      "reactions": [
+        {
+          "emoji": "❤️",
+          "userId": "user_alex",
+          "userName": "Alex Rivera"
+        },
+        {
+          "emoji": "👏",
+          "userId": "user_kunal",
+          "userName": "Kunal Sharma"
+        }
+      ],
+      "status": "read",
+      "readBy": [
+        {
+          "userId": "user_alex",
+          "readAt": 1789803136039
+        }
+      ],
+      "createdAt": 1789802836039
+    },
+    {
+      "id": "msg_4",
+      "conversationId": "conv_rahul_kunal",
+      "senderId": "user_rahul",
+      "senderName": "Rahul Damor",
+      "senderAvatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
+      "text": "Are you available?",
+      "type": "text",
+      "reactions": [],
+      "status": "read",
+      "readBy": [
+        {
+          "userId": "user_kunal",
+          "readAt": 1789803316039
+        }
+      ],
+      "createdAt": 1789803256039
+    },
+    {
+      "id": "msg_5",
+      "conversationId": "conv_rahul_kunal",
+      "senderId": "user_kunal",
+      "senderName": "Kunal Sharma",
+      "senderAvatar": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
+      "text": "Let's create a group.",
+      "type": "text",
+      "reactions": [
+        {
+          "emoji": "👍",
+          "userId": "user_rahul",
+          "userName": "Rahul Damor"
+        }
+      ],
+      "status": "delivered",
+      "readBy": [],
+      "createdAt": 1789803376039
+    },
+    {
+      "id": "msg_05167310-f29",
+      "conversationId": "conv_rahul_alex",
+      "senderId": "user_rahul",
+      "senderName": "Rahul Damor",
+      "senderAvatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
+      "text": "Hy",
+      "type": "text",
+      "reactions": [],
+      "status": "sent",
+      "readBy": [
+        {
+          "userId": "user_rahul",
+          "readAt": 1789802604753
+        }
+      ],
+      "createdAt": 1789802604753
+    }
+  ],
+  "statuses": [
+    {
+      "id": "status_sarah_1",
+      "userId": "user_sarah",
+      "userName": "Sarah Chen",
+      "userAvatar": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80",
+      "type": "image",
+      "content": "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=600&auto=format&fit=crop&q=80",
+      "caption": "GB Official v1.0 UI Design Tokens finalized! 🎨",
+      "viewers": [
+        {
+          "userId": "user_alex",
+          "userName": "Alex Rivera",
+          "userAvatar": "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80",
+          "viewedAt": 1789800161029
+        }
+      ],
+      "createdAt": 1789794761029,
+      "expiresAt": 1789881161029,
+      "privacy": "everyone"
+    },
+    {
+      "id": "status_alex_1",
+      "userId": "user_alex",
+      "userName": "Alex Rivera",
+      "userAvatar": "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80",
+      "type": "text",
+      "content": "Sub-millisecond real-time sync with SSE & offline resilience. Super fast! ⚡️",
+      "backgroundColor": "linear-gradient(135deg, #059669 0%, #0d9488 100%)",
+      "viewers": [
+        {
+          "userId": "user_rahul",
+          "userName": "Rahul Damor",
+          "userAvatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
+          "viewedAt": 1789802399259
+        }
+      ],
+      "createdAt": 1789798361029,
+      "expiresAt": 1789884761029,
+      "privacy": "everyone"
+    }
+  ],
+  "communities": [
+    {
+      "id": "comm_gb_ecosystem",
+      "name": "GB Official Ecosystem",
+      "description": "The global community for GB Official messaging users, beta testers, and app architects.",
+      "icon": "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80",
+      "creatorId": "user_rahul",
+      "adminIds": [
+        "user_rahul",
+        "user_alex"
+      ],
+      "memberIds": [
+        "user_rahul",
+        "user_alex",
+        "user_sarah",
+        "user_liam"
+      ],
+      "groupIds": [
+        "conv_gb_core"
+      ],
+      "announcements": [
+        {
+          "id": "ann_1",
+          "authorId": "user_rahul",
+          "authorName": "Rahul Damor",
+          "title": "Welcome to GB Official 🚀",
+          "content": "We are thrilled to launch GB Official! Enjoy ultra-fast encrypted chat, stories, crystal voice calls, and communities.",
+          "createdAt": 1789715561029
+        }
+      ],
+      "createdAt": 1789715561029
+    }
+  ],
+  "calls": [
+    {
+      "id": "call_1",
+      "callerId": "user_alex",
+      "callerName": "Alex Rivera",
+      "callerAvatar": "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80",
+      "receiverId": "user_rahul",
+      "receiverName": "Rahul Damor",
+      "receiverAvatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
+      "conversationId": "conv_rahul_alex",
+      "type": "video",
+      "status": "completed",
+      "startedAt": 1789794761029,
+      "endedAt": 1789795186029,
+      "durationSeconds": 425
+    },
+    {
+      "id": "call_2",
+      "callerId": "user_rahul",
+      "callerName": "Rahul Damor",
+      "callerAvatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
+      "receiverId": "user_sarah",
+      "receiverName": "Sarah Chen",
+      "receiverAvatar": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80",
+      "conversationId": "conv_rahul_sarah",
+      "type": "voice",
+      "status": "completed",
+      "startedAt": 1789783961029,
+      "endedAt": 1789784156029,
+      "durationSeconds": 195
+    }
+  ],
+  "reports": [],
+  "notifications": []
+}

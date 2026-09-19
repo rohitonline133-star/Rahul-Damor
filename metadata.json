@@ -1,0 +1,11 @@
+{
+  "name": "GB Official",
+  "description": "Official GB Android messaging platform featuring real-time encrypted messaging, status stories, communities, group chats, audio/video calling, and media sharing.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
