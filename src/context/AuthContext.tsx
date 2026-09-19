@@ -254,7 +254,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!res.ok) {
         const err = data.error || 'Failed to send verification code.';
         setAuthError(err);
-        return { success: false, message: err, error: err, cooldownSeconds: data.cooldownSeconds };
+        return {
+          success: false,
+          smsConfigured: data.smsConfigured ?? false,
+          message: data.message || err,
+          error: err,
+          cooldownSeconds: data.cooldownSeconds,
+          gatewayStatus: data.gatewayStatus,
+        };
       }
       return { success: true, ...data };
     } catch {

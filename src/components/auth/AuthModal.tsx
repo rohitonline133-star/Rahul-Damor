@@ -83,7 +83,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, initialMode = 're
   const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
   const [countdown, setCountdown] = useState(45);
   const [canResend, setCanResend] = useState(false);
-  const [devOtpNotification, setDevOtpNotification] = useState<string | null>(null);
   const [verificationToken, setVerificationToken] = useState<string | null>(null);
 
   // Profile Setup State
@@ -196,9 +195,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, initialMode = 're
     setError(null);
     setSuccess(null);
 
-    const cleanNumber = phoneNational.replace(/\D/g, '');
-    if (cleanNumber.length < 7) {
-      setError('Please enter a valid mobile phone number.');
+    const valRes = validateInternationalE164(fullPhoneNumber, selectedCountry);
+    if (!valRes.valid) {
+      setError(valRes.error || 'Please enter a valid mobile phone number.');
       return;
     }
 
@@ -206,14 +205,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, initialMode = 're
     const res = await requestOtp(fullPhoneNumber, 'register');
     setIsLoading(false);
 
-    if (res.success) {
+    if (res.success && res.smsConfigured) {
       setMode('register_otp');
       setCountdown(res.cooldownSeconds || 45);
       setCanResend(false);
       setOtpDigits(['', '', '', '', '', '']);
-      if (res.devOtp) {
-        setDevOtpNotification(res.devOtp);
-      }
+    } else if (res.smsConfigured === false || res.error?.includes('not configured') || res.gatewayStatus?.includes('NOT CONFIGURED')) {
+      setError(
+        'Production SMS OTP is NOT CONFIGURED. Real carrier delivery requires TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER in server environment settings.'
+      );
     } else {
       setError(res.error || 'Failed to send verification code.');
     }
@@ -227,12 +227,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, initialMode = 're
     const res = await requestOtp(fullPhoneNumber, 'register');
     setIsLoading(false);
 
-    if (res.success) {
+    if (res.success && res.smsConfigured) {
       setCountdown(res.cooldownSeconds || 45);
       setCanResend(false);
-      setSuccess('Verification code resent successfully!');
-      if (res.devOtp) setDevOtpNotification(res.devOtp);
+      setSuccess('Verification code resent successfully via SMS!');
       setTimeout(() => setSuccess(null), 4000);
+    } else if (res.smsConfigured === false || res.error?.includes('not configured') || res.gatewayStatus?.includes('NOT CONFIGURED')) {
+      setError(
+        'Production SMS OTP is NOT CONFIGURED. Carrier dispatch requires TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER in server environment settings.'
+      );
     } else {
       setError(res.error || 'Failed to resend code.');
     }
@@ -330,7 +333,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, initialMode = 're
         setMode('register_otp');
         setCountdown(res.cooldownSeconds || 45);
         setCanResend(false);
-        if (res.devOtp) setDevOtpNotification(res.devOtp);
       } else {
         setError(res.error || 'Failed to request login OTP.');
       }
@@ -383,7 +385,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, initialMode = 're
     if (res.success) {
       setRecoveryStep('verify');
       setSuccess('Recovery code dispatched.');
-      if (res.devOtp) setDevOtpNotification(res.devOtp);
     } else {
       setError(res.error || 'Account not found with this identifier.');
     }
@@ -442,37 +443,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, initialMode = 're
           <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-2 animate-in fade-in">
             <CheckCircle2 className="w-4 h-4 shrink-0" />
             <div className="flex-1">{success}</div>
-          </div>
-        )}
-
-        {/* Carrier SMS / OTP Service Status Banner */}
-        {devOtpNotification && (
-          <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/80 text-amber-900 dark:text-amber-200 text-xs flex items-center justify-between gap-2 shadow-sm animate-in slide-in-from-top-2">
-            <div className="space-y-0.5">
-              <span className="font-bold block text-[11px] uppercase tracking-wider text-amber-700 dark:text-amber-400">
-                OTP service not configured
-              </span>
-              <p className="text-[11px] text-slate-600 dark:text-slate-300">
-                Carrier SMS gateway credentials not set in environment. Real server-generated code:{' '}
-                <strong className="font-mono text-sm tracking-widest text-emerald-600 dark:text-emerald-300">
-                  {devOtpNotification}
-                </strong>
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                if (mode === 'register_otp') {
-                  const chars = devOtpNotification.split('').slice(0, 6);
-                  setOtpDigits(chars);
-                } else if (mode === 'forgot') {
-                  setRecoveryOtp(devOtpNotification);
-                }
-              }}
-              className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-bold text-[10px] shadow transition shrink-0"
-            >
-              Fill OTP
-            </button>
           </div>
         )}
 

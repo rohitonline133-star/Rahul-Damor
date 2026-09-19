@@ -56,7 +56,7 @@ export const TestSuiteModal: React.FC<TestSuiteModalProps> = ({ onClose }) => {
 
         {/* Metrics Overview Bar */}
         {report && (
-          <div className="grid grid-cols-4 gap-2 px-5 py-3 bg-slate-50 dark:bg-slate-850/60 border-b border-slate-100 dark:border-slate-800 text-center">
+          <div className="grid grid-cols-5 gap-1.5 px-4 py-3 bg-slate-50 dark:bg-slate-850/60 border-b border-slate-100 dark:border-slate-800 text-center">
             <div className="p-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm border border-slate-200/60 dark:border-slate-700/60">
               <span className="text-[10px] uppercase font-bold text-slate-400 block">Total</span>
               <span className="text-base font-extrabold text-slate-800 dark:text-slate-100">
@@ -82,9 +82,18 @@ export const TestSuiteModal: React.FC<TestSuiteModalProps> = ({ onClose }) => {
               </span>
             </div>
 
+            <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 shadow-sm border border-amber-200/60 dark:border-amber-800/60">
+              <span className="text-[10px] uppercase font-bold text-amber-600 dark:text-amber-400 block">
+                Unconfigured
+              </span>
+              <span className="text-base font-extrabold text-amber-600 dark:text-amber-400">
+                {report.notConfigured ?? 0}
+              </span>
+            </div>
+
             <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 shadow-sm border border-slate-200/60 dark:border-slate-700/60">
               <span className="text-[10px] uppercase font-bold text-slate-500 block">
-                Not Tested
+                Untested
               </span>
               <span className="text-base font-extrabold text-slate-500">{report.notTested}</span>
             </div>
@@ -113,6 +122,7 @@ export const TestSuiteModal: React.FC<TestSuiteModalProps> = ({ onClose }) => {
             report?.tests.map((test: TestItem, index: number) => {
               const isPass = test.status === 'PASS';
               const isFail = test.status === 'FAIL';
+              const isNotConfigured = test.status === 'NOT CONFIGURED';
 
               return (
                 <div
@@ -122,6 +132,8 @@ export const TestSuiteModal: React.FC<TestSuiteModalProps> = ({ onClose }) => {
                       ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200/80 dark:border-emerald-800/60'
                       : isFail
                       ? 'bg-red-50/40 dark:bg-red-950/20 border-red-200/80 dark:border-red-800/60'
+                      : isNotConfigured
+                      ? 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-200/80 dark:border-amber-800/60'
                       : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700'
                   }`}
                 >
@@ -138,6 +150,10 @@ export const TestSuiteModal: React.FC<TestSuiteModalProps> = ({ onClose }) => {
                       ) : isFail ? (
                         <span className="px-2 py-0.5 rounded-md bg-red-600 text-white font-extrabold text-[10px] flex items-center gap-1">
                           <XCircle className="w-3 h-3" /> FAIL
+                        </span>
+                      ) : isNotConfigured ? (
+                        <span className="px-2 py-0.5 rounded-md bg-amber-500 text-white font-extrabold text-[10px] flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> NOT CONFIGURED
                         </span>
                       ) : (
                         <span className="px-2 py-0.5 rounded-md bg-slate-400 text-white font-extrabold text-[10px]">

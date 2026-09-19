@@ -51,7 +51,8 @@ export interface SearchResults {
 
 export interface TestItem {
   name: string;
-  status: 'PASS' | 'FAIL' | 'NOT TESTED';
+  category?: string;
+  status: 'PASS' | 'FAIL' | 'NOT TESTED' | 'NOT CONFIGURED';
   details: string;
   durationMs?: number;
 }
@@ -61,6 +62,7 @@ export interface TestReport {
   passed: number;
   failed: number;
   notTested: number;
+  notConfigured?: number;
   timestamp: number;
   tests: TestItem[];
 }
@@ -500,6 +502,7 @@ export interface OAuthConfig {
 export interface PhoneOtpResponse {
   success: boolean;
   message: string;
+  smsConfigured?: boolean;
   expiresAt?: number;
   cooldownSeconds?: number;
   gatewayStatus?: string;
