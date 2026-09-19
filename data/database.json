@@ -10,7 +10,7 @@
       "avatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
       "bio": "Lead Engineer @ GB Official • Building next-gen mobile communications 🚀",
       "online": true,
-      "lastSeen": 1789816532428,
+      "lastSeen": 1789817037110,
       "createdAt": 1787209961029,
       "isVerified": true,
       "privacySettings": {
@@ -118,18 +118,18 @@
       "phone": "+919876543210"
     },
     {
-      "id": "user_test_reg_1789816666319",
-      "username": "test_reg_6319",
+      "id": "user_test_reg_1789817062751",
+      "username": "test_reg_2750",
       "displayName": "Test Registered User",
-      "email": "test_reg_6319@gbofficial.app",
+      "email": "test_reg_2750@gbofficial.app",
       "phone": "+15550199991",
-      "passwordHash": "da2d99fd88f59ce7d60778b5520ff8556f20f51de98fc2c7af7e137b78062061c3fd98d64231434fb1854ef393f3ae6a10b898c19b7d2b08f2e8159b98b8c186",
-      "salt": "8d57e3c0a72b9429cd510ba4d6c6f72d",
+      "passwordHash": "18cf16d1313735b00d85aa63bd240c1b163ad717ad4f3ed92858a2ad30247aacd048e278bd0ee7967762083d8b5c2dbaf416bf1f2f1e3df2eab3bf44cc20cb05",
+      "salt": "445d66de341e470aa894a308bd877d07",
       "avatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150",
       "bio": "Created via verified phone registration",
       "online": true,
-      "lastSeen": 1789816666319,
-      "createdAt": 1789816666319,
+      "lastSeen": 1789817062750,
+      "createdAt": 1789817062750,
       "isVerified": true,
       "privacySettings": {
         "lastSeen": "everyone",
@@ -264,10 +264,10 @@
       "readBy": [
         {
           "userId": "user_jordan",
-          "readAt": 1789816605512
+          "readAt": 1789816973185
         }
       ],
-      "createdAt": 1789816545512
+      "createdAt": 1789816913185
     },
     {
       "id": "msg_2",
@@ -288,10 +288,10 @@
       "readBy": [
         {
           "userId": "user_jordan",
-          "readAt": 1789816065512
+          "readAt": 1789816433185
         }
       ],
-      "createdAt": 1789815765512
+      "createdAt": 1789816133185
     },
     {
       "id": "msg_3",
@@ -317,10 +317,10 @@
       "readBy": [
         {
           "userId": "user_alex",
-          "readAt": 1789816365512
+          "readAt": 1789816733185
         }
       ],
-      "createdAt": 1789816065512
+      "createdAt": 1789816433185
     },
     {
       "id": "msg_4",
@@ -335,10 +335,10 @@
       "readBy": [
         {
           "userId": "user_kunal",
-          "readAt": 1789816545512
+          "readAt": 1789816913185
         }
       ],
-      "createdAt": 1789816485512
+      "createdAt": 1789816853185
     },
     {
       "id": "msg_5",
@@ -357,7 +357,7 @@
       ],
       "status": "delivered",
       "readBy": [],
-      "createdAt": 1789816605512
+      "createdAt": 1789816973185
     },
     {
       "id": "msg_05167310-f29",
@@ -1245,9 +1245,121 @@
       "maxAttempts": 5,
       "verified": true,
       "verificationToken": "gb_pvtok_test_7551e7e341cb4c02cc1b667336605bcb"
+    },
+    {
+      "id": "pv_test_1789816973449",
+      "phone": "+15550199991",
+      "code": "314005",
+      "purpose": "register",
+      "createdAt": 1789816973449,
+      "expiresAt": 1789817273449,
+      "attempts": 0,
+      "maxAttempts": 5,
+      "verified": true,
+      "verificationToken": "gb_pvtok_test_5d7e96ffc2629b337bec7909c7303e98"
+    },
+    {
+      "id": "pv_test_1789817036437",
+      "phone": "+15550199991",
+      "code": "170415",
+      "purpose": "register",
+      "createdAt": 1789817036437,
+      "expiresAt": 1789817336437,
+      "attempts": 0,
+      "maxAttempts": 5,
+      "verified": true,
+      "verificationToken": "gb_pvtok_test_5db7137d491e60a8d645ff2014abb454"
+    },
+    {
+      "id": "pv_39f616b1",
+      "phone": "+15559876543",
+      "code": "969428",
+      "purpose": "register",
+      "createdAt": 1789817046376,
+      "expiresAt": 1789817346376,
+      "attempts": 0,
+      "maxAttempts": 5,
+      "verified": false,
+      "cooldownUntil": 1789817091376
+    },
+    {
+      "id": "pv_test_1789817059011",
+      "phone": "+15550199991",
+      "code": "126561",
+      "purpose": "register",
+      "createdAt": 1789817059011,
+      "expiresAt": 1789817359011,
+      "attempts": 0,
+      "maxAttempts": 5,
+      "verified": true,
+      "verificationToken": "gb_pvtok_test_76f1dcc7b564b3bbf6776f83454961fa"
+    },
+    {
+      "id": "pv_test_1789817062750",
+      "phone": "+15550199991",
+      "code": "546883",
+      "purpose": "register",
+      "createdAt": 1789817062750,
+      "expiresAt": 1789817362750,
+      "attempts": 0,
+      "maxAttempts": 5,
+      "verified": true,
+      "verificationToken": "gb_pvtok_test_bb8c6a4c0a39563db385011adb1f639a"
     }
   ],
   "sessions": [
+    {
+      "id": "sess_d15f04b3",
+      "token": "gb_tok_3eea4dada8018689bd9bf46f1fdd2e815c773284ae3d25b177fb306b506343aa",
+      "userId": "user_jordan",
+      "deviceName": "Android Device (GB Official)",
+      "ip": "127.0.0.1",
+      "userAgent": "GB Official Android Client",
+      "platform": "Android",
+      "createdAt": 1789817062756,
+      "lastActive": 1789817062756,
+      "expiresAt": 1792409062756,
+      "isRevoked": false
+    },
+    {
+      "id": "sess_beb8ed01",
+      "token": "gb_tok_bb21a37adc4180d6c14229062e611de90d33a904a8de0583ead5981e061597d1",
+      "userId": "user_jordan",
+      "deviceName": "Android Device (GB Official)",
+      "ip": "127.0.0.1",
+      "userAgent": "GB Official Android Client",
+      "platform": "Android",
+      "createdAt": 1789817059015,
+      "lastActive": 1789817059015,
+      "expiresAt": 1792409059015,
+      "isRevoked": false
+    },
+    {
+      "id": "sess_49388529",
+      "token": "gb_tok_c8f3b657170f234e90f99a744cdaef64959c43b4e99bd08cd867e7ae15e09df7",
+      "userId": "user_jordan",
+      "deviceName": "Android Device (GB Official)",
+      "ip": "127.0.0.1",
+      "userAgent": "GB Official Android Client",
+      "platform": "Android",
+      "createdAt": 1789817036441,
+      "lastActive": 1789817036441,
+      "expiresAt": 1792409036441,
+      "isRevoked": false
+    },
+    {
+      "id": "sess_d3291310",
+      "token": "gb_tok_59397f234ba9564f9a6ef0482898c1d652c47590639a2836ea52fa67e154cefb",
+      "userId": "user_jordan",
+      "deviceName": "Android Device (GB Official)",
+      "ip": "127.0.0.1",
+      "userAgent": "GB Official Android Client",
+      "platform": "Android",
+      "createdAt": 1789816973453,
+      "lastActive": 1789816973453,
+      "expiresAt": 1792408973453,
+      "isRevoked": false
+    },
     {
       "id": "sess_1cb476bc",
       "token": "gb_tok_70b4fdf713ad92486e46e919cdea75503cc718052eb804f550ac4f43ee79d8c8",
@@ -1322,7 +1434,7 @@
       "userAgent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Mobile Safari/537.36",
       "platform": "Web",
       "createdAt": 1789816225728,
-      "lastActive": 1789816618599,
+      "lastActive": 1789816940439,
       "expiresAt": 1792408225728,
       "isRevoked": false
     },
@@ -1379,7 +1491,17 @@
       "isRevoked": false
     }
   ],
-  "security_logs": [],
+  "security_logs": [
+    {
+      "id": "sec_d33f0e18",
+      "event": "OTP_DISPATCHED",
+      "status": "success",
+      "details": "OTP generated for +15559876543 (purpose: register)",
+      "ip": "127.0.0.1",
+      "userAgent": "node",
+      "timestamp": 1789817046377
+    }
+  ],
   "security_notifications": [],
   "two_factor_auth": {},
   "oauth_accounts": [],
@@ -1437,6 +1559,34 @@
       "phoneOrEmail": "user_recovery_test_1789816666322@example.com",
       "code": "294331",
       "expiresAt": 1789817266322,
+      "attempts": 0,
+      "verified": false
+    },
+    {
+      "phoneOrEmail": "user_recovery_test_1789816973452@example.com",
+      "code": "557958",
+      "expiresAt": 1789817573452,
+      "attempts": 0,
+      "verified": false
+    },
+    {
+      "phoneOrEmail": "user_recovery_test_1789817036440@example.com",
+      "code": "984290",
+      "expiresAt": 1789817636440,
+      "attempts": 0,
+      "verified": false
+    },
+    {
+      "phoneOrEmail": "user_recovery_test_1789817059014@example.com",
+      "code": "770025",
+      "expiresAt": 1789817659014,
+      "attempts": 0,
+      "verified": false
+    },
+    {
+      "phoneOrEmail": "user_recovery_test_1789817062755@example.com",
+      "code": "771863",
+      "expiresAt": 1789817662755,
       "attempts": 0,
       "verified": false
     }

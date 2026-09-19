@@ -1361,7 +1361,12 @@ app.get('/api/events', (req, res) => {
 app.get('/api/auth/oauth/config', (req, res) => {
   const googleClientId = process.env.GOOGLE_CLIENT_ID;
   const facebookAppId = process.env.FACEBOOK_APP_ID;
-  const twilioSid = process.env.TWILIO_ACCOUNT_SID;
+  const instagramAppId = process.env.INSTAGRAM_APP_ID || process.env.INSTAGRAM_CLIENT_ID;
+  const isTwilioConfigured = !!(
+    process.env.TWILIO_ACCOUNT_SID &&
+    process.env.TWILIO_AUTH_TOKEN &&
+    process.env.TWILIO_PHONE_NUMBER
+  );
 
   res.json({
     google: {
@@ -1369,25 +1374,28 @@ app.get('/api/auth/oauth/config', (req, res) => {
       clientId: googleClientId || null,
       message: googleClientId
         ? 'Google OAuth 2.0 active and configured.'
-        : 'Google OAuth is NOT CONFIGURED. Set GOOGLE_CLIENT_ID in settings.',
+        : 'Google OAuth is NOT CONFIGURED. Set GOOGLE_CLIENT_ID in environment settings.',
     },
     facebook: {
       configured: !!facebookAppId,
       appId: facebookAppId || null,
       message: facebookAppId
         ? 'Facebook OAuth active and configured.'
-        : 'Facebook OAuth is NOT CONFIGURED. Set FACEBOOK_APP_ID in settings.',
+        : 'Facebook OAuth is NOT CONFIGURED. Set FACEBOOK_APP_ID in environment settings.',
     },
     instagram: {
-      configured: false,
-      message: 'Instagram OAuth is NOT CONFIGURED.',
+      configured: !!instagramAppId,
+      appId: instagramAppId || null,
+      message: instagramAppId
+        ? 'Instagram / Meta OAuth active and configured.'
+        : 'Instagram / Meta OAuth is NOT CONFIGURED. Set INSTAGRAM_APP_ID in environment settings.',
     },
     smsGateway: {
-      configured: !!twilioSid,
-      provider: twilioSid ? 'Twilio SMS' : 'In-App Secure Dispatch',
-      message: twilioSid
+      configured: isTwilioConfigured,
+      provider: isTwilioConfigured ? 'Twilio Carrier SMS' : 'OTP service not configured',
+      message: isTwilioConfigured
         ? 'Twilio Carrier SMS gateway configured.'
-        : 'SMS Gateway is NOT CONFIGURED (Using In-App Secure Dev Dispatch).',
+        : 'OTP service not configured (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER required in environment for carrier dispatch).',
     },
   });
 });
@@ -1472,8 +1480,50 @@ app.post('/api/auth/phone/send-otp', (req, res) => {
 
   logSecurityEvent(null, 'OTP_DISPATCHED', 'success', `OTP generated for ${normalized} (purpose: ${purpose})`, req);
 
-  // SMS Gateway configuration status
-  const isTwilioConfigured = !!process.env.TWILIO_ACCOUNT_SID;
+  // Production SMS Gateway configuration status
+  const isTwilioConfigured = !!(
+    process.env.TWILIO_ACCOUNT_SID &&
+    process.env.TWILIO_AUTH_TOKEN &&
+    process.env.TWILIO_PHONE_NUMBER
+  );
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  // Production carrier dispatch via Twilio Messages API
+  if (isTwilioConfigured) {
+    try {
+      const authHeader =
+        'Basic ' +
+        Buffer.from(`${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`).toString('base64');
+      const params = new URLSearchParams({
+        To: normalized,
+        From: process.env.TWILIO_PHONE_NUMBER!,
+        Body: `Your GB Official verification code is: ${otpCode}. Valid for 10 minutes. Do not share this code.`,
+      });
+      fetch(`https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`, {
+        method: 'POST',
+        headers: {
+          Authorization: authHeader,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: params.toString(),
+      }).catch((err) => console.error('Carrier SMS dispatch error:', err));
+    } catch (err) {
+      console.error('Failed to initiate carrier SMS dispatch:', err);
+    }
+  }
+
+  // In production, if carrier SMS is NOT configured, fail safely and never leak OTP codes
+  if (isProduction && !isTwilioConfigured) {
+    res.status(503).json({
+      success: false,
+      smsConfigured: false,
+      error:
+        'OTP carrier service is not configured. In production, real carrier SMS requires TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER.',
+      gatewayStatus: 'OTP service not configured (Carrier credentials not set in environment)',
+    });
+    return;
+  }
+
   const gatewayStatus = isTwilioConfigured
     ? 'CONFIGURED (Dispatched via Twilio Carrier)'
     : 'OTP service not configured (Carrier credentials not set in environment)';
@@ -1487,8 +1537,8 @@ app.post('/api/auth/phone/send-otp', (req, res) => {
     expiresAt,
     cooldownSeconds: 45,
     gatewayStatus,
-    // In preview/dev mode without external carrier, provide the real generated code so users and automated tests can verify smoothly
-    devOtp: otpCode,
+    // CRITICAL SECURITY ENFORCEMENT: Developer/sandbox OTP exposure CANNOT happen in production
+    ...(!isProduction && !isTwilioConfigured ? { devOtp: otpCode } : {}),
   });
 });
 
@@ -2022,10 +2072,31 @@ app.post('/api/auth/recover/send-otp', (req, res) => {
 
   logSecurityEvent(user.id, 'RECOVERY_OTP_SENT', 'success', `Password recovery code generated for ${user.username}`, req);
 
+  const isTwilioConfigured = !!(
+    process.env.TWILIO_ACCOUNT_SID &&
+    process.env.TWILIO_AUTH_TOKEN &&
+    process.env.TWILIO_PHONE_NUMBER
+  );
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  if (isProduction && !isTwilioConfigured && user.phone) {
+    res.status(503).json({
+      success: false,
+      smsConfigured: false,
+      error:
+        'OTP carrier service is not configured. In production, real carrier SMS requires TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER.',
+    });
+    return;
+  }
+
   res.json({
     success: true,
-    message: `Password recovery code sent to your registered contact.`,
-    devOtp: recoveryCode,
+    message: isTwilioConfigured
+      ? `Password recovery code sent via carrier SMS.`
+      : `Password recovery code generated for your contact.`,
+    smsConfigured: isTwilioConfigured,
+    // CRITICAL SECURITY ENFORCEMENT: Developer/sandbox OTP exposure CANNOT happen in production
+    ...(!isProduction && !isTwilioConfigured ? { devOtp: recoveryCode } : {}),
   });
 });
 
@@ -2179,10 +2250,32 @@ app.post('/api/auth/change-phone/request', (req, res) => {
   saveDb(db);
 
   logSecurityEvent(user.id, 'PHONE_CHANGE_OTP_SENT', 'success', `OTP sent to new number ${normalized}`, req);
+
+  const isTwilioConfigured = !!(
+    process.env.TWILIO_ACCOUNT_SID &&
+    process.env.TWILIO_AUTH_TOKEN &&
+    process.env.TWILIO_PHONE_NUMBER
+  );
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  if (isProduction && !isTwilioConfigured) {
+    res.status(503).json({
+      success: false,
+      smsConfigured: false,
+      error:
+        'OTP carrier service is not configured. In production, real carrier SMS requires TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER.',
+    });
+    return;
+  }
+
   res.json({
     success: true,
-    message: `Verification code sent to ${normalized}.`,
-    devOtp: otpCode,
+    message: isTwilioConfigured
+      ? `Verification code sent to ${normalized} via carrier SMS.`
+      : `Verification code generated for ${normalized}.`,
+    smsConfigured: isTwilioConfigured,
+    // CRITICAL SECURITY ENFORCEMENT: Developer/sandbox OTP exposure CANNOT happen in production
+    ...(!isProduction && !isTwilioConfigured ? { devOtp: otpCode } : {}),
   });
 });
 
