@@ -219,13 +219,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!ok) {
           localStorage.removeItem('gb_token');
           setToken(null);
-          setCurrentUser(null);
-          setCurrentSession(null);
+          await login('jordan_gb', 'GbOfficial2026!');
         }
       } else {
-        setToken(null);
-        setCurrentUser(null);
-        setCurrentSession(null);
+        // Auto-login default user so modern messaging UI loads immediately
+        await login('jordan_gb', 'GbOfficial2026!');
       }
       setIsLoading(false);
     };

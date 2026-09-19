@@ -3,6 +3,7 @@ import {
   Search,
   MoreVertical,
   Settings,
+  User,
   Sun,
   Moon,
   CheckCircle2,
@@ -24,6 +25,7 @@ import { useTheme } from '../../context/ThemeContext';
 interface TopAppBarProps {
   onOpenSearch: () => void;
   onOpenSettings: () => void;
+  onOpenProfile?: () => void;
   onOpenTests: () => void;
   onOpenAdmin: () => void;
   onOpenAuth: (mode?: 'register' | 'login') => void;
@@ -36,6 +38,7 @@ interface TopAppBarProps {
 export const TopAppBar: React.FC<TopAppBarProps> = ({
   onOpenSearch,
   onOpenSettings,
+  onOpenProfile,
   onOpenTests,
   onOpenAdmin,
   onOpenAuth,
@@ -84,36 +87,11 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
         </div>
       </div>
 
-      {/* Right: Camera, Search, Theme Toggle, More Options */}
-      <div className="flex items-center gap-0.5 relative" ref={menuRef}>
-        {/* Quick Theme Toggle */}
-        <button
-          onClick={toggleTheme}
-          className="p-2 rounded-full text-emerald-100 hover:text-white hover:bg-white/10 active:scale-95 transition"
-          title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-          aria-label="Toggle Theme"
-        >
-          {theme === 'dark' ? (
-            <Sun className="w-[19px] h-[19px] text-amber-300" />
-          ) : (
-            <Moon className="w-[19px] h-[19px] text-emerald-100" />
-          )}
-        </button>
-
-        {/* Camera Shortcut */}
-        {onOpenCamera && (
-          <button
-            onClick={onOpenCamera}
-            className="p-2 rounded-full text-emerald-100 hover:text-white hover:bg-white/10 active:scale-95 transition"
-            title="Camera & Status Capture"
-            aria-label="Camera"
-          >
-            <Camera className="w-[19px] h-[19px]" />
-          </button>
-        )}
-
+      {/* Right: Search, Settings, Profile status icons + Menu */}
+      <div className="flex items-center gap-1 relative" ref={menuRef}>
         {/* Search Icon */}
         <button
+          id="header-btn-search"
           onClick={onOpenSearch}
           className="p-2 rounded-full text-emerald-100 hover:text-white hover:bg-white/10 active:scale-95 transition"
           title="Search chats, contacts, messages"
@@ -122,8 +100,43 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
           <Search className="w-[19px] h-[19px]" />
         </button>
 
-        {/* More Options / Settings */}
+        {/* Settings Icon */}
         <button
+          id="header-btn-settings"
+          onClick={onOpenSettings}
+          className="p-2 rounded-full text-emerald-100 hover:text-white hover:bg-white/10 active:scale-95 transition"
+          title="GB Settings & Privacy"
+          aria-label="Settings"
+        >
+          <Settings className="w-[19px] h-[19px]" />
+        </button>
+
+        {/* Profile Icon / Avatar */}
+        <button
+          id="header-btn-profile"
+          onClick={onOpenProfile}
+          className="p-1 rounded-full text-emerald-100 hover:text-white hover:bg-white/10 active:scale-95 transition flex items-center justify-center relative"
+          title="My Profile & Account"
+          aria-label="Profile"
+        >
+          {currentUser?.avatar ? (
+            <div className="relative">
+              <img
+                src={currentUser.avatar}
+                alt={currentUser.displayName}
+                referrerPolicy="no-referrer"
+                className="w-6 h-6 rounded-full object-cover ring-1 ring-white/60"
+              />
+              <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-[#25d366] ring-1 ring-white" />
+            </div>
+          ) : (
+            <User className="w-[19px] h-[19px]" />
+          )}
+        </button>
+
+        {/* More Options Menu */}
+        <button
+          id="header-btn-more"
           onClick={() => setShowMenu(!showMenu)}
           className="p-2 rounded-full text-emerald-100 hover:text-white hover:bg-white/10 active:scale-95 transition"
           title="More options"

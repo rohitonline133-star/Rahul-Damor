@@ -37,7 +37,7 @@ import { UserStatus, Message } from './types';
 import { Sparkles, Shield, Lock, CircleDot, Plus } from 'lucide-react';
 
 const GbMainApp: React.FC = () => {
-  const { currentUser, logout } = useAuth();
+  const { currentUser, logout, isLoading } = useAuth();
   const {
     activeTab,
     setActiveTab,
@@ -75,8 +75,16 @@ const GbMainApp: React.FC = () => {
 
   return (
     <AndroidFrame>
-      {/* 0. If unauthenticated, show Registration / Auth directly */}
-      {!currentUser ? (
+      {/* 0. If loading, show clean WhatsApp splash, or if unauthenticated show Auth */}
+      {isLoading ? (
+        <div className="flex-1 flex flex-col items-center justify-center bg-white dark:bg-[#111b21] p-6 text-center">
+          <div className="w-16 h-16 rounded-3xl bg-[#00a884] flex items-center justify-center text-white shadow-xl shadow-[#00a884]/20 mb-4 animate-pulse">
+            <span className="font-black text-2xl tracking-tighter">GB</span>
+          </div>
+          <h2 className="text-lg font-bold text-[#111b21] dark:text-[#e9edef]">GB Official</h2>
+          <p className="text-xs text-[#00a884] font-medium mt-1">End-to-end encrypted messaging</p>
+        </div>
+      ) : !currentUser ? (
         <AuthModal
           onClose={() => {}}
           initialMode={authInitialMode}
@@ -95,6 +103,7 @@ const GbMainApp: React.FC = () => {
           <TopAppBar
             onOpenSearch={() => setShowSearch(true)}
             onOpenSettings={() => setShowSettings(true)}
+            onOpenProfile={() => setViewingUserId(currentUser?.id || 'user_jordan')}
             onOpenTests={() => setShowTests(true)}
             onOpenAdmin={() => setShowAdmin(true)}
             onOpenAuth={(mode = 'register') => {

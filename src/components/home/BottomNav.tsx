@@ -86,11 +86,6 @@ export const BottomNav: React.FC<BottomNavProps> = ({
       label: 'Calls',
       icon: <PhoneCall className="w-5 h-5 stroke-[2.2]" />,
     },
-    {
-      id: 'profile',
-      label: 'Profile',
-      icon: <User className="w-5 h-5 stroke-[2.2]" />,
-    },
   ];
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -307,15 +302,25 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           </div>
         )}
 
-        {/* The Primary FAB Button */}
+        {/* The Primary FAB Button: '+' for new messages */}
         <button
           id="btn-primary-fab"
-          onClick={() => setShowFabMenu(!showFabMenu)}
+          onClick={() => {
+            if (showFabMenu) {
+              setShowFabMenu(false);
+            } else {
+              onOpenNewChat();
+            }
+          }}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            setShowFabMenu(!showFabMenu);
+          }}
           className={`w-[54px] h-[54px] rounded-[18px] shadow-lg flex items-center justify-center text-white transition-all duration-200 bg-[#00a884] hover:bg-[#008f6f] active:scale-95 shadow-[#00a884]/30 ${
             showFabMenu ? 'rotate-45 bg-rose-600 hover:bg-rose-700 shadow-rose-600/30' : ''
           }`}
-          title="Create Menu"
-          aria-label="Create Menu"
+          title="New message (+)"
+          aria-label="New message"
         >
           <Plus className="w-6 h-6 stroke-[3]" />
         </button>
