@@ -15,6 +15,12 @@ import {
   Moon,
   Sun,
   ShieldAlert,
+  Download,
+  KeyRound,
+  CheckCircle2,
+  AlertCircle,
+  Laptop,
+  ShoppingBag,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -22,13 +28,124 @@ import { useTheme } from '../../context/ThemeContext';
 interface SettingsModalProps {
   onClose: () => void;
   onLogout: () => void;
+  onOpenLinkedDevices?: () => void;
+  onOpenShop?: () => void;
 }
 
-export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, onLogout }) => {
+export const SettingsModal: React.FC<SettingsModalProps> = ({
+  onClose,
+  onLogout,
+  onOpenLinkedDevices,
+  onOpenShop,
+}) => {
   const { currentUser, updateProfile, token } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
-  const [activeTab, setActiveTab] = useState<'profile' | 'privacy' | 'notifications' | 'appearance' | 'security'>('profile');
+  const [activeTab, setActiveTab] = useState<
+    'profile' | 'account' | 'privacy' | 'notifications' | 'appearance' | 'security'
+  >('profile');
+
+  // Account State
+  const [showPhoneChange, setShowPhoneChange] = useState(false);
+  const [newPhone, setNewPhone] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [phoneStep, setPhoneStep] = useState<1 | 2>(1);
+  const [phoneMsg, setPhoneMsg] = useState<string | null>(null);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleToggle2FA = async (enabled: boolean) => {
+    if (!token) return;
+    try {
+      const res = await fetch('/api/account/two-factor', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ enabled, pin: enabled ? '123456' : undefined }),
+      });
+      if (res.ok) {
+        setTwoFactor(enabled);
+      }
+    } catch {}
+  };
+
+  const handleRequestPhoneChange = async () => {
+    if (!token || !newPhone.trim()) return;
+    setPhoneError(null);
+    try {
+      const res = await fetch('/api/account/change-phone-request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ newPhone: newPhone.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setPhoneStep(2);
+        setPhoneMsg(`Verification code dispatched. (Test code: ${data.testVerificationCode || '123456'})`);
+      } else {
+        setPhoneError(data.error || 'Failed to request phone change');
+      }
+    } catch (e: any) {
+      setPhoneError(e.message);
+    }
+  };
+
+  const handleVerifyPhoneChange = async () => {
+    if (!token || !verificationCode.trim()) return;
+    setPhoneError(null);
+    try {
+      const res = await fetch('/api/account/change-phone-verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          newPhone: newPhone.trim(),
+          verificationCode: verificationCode.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setPhone(newPhone);
+        setShowPhoneChange(false);
+        setPhoneStep(1);
+        setPhoneMsg('Phone number updated successfully!');
+        setTimeout(() => setPhoneMsg(null), 3000);
+      } else {
+        setPhoneError(data.error || 'Invalid verification code');
+      }
+    } catch (e: any) {
+      setPhoneError(e.message);
+    }
+  };
+
+  const handleExportData = async () => {
+    if (!token) return;
+    setIsExporting(true);
+    try {
+      const res = await fetch('/api/account/export', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `gb_official_export_${currentUser?.id || 'account'}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch {} finally {
+      setIsExporting(false);
+    }
+  };
 
   // Profile form state
   const [displayName, setDisplayName] = useState(currentUser?.displayName || '');
@@ -93,6 +210,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, onLogout 
         <div className="flex border-b border-slate-100 dark:border-slate-800 px-4 gap-1 overflow-x-auto no-scrollbar bg-slate-50/50 dark:bg-slate-900/50">
           {[
             { id: 'profile', label: 'Profile', icon: <User className="w-4 h-4" /> },
+            { id: 'account', label: 'Account', icon: <KeyRound className="w-4 h-4" /> },
             { id: 'privacy', label: 'Privacy', icon: <Shield className="w-4 h-4" /> },
             { id: 'appearance', label: 'Theme', icon: <Palette className="w-4 h-4" /> },
             { id: 'notifications', label: 'Alerts', icon: <Bell className="w-4 h-4" /> },
@@ -183,6 +301,168 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, onLogout 
                   onChange={(e) => setPhone(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
                 />
+              </div>
+            </div>
+          )}
+
+          {/* 1.5. ACCOUNT */}
+          {activeTab === 'account' && (
+            <div className="space-y-4">
+              {/* Change Phone Number */}
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-bold text-xs text-slate-900 dark:text-slate-100">
+                      Change Phone Number
+                    </div>
+                    <div className="text-[11px] text-slate-400">
+                      Current: {currentUser?.phone || 'Not set'}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowPhoneChange(!showPhoneChange)}
+                    className="px-3 py-1.5 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-xs font-bold hover:bg-emerald-500/25 transition"
+                  >
+                    {showPhoneChange ? 'Cancel' : 'Change Number'}
+                  </button>
+                </div>
+
+                {showPhoneChange && (
+                  <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60 space-y-2.5">
+                    {phoneStep === 1 ? (
+                      <div className="space-y-2">
+                        <label className="text-[11px] font-bold text-slate-500 block">
+                          Enter New Phone Number (with country code)
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="tel"
+                            value={newPhone}
+                            onChange={(e) => setNewPhone(e.target.value)}
+                            placeholder="+1 555 019 2831"
+                            className="flex-1 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white"
+                          />
+                          <button
+                            onClick={handleRequestPhoneChange}
+                            disabled={!newPhone.trim()}
+                            className="px-3 py-1.5 rounded-xl bg-[#00a884] text-white text-xs font-bold"
+                          >
+                            Send Code
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <label className="text-[11px] font-bold text-slate-500 block">
+                          Enter 6-digit Verification Code
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            maxLength={6}
+                            value={verificationCode}
+                            onChange={(e) => setVerificationCode(e.target.value)}
+                            placeholder="123456"
+                            className="w-32 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-mono font-bold text-slate-900 dark:text-white text-center"
+                          />
+                          <button
+                            onClick={handleVerifyPhoneChange}
+                            disabled={!verificationCode.trim()}
+                            className="px-3 py-1.5 rounded-xl bg-[#00a884] text-white text-xs font-bold"
+                          >
+                            Verify & Update
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {phoneMsg && (
+                      <div className="text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                        <span>{phoneMsg}</span>
+                      </div>
+                    )}
+                    {phoneError && (
+                      <div className="text-[11px] text-red-500 flex items-center gap-1.5">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                        <span>{phoneError}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Two-Factor Authentication */}
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                <div>
+                  <div className="font-bold text-xs text-slate-900 dark:text-slate-100">
+                    Two-Step Verification
+                  </div>
+                  <div className="text-[11px] text-slate-400">
+                    Require a 6-digit security PIN when logging in from new devices
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={twoFactor}
+                  onChange={(e) => handleToggle2FA(e.target.checked)}
+                  className="w-4 h-4 accent-emerald-600 rounded cursor-pointer"
+                />
+              </div>
+
+              {/* Export Data */}
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                <div>
+                  <div className="font-bold text-xs text-slate-900 dark:text-slate-100">
+                    Export Account Data
+                  </div>
+                  <div className="text-[11px] text-slate-400">
+                    Download complete JSON archive of profile, chats, and keys
+                  </div>
+                </div>
+                <button
+                  onClick={handleExportData}
+                  disabled={isExporting}
+                  className="px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold transition flex items-center gap-1.5"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  {isExporting ? 'Exporting...' : 'Export JSON'}
+                </button>
+              </div>
+
+              {/* Linked Devices & Store Quick Links */}
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                {onOpenLinkedDevices && (
+                  <button
+                    onClick={() => {
+                      onClose();
+                      onOpenLinkedDevices();
+                    }}
+                    className="p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-850 hover:border-emerald-500/50 transition flex items-center gap-2 text-left"
+                  >
+                    <Laptop className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <div>
+                      <div className="text-xs font-bold">Linked Devices</div>
+                      <div className="text-[10px] text-slate-400">Manage sessions</div>
+                    </div>
+                  </button>
+                )}
+
+                {onOpenShop && (
+                  <button
+                    onClick={() => {
+                      onClose();
+                      onOpenShop();
+                    }}
+                    className="p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-850 hover:border-emerald-500/50 transition flex items-center gap-2 text-left"
+                  >
+                    <ShoppingBag className="w-4 h-4 text-[#00a884] shrink-0" />
+                    <div>
+                      <div className="text-xs font-bold">GB Store</div>
+                      <div className="text-[10px] text-slate-400">Themes & Badges</div>
+                    </div>
+                  </button>
+                )}
               </div>
             </div>
           )}

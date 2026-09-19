@@ -1,5 +1,5 @@
 export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'read';
-export type MessageType = 'text' | 'image' | 'video' | 'audio' | 'document';
+export type MessageType = 'text' | 'image' | 'video' | 'audio' | 'document' | 'location';
 export type ConversationType = 'direct' | 'group';
 export type CallType = 'voice' | 'video';
 export type CallStatus = 'ringing' | 'ongoing' | 'completed' | 'declined' | 'missed';
@@ -79,6 +79,16 @@ export interface MessageAttachment {
   duration?: number; // for audio/video in seconds
 }
 
+export interface LocationData {
+  latitude: number;
+  longitude: number;
+  address?: string;
+  isLive?: boolean;
+  durationMinutes?: number;
+  expiresAt?: number;
+  isActive?: boolean;
+}
+
 export interface Message {
   id: string;
   conversationId: string;
@@ -88,6 +98,7 @@ export interface Message {
   text: string;
   type: MessageType;
   attachment?: MessageAttachment;
+  location?: LocationData;
   replyToId?: string;
   replyToMessage?: {
     id: string;
@@ -325,4 +336,129 @@ export interface FollowRequest {
   status: 'pending' | 'accepted' | 'rejected';
   createdAt: number;
 }
+
+// -------------------------------------------------------------
+// SHOP & COMMERCE
+// -------------------------------------------------------------
+export interface ShopProduct {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  currency: string;
+  category: string;
+  image: string;
+  sellerId: string;
+  sellerName: string;
+  sellerVerified?: boolean;
+  inStock: boolean;
+  stockCount: number;
+  rating: number;
+  reviewsCount: number;
+  tags: string[];
+  createdAt: number;
+}
+
+export interface ShopCartItem {
+  productId: string;
+  product: ShopProduct;
+  quantity: number;
+  addedAt: number;
+}
+
+export interface ShopOrderItem {
+  productId: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  image: string;
+}
+
+export interface ShopOrder {
+  id: string;
+  userId: string;
+  userName: string;
+  items: ShopOrderItem[];
+  subtotal: number;
+  shipping: number;
+  total: number;
+  status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  shippingAddress: {
+    fullName: string;
+    address: string;
+    city: string;
+    postalCode: string;
+    country: string;
+  };
+  paymentMethod: string;
+  paymentStatus: 'paid' | 'pending';
+  trackingNumber?: string;
+  createdAt: number;
+}
+
+// -------------------------------------------------------------
+// PAYMENTS & SUBSCRIPTIONS
+// -------------------------------------------------------------
+export interface PaymentMethod {
+  id: string;
+  userId: string;
+  type: 'card' | 'upi' | 'paypal';
+  last4: string;
+  brand: string;
+  expMonth: number;
+  expYear: number;
+  isDefault: boolean;
+}
+
+export interface Transaction {
+  id: string;
+  userId: string;
+  type: 'subscription' | 'shop_purchase' | 'transfer';
+  amount: number;
+  currency: string;
+  status: 'completed' | 'pending' | 'failed';
+  description: string;
+  createdAt: number;
+}
+
+export interface UserSubscription {
+  plan: 'free' | 'pro' | 'business';
+  status: 'active' | 'cancelled';
+  pricePerMonth: number;
+  renewalDate: number;
+  features: string[];
+}
+
+// -------------------------------------------------------------
+// LINKED DEVICES & LISTS
+// -------------------------------------------------------------
+export interface LinkedDevice {
+  id: string;
+  userId: string;
+  name: string;
+  platform: 'Android' | 'Windows' | 'macOS' | 'Web' | 'iPadOS';
+  browserOrClient: string;
+  ip: string;
+  lastActive: number;
+  loginDate: number;
+  isCurrent: boolean;
+}
+
+export interface CustomList {
+  id: string;
+  userId: string;
+  name: string;
+  icon?: string;
+  userIds: string[];
+  createdAt: number;
+}
+
+export interface BroadcastList {
+  id: string;
+  userId: string;
+  name: string;
+  recipientIds: string[];
+  createdAt: number;
+}
+
 

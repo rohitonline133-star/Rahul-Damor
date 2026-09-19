@@ -13,6 +13,9 @@ import {
   LogOut,
   UserPlus,
   Camera,
+  ShoppingBag,
+  Laptop,
+  Megaphone,
 } from 'lucide-react';
 import { GbLogo } from '../common/GbLogo';
 import { useAuth } from '../../context/AuthContext';
@@ -25,6 +28,9 @@ interface TopAppBarProps {
   onOpenAdmin: () => void;
   onOpenAuth: () => void;
   onOpenCamera?: () => void;
+  onOpenShop?: () => void;
+  onOpenLinkedDevices?: () => void;
+  onOpenBroadcasts?: () => void;
 }
 
 export const TopAppBar: React.FC<TopAppBarProps> = ({
@@ -34,6 +40,9 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
   onOpenAdmin,
   onOpenAuth,
   onOpenCamera,
+  onOpenShop,
+  onOpenLinkedDevices,
+  onOpenBroadcasts,
 }) => {
   const { currentUser, allUsers, switchAccount, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -186,6 +195,45 @@ export const TopAppBar: React.FC<TopAppBarProps> = ({
               <Settings className="w-4 h-4 text-slate-500" />
               <span>Settings & Privacy</span>
             </button>
+
+            {onOpenShop && (
+              <button
+                onClick={() => {
+                  setShowMenu(false);
+                  onOpenShop();
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+              >
+                <ShoppingBag className="w-4 h-4 text-[#00a884]" />
+                <span>GB Official Store</span>
+              </button>
+            )}
+
+            {onOpenLinkedDevices && (
+              <button
+                onClick={() => {
+                  setShowMenu(false);
+                  onOpenLinkedDevices();
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+              >
+                <Laptop className="w-4 h-4 text-emerald-500" />
+                <span>Linked Devices</span>
+              </button>
+            )}
+
+            {onOpenBroadcasts && (
+              <button
+                onClick={() => {
+                  setShowMenu(false);
+                  onOpenBroadcasts();
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+              >
+                <Megaphone className="w-4 h-4 text-cyan-500" />
+                <span>New Broadcast</span>
+              </button>
+            )}
 
             <button
               onClick={() => {

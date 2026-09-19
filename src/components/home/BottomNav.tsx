@@ -9,6 +9,7 @@ import {
   UserPlus,
   Globe,
   Sparkles,
+  Megaphone,
 } from 'lucide-react';
 import { useChat, MainTab } from '../../context/ChatContext';
 
@@ -17,6 +18,7 @@ interface BottomNavProps {
   onOpenCreateGroup: () => void;
   onOpenCreateCommunity: () => void;
   onOpenCreateStatus: () => void;
+  onOpenBroadcast?: () => void;
 }
 
 export const BottomNav: React.FC<BottomNavProps> = ({
@@ -24,6 +26,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   onOpenCreateGroup,
   onOpenCreateCommunity,
   onOpenCreateStatus,
+  onOpenBroadcast,
 }) => {
   const { activeTab, setActiveTab, conversations } = useChat();
   const [showFabMenu, setShowFabMenu] = useState(false);
@@ -115,6 +118,23 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                 <UserPlus className="w-4 h-4 stroke-[2.2]" />
               </div>
             </button>
+
+            {/* New Broadcast */}
+            {onOpenBroadcast && (
+              <button
+                id="fab-action-new-broadcast"
+                onClick={() => {
+                  setShowFabMenu(false);
+                  onOpenBroadcast();
+                }}
+                className="flex items-center gap-3 px-3.5 py-2 rounded-2xl bg-white dark:bg-[#202c33] text-[#111b21] dark:text-[#e9edef] shadow-xl border border-slate-200/80 dark:border-transparent text-xs font-bold hover:scale-105 active:scale-95 transition group"
+              >
+                <span>New Broadcast</span>
+                <div className="w-8 h-8 rounded-xl bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 flex items-center justify-center group-hover:scale-110 transition">
+                  <Megaphone className="w-4 h-4 stroke-[2.2]" />
+                </div>
+              </button>
+            )}
 
             {/* New Chat */}
             <button

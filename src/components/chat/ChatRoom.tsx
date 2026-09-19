@@ -24,11 +24,16 @@ import {
   UserCheck,
   AlertCircle,
   Square,
+  MapPin,
+  Radio,
+  Navigation,
+  ExternalLink,
 } from 'lucide-react';
 import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
 import { useCall } from '../../context/CallContext';
 import { Message } from '../../types';
+import { LocationShareModal } from '../location/LocationShareModal';
 
 interface ChatRoomProps {
   onBack: () => void;
@@ -47,13 +52,14 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
     editMessage,
     deleteMessage,
   } = useChat();
-  const { currentUser } = useAuth();
+  const { currentUser, token } = useAuth();
   const { initiateCall } = useCall();
 
   const [inputText, setInputText] = useState('');
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [editingMsg, setEditingMsg] = useState<Message | null>(null);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [showLocationModal, setShowLocationModal] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [forwardingMsg, setForwardingMsg] = useState<Message | null>(null);
@@ -440,6 +446,67 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
                   </div>
                 )}
 
+                {/* Location Message Renderer */}
+                {(msg.type === 'location' || (msg as any).location) && (
+                  <div className="mb-2 w-64 max-w-full rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700/60 bg-white/90 dark:bg-[#1f2c34] shadow-sm text-slate-800 dark:text-slate-100">
+                    <div className="relative h-24 bg-emerald-950/20 dark:bg-emerald-950/40 flex items-center justify-center overflow-hidden">
+                      <div className="absolute inset-0 bg-[radial-gradient(#10b981_1.5px,transparent_1.5px)] [background-size:12px_12px] opacity-30" />
+                      <div className="relative z-10 flex flex-col items-center">
+                        <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-md border-2 border-white dark:border-slate-800">
+                          <MapPin className="w-4 h-4 fill-current" />
+                        </div>
+                        {(msg as any).location?.isLive && !(msg as any).location?.isStopped && (
+                          <span className="mt-1 flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500/20 text-red-600 dark:text-red-400 text-[10px] font-bold">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
+                            LIVE
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="p-2.5">
+                      <div className="font-bold text-xs truncate">
+                        {(msg as any).location?.address || 'Pinned Location'}
+                      </div>
+                      <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+                        {((msg as any).location?.latitude || 37.7749).toFixed(4)},{' '}
+                        {((msg as any).location?.longitude || -122.4194).toFixed(4)}
+                      </div>
+
+                      <div className="mt-2 flex items-center gap-1.5">
+                        <a
+                          href={`https://www.google.com/maps?q=${(msg as any).location?.latitude || 37.7749},${(msg as any).location?.longitude || -122.4194}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 py-1 px-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-semibold flex items-center justify-center gap-1 transition"
+                        >
+                          <ExternalLink className="w-3 h-3" /> Maps
+                        </a>
+
+                        {isMe && (msg as any).location?.isLive && !(msg as any).location?.isStopped && (
+                          <button
+                            onClick={async () => {
+                              try {
+                                await fetch('/api/location/stop', {
+                                  method: 'POST',
+                                  headers: {
+                                    'Content-Type': 'application/json',
+                                    Authorization: `Bearer ${token}`,
+                                  },
+                                  body: JSON.stringify({ messageId: msg.id }),
+                                });
+                              } catch {}
+                            }}
+                            className="py-1 px-2 rounded-xl bg-red-100 dark:bg-red-950/50 hover:bg-red-200 text-red-600 dark:text-red-400 text-[11px] font-semibold transition"
+                          >
+                            Stop
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Message Text Content */}
                 {msg.text && (
                   <p className="whitespace-pre-wrap break-words leading-relaxed text-[13.5px]">
@@ -692,6 +759,22 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
               onChange={handleFileUpload}
             />
           </label>
+
+          <button
+            type="button"
+            onClick={() => {
+              setShowAttachMenu(false);
+              setShowLocationModal(true);
+            }}
+            className="flex flex-col items-center gap-1 p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition"
+          >
+            <div className="w-10 h-10 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+              <MapPin className="w-5 h-5" />
+            </div>
+            <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+              Location
+            </span>
+          </button>
         </div>
       )}
 
@@ -808,6 +891,14 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
           </div>
         )}
       </footer>
+
+      {/* Location Share Dialog */}
+      {showLocationModal && activeConversation && (
+        <LocationShareModal
+          conversationId={activeConversation.id}
+          onClose={() => setShowLocationModal(false)}
+        />
+      )}
     </div>
   );
 };

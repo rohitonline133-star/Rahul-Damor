@@ -25,6 +25,9 @@ import { AuthModal } from './components/auth/AuthModal';
 import { UserProfileModal } from './components/profile/UserProfileModal';
 import { ReportModal } from './components/report/ReportModal';
 import { ActiveCallOverlay } from './components/call/ActiveCallOverlay';
+import { ShopModal } from './components/shop/ShopModal';
+import { LinkedDevicesModal } from './components/devices/LinkedDevicesModal';
+import { BroadcastModal } from './components/broadcast/BroadcastModal';
 import { UserStatus, Message } from './types';
 import { Sparkles, Shield, Lock, CircleDot, Plus } from 'lucide-react';
 
@@ -51,6 +54,9 @@ const GbMainApp: React.FC = () => {
   const [showSearch, setShowSearch] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
+  const [showShop, setShowShop] = useState(false);
+  const [showLinkedDevices, setShowLinkedDevices] = useState(false);
+  const [showBroadcast, setShowBroadcast] = useState(false);
   const [viewingUserId, setViewingUserId] = useState<string | null>(null);
   const [reportingTarget, setReportingTarget] = useState<{ id: string; type: 'user' | 'message' } | null>(null);
 
@@ -77,6 +83,9 @@ const GbMainApp: React.FC = () => {
             onOpenAdmin={() => setShowAdmin(true)}
             onOpenAuth={() => setShowAuth(true)}
             onOpenCamera={() => setShowCreateStatus(true)}
+            onOpenShop={() => setShowShop(true)}
+            onOpenLinkedDevices={() => setShowLinkedDevices(true)}
+            onOpenBroadcasts={() => setShowBroadcast(true)}
           />
 
           {/* Body based on activeTab */}
@@ -247,6 +256,7 @@ const GbMainApp: React.FC = () => {
             onOpenCreateGroup={() => setShowCreateGroup(true)}
             onOpenCreateCommunity={() => setShowCreateCommunity(true)}
             onOpenCreateStatus={() => setShowCreateStatus(true)}
+            onOpenBroadcast={() => setShowBroadcast(true)}
           />
         </div>
       )}
@@ -291,6 +301,8 @@ const GbMainApp: React.FC = () => {
             logout();
             setShowAuth(true);
           }}
+          onOpenLinkedDevices={() => setShowLinkedDevices(true)}
+          onOpenShop={() => setShowShop(true)}
         />
       )}
 
@@ -310,6 +322,16 @@ const GbMainApp: React.FC = () => {
       {showAdmin && <AdminModerationModal onClose={() => setShowAdmin(false)} />}
 
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
+
+      {showShop && <ShopModal onClose={() => setShowShop(false)} />}
+
+      {showLinkedDevices && (
+        <LinkedDevicesModal onClose={() => setShowLinkedDevices(false)} />
+      )}
+
+      {showBroadcast && (
+        <BroadcastModal onClose={() => setShowBroadcast(false)} />
+      )}
 
       {viewingUserId && (
         <UserProfileModal
