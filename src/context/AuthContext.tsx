@@ -36,6 +36,7 @@ interface AuthContextType {
     verificationToken: string;
     fullName: string;
     username: string;
+    password?: string;
     email?: string;
     avatar?: string;
     bio?: string;
@@ -316,6 +317,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     verificationToken: string;
     fullName: string;
     username: string;
+    password?: string;
     email?: string;
     avatar?: string;
     bio?: string;

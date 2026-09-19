@@ -297,6 +297,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, initialMode = 're
       verificationToken,
       fullName: fullName.trim(),
       username: username.trim(),
+      password: password.trim(),
       avatar: selectedAvatar,
       bio: bio.trim(),
     });

@@ -10,7 +10,7 @@
       "avatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
       "bio": "Lead Engineer @ GB Official • Building next-gen mobile communications 🚀",
       "online": true,
-      "lastSeen": 1789817037110,
+      "lastSeen": 1789817480798,
       "createdAt": 1787209961029,
       "isVerified": true,
       "privacySettings": {
@@ -118,18 +118,87 @@
       "phone": "+919876543210"
     },
     {
-      "id": "user_test_reg_1789817062751",
-      "username": "test_reg_2750",
+      "id": "user_1b0c244a",
+      "username": "rohit_in_6629",
+      "displayName": "Rohit Sharma",
+      "email": "rohit_in_6629@gbofficial.app",
+      "phone": "+919876582080",
+      "passwordHash": "df419f1b4e3244b7e795883089cae952fd53c6dfe23bdd1b2bd6caf32363b4da9dab1b3b4dbf82b8d9fd5156817a16442d7b2cf9b4e43ea9b10e9940d4d5b718",
+      "salt": "fca57d52f7c9272a1bb5eec8d9b596ce",
+      "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
+      "bio": "GB Official Android User - Mumbai, India",
+      "online": true,
+      "lastSeen": 1789817416635,
+      "createdAt": 1789817416635,
+      "isVerified": false,
+      "privacySettings": {
+        "lastSeen": "everyone",
+        "profilePhoto": "everyone",
+        "statusPrivacy": "everyone",
+        "readReceipts": true
+      },
+      "blockedUserIds": [],
+      "role": "user"
+    },
+    {
+      "id": "user_c7479180",
+      "username": "rohit_in_74855",
+      "displayName": "Rohit Sharma",
+      "email": "rohit_in_74855@gbofficial.app",
+      "phone": "+919876574855",
+      "passwordHash": "30ae78c96d3fdfffc91a958206ff77a22cd92349fd80c581029210f3131a783054a8a96bf9fe19a2fdc1d7903d8ad26a951092abdad7bce71b968b93ee147977",
+      "salt": "57ae456ec61eb082f3a5ce0a1f2f743c",
+      "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
+      "bio": "GB Official Android User - Mumbai, India",
+      "online": true,
+      "lastSeen": 1789817465482,
+      "createdAt": 1789817465482,
+      "isVerified": false,
+      "privacySettings": {
+        "lastSeen": "everyone",
+        "profilePhoto": "everyone",
+        "statusPrivacy": "everyone",
+        "readReceipts": true
+      },
+      "blockedUserIds": [],
+      "role": "user"
+    },
+    {
+      "id": "user_6c539112",
+      "username": "rohit_in_68563",
+      "displayName": "Rohit Sharma",
+      "email": "rohit_in_68563@gbofficial.app",
+      "phone": "+919876568563",
+      "passwordHash": "3bb6cb4f1b64fd1d851c0c0065a2a3137615f4297f96bc7d004ec9161d8495fd1ed1b0e53f9eb09cf61769295d82b07b2abda4c0ae461a3e306a69733bd8c880",
+      "salt": "12eba9cae8656f79e7a8b395a070a2a9",
+      "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
+      "bio": "GB Official Android User - Mumbai, India",
+      "online": true,
+      "lastSeen": 1789817484484,
+      "createdAt": 1789817484464,
+      "isVerified": false,
+      "privacySettings": {
+        "lastSeen": "everyone",
+        "profilePhoto": "everyone",
+        "statusPrivacy": "everyone",
+        "readReceipts": true
+      },
+      "blockedUserIds": [],
+      "role": "user"
+    },
+    {
+      "id": "user_test_reg_1789817497869",
+      "username": "test_reg_7869",
       "displayName": "Test Registered User",
-      "email": "test_reg_2750@gbofficial.app",
+      "email": "test_reg_7869@gbofficial.app",
       "phone": "+15550199991",
-      "passwordHash": "18cf16d1313735b00d85aa63bd240c1b163ad717ad4f3ed92858a2ad30247aacd048e278bd0ee7967762083d8b5c2dbaf416bf1f2f1e3df2eab3bf44cc20cb05",
-      "salt": "445d66de341e470aa894a308bd877d07",
+      "passwordHash": "fd5f930bceb5a24809948015c4eae14f1fa97dc8f556882b49ed0ceca55fbb54cc4cd8b84d61fe631e8e5e50c6baf7e3c9d0973dc140647c65fbece9ea9780a6",
+      "salt": "69973cd12f21719734377e140579120a",
       "avatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150",
       "bio": "Created via verified phone registration",
       "online": true,
-      "lastSeen": 1789817062750,
-      "createdAt": 1789817062750,
+      "lastSeen": 1789817497869,
+      "createdAt": 1789817497869,
       "isVerified": true,
       "privacySettings": {
         "lastSeen": "everyone",
@@ -242,6 +311,102 @@
       "pinnedForUserIds": [],
       "createdAt": 1789802441013,
       "lastMessageTime": 1789803081013
+    },
+    {
+      "id": "conv_welcome_user_1b0c244a",
+      "name": "GB Official Updates",
+      "type": "direct",
+      "avatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
+      "members": [
+        {
+          "userId": "user_1b0c244a",
+          "role": "member",
+          "joinedAt": 1789817416635
+        },
+        {
+          "userId": "user_jordan",
+          "role": "admin",
+          "joinedAt": 1789817416635
+        }
+      ],
+      "unreadCount": 1,
+      "createdAt": 1789817416635,
+      "updatedAt": 1789817416635,
+      "pinned": true,
+      "lastMessage": {
+        "id": "msg_welcome_6a4812a7",
+        "senderId": "user_jordan",
+        "senderName": "Jordan Miller (GB Team)",
+        "senderAvatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
+        "text": "Welcome to GB Official, Rohit Sharma! Your account is securely registered. Enjoy fast messaging and communities.",
+        "createdAt": 1789817416635,
+        "type": "text",
+        "status": "delivered"
+      }
+    },
+    {
+      "id": "conv_welcome_user_c7479180",
+      "name": "GB Official Updates",
+      "type": "direct",
+      "avatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
+      "members": [
+        {
+          "userId": "user_c7479180",
+          "role": "member",
+          "joinedAt": 1789817465482
+        },
+        {
+          "userId": "user_jordan",
+          "role": "admin",
+          "joinedAt": 1789817465482
+        }
+      ],
+      "unreadCount": 1,
+      "createdAt": 1789817465482,
+      "updatedAt": 1789817465482,
+      "pinned": true,
+      "lastMessage": {
+        "id": "msg_welcome_23a0cd81",
+        "senderId": "user_jordan",
+        "senderName": "Jordan Miller (GB Team)",
+        "senderAvatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
+        "text": "Welcome to GB Official, Rohit Sharma! Your account is securely registered. Enjoy fast messaging and communities.",
+        "createdAt": 1789817465482,
+        "type": "text",
+        "status": "delivered"
+      }
+    },
+    {
+      "id": "conv_welcome_user_6c539112",
+      "name": "GB Official Updates",
+      "type": "direct",
+      "avatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
+      "members": [
+        {
+          "userId": "user_6c539112",
+          "role": "member",
+          "joinedAt": 1789817484464
+        },
+        {
+          "userId": "user_jordan",
+          "role": "admin",
+          "joinedAt": 1789817484464
+        }
+      ],
+      "unreadCount": 1,
+      "createdAt": 1789817484464,
+      "updatedAt": 1789817484464,
+      "pinned": true,
+      "lastMessage": {
+        "id": "msg_welcome_e31cdce0",
+        "senderId": "user_jordan",
+        "senderName": "Jordan Miller (GB Team)",
+        "senderAvatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
+        "text": "Welcome to GB Official, Rohit Sharma! Your account is securely registered. Enjoy fast messaging and communities.",
+        "createdAt": 1789817484464,
+        "type": "text",
+        "status": "delivered"
+      }
     }
   ],
   "messages": [
@@ -264,10 +429,10 @@
       "readBy": [
         {
           "userId": "user_jordan",
-          "readAt": 1789816973185
+          "readAt": 1789817416837
         }
       ],
-      "createdAt": 1789816913185
+      "createdAt": 1789817356837
     },
     {
       "id": "msg_2",
@@ -288,10 +453,10 @@
       "readBy": [
         {
           "userId": "user_jordan",
-          "readAt": 1789816433185
+          "readAt": 1789816876837
         }
       ],
-      "createdAt": 1789816133185
+      "createdAt": 1789816576837
     },
     {
       "id": "msg_3",
@@ -317,10 +482,10 @@
       "readBy": [
         {
           "userId": "user_alex",
-          "readAt": 1789816733185
+          "readAt": 1789817176837
         }
       ],
-      "createdAt": 1789816433185
+      "createdAt": 1789816876837
     },
     {
       "id": "msg_4",
@@ -335,10 +500,10 @@
       "readBy": [
         {
           "userId": "user_kunal",
-          "readAt": 1789816913185
+          "readAt": 1789817356837
         }
       ],
-      "createdAt": 1789816853185
+      "createdAt": 1789817296837
     },
     {
       "id": "msg_5",
@@ -357,7 +522,7 @@
       ],
       "status": "delivered",
       "readBy": [],
-      "createdAt": 1789816973185
+      "createdAt": 1789817416837
     },
     {
       "id": "msg_05167310-f29",
@@ -1305,9 +1470,135 @@
       "maxAttempts": 5,
       "verified": true,
       "verificationToken": "gb_pvtok_test_bb8c6a4c0a39563db385011adb1f639a"
+    },
+    {
+      "id": "pv_35658f70",
+      "phone": "+919876543210",
+      "code": "880860",
+      "purpose": "register",
+      "createdAt": 1789817384288,
+      "expiresAt": 1789817684288,
+      "attempts": 1,
+      "maxAttempts": 5,
+      "verified": true,
+      "cooldownUntil": 1789817429288,
+      "verificationToken": "gb_pvtok_ea7662195bb0ab7443920cd3bf5bfce2d5f682eed0a84e75"
+    },
+    {
+      "id": "pv_72a32134",
+      "phone": "+919876582080",
+      "code": "533060",
+      "purpose": "register",
+      "createdAt": 1789817416613,
+      "expiresAt": 1789817716613,
+      "attempts": 1,
+      "maxAttempts": 5,
+      "verified": true,
+      "cooldownUntil": 1789817461613
+    },
+    {
+      "id": "pv_0fd81276",
+      "phone": "+919876574855",
+      "code": "505541",
+      "purpose": "register",
+      "createdAt": 1789817465454,
+      "expiresAt": 1789817765454,
+      "attempts": 1,
+      "maxAttempts": 5,
+      "verified": true,
+      "cooldownUntil": 1789817510454
+    },
+    {
+      "id": "pv_273ddb72",
+      "phone": "+919876568563",
+      "code": "769033",
+      "purpose": "register",
+      "createdAt": 1789817484437,
+      "expiresAt": 1789817784437,
+      "attempts": 1,
+      "maxAttempts": 5,
+      "verified": true,
+      "cooldownUntil": 1789817529437
+    },
+    {
+      "id": "pv_test_1789817497869",
+      "phone": "+15550199991",
+      "code": "853205",
+      "purpose": "register",
+      "createdAt": 1789817497869,
+      "expiresAt": 1789817797869,
+      "attempts": 0,
+      "maxAttempts": 5,
+      "verified": true,
+      "verificationToken": "gb_pvtok_test_b684b11e77f05507ed8728eb71e68531"
     }
   ],
   "sessions": [
+    {
+      "id": "sess_3f0c76a9",
+      "token": "gb_tok_06cc816d193f9e7fbe3a6b25d5b319e1f09e87aeff9b1a84139518a67354b586",
+      "userId": "user_jordan",
+      "deviceName": "Android Device (GB Official)",
+      "ip": "127.0.0.1",
+      "userAgent": "GB Official Android Client",
+      "platform": "Android",
+      "createdAt": 1789817497874,
+      "lastActive": 1789817497874,
+      "expiresAt": 1792409497874,
+      "isRevoked": false
+    },
+    {
+      "id": "sess_0b949780",
+      "token": "gb_tok_8c86b702a6014cdd7fe8a6373b3b6f4c644c9884a29151f191983cf252ba816b",
+      "userId": "user_6c539112",
+      "deviceName": "Android Device (GB Official)",
+      "ip": "127.0.0.1",
+      "userAgent": "node",
+      "platform": "Android",
+      "createdAt": 1789817484484,
+      "lastActive": 1789817484484,
+      "expiresAt": 1792409484484,
+      "isRevoked": false
+    },
+    {
+      "id": "sess_001c1dd6",
+      "token": "gb_tok_9965d4604ef442187656a8d60534e3c5c39f8d447f4c281debe6a2025b1b0014",
+      "userId": "user_6c539112",
+      "deviceName": "Android Device (GB Official)",
+      "ip": "127.0.0.1",
+      "userAgent": "node",
+      "platform": "Android",
+      "createdAt": 1789817484465,
+      "lastActive": 1789817484471,
+      "expiresAt": 1792409484465,
+      "isRevoked": true
+    },
+    {
+      "id": "sess_f828ce9a",
+      "token": "gb_tok_0544c05119209e91e3f5bd3ef6bee023536e96cef85f7a43ee789c042c5fa34f",
+      "userId": "user_c7479180",
+      "deviceName": "Android Device (GB Official)",
+      "ip": "127.0.0.1",
+      "userAgent": "node",
+      "platform": "Android",
+      "createdAt": 1789817465483,
+      "lastActive": 1789817465489,
+      "expiresAt": 1792409465483,
+      "isRevoked": true
+    },
+    {
+      "id": "sess_a06bf82e",
+      "token": "gb_tok_94602b0825e5bc4aeaea771191bf0652ce47955419df49389fcc65227bdc1a80",
+      "userId": "user_1b0c244a",
+      "deviceName": "Android Device (GB Official)",
+      "ip": "127.0.0.1",
+      "userAgent": "node",
+      "platform": "Android",
+      "createdAt": 1789817416636,
+      "lastActive": 1789817416644,
+      "expiresAt": 1792409416636,
+      "isRevoked": true
+    },
     {
       "id": "sess_d15f04b3",
       "token": "gb_tok_3eea4dada8018689bd9bf46f1fdd2e815c773284ae3d25b177fb306b506343aa",
@@ -1434,7 +1725,7 @@
       "userAgent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Mobile Safari/537.36",
       "platform": "Web",
       "createdAt": 1789816225728,
-      "lastActive": 1789816940439,
+      "lastActive": 1789817085302,
       "expiresAt": 1792408225728,
       "isRevoked": false
     },
@@ -1493,6 +1784,184 @@
   ],
   "security_logs": [
     {
+      "id": "sec_a177ef47",
+      "userId": "user_6c539112",
+      "event": "LOGIN_SUCCESS",
+      "status": "success",
+      "details": "Logged in via password (rohit_in_68563)",
+      "ip": "127.0.0.1",
+      "userAgent": "node",
+      "timestamp": 1789817484485
+    },
+    {
+      "id": "sec_6c388d55",
+      "userId": "user_6c539112",
+      "event": "LOGOUT",
+      "status": "success",
+      "details": "Session sess_001c1dd6 logged out.",
+      "ip": "127.0.0.1",
+      "userAgent": "node",
+      "timestamp": 1789817484476
+    },
+    {
+      "id": "sec_48a9ed8a",
+      "userId": "user_6c539112",
+      "event": "REGISTRATION_SUCCESS",
+      "status": "success",
+      "details": "Account created for rohit_in_68563 (+919876568563)",
+      "ip": "127.0.0.1",
+      "userAgent": "node",
+      "timestamp": 1789817484466
+    },
+    {
+      "id": "sec_05568006",
+      "event": "OTP_VERIFIED",
+      "status": "success",
+      "details": "Phone +919876568563 verified successfully.",
+      "ip": "127.0.0.1",
+      "userAgent": "node",
+      "timestamp": 1789817484454
+    },
+    {
+      "id": "sec_79635435",
+      "event": "OTP_MISMATCH",
+      "status": "failure",
+      "details": "Wrong OTP for +919876568563. 4 attempts remaining.",
+      "ip": "127.0.0.1",
+      "userAgent": "node",
+      "timestamp": 1789817484449
+    },
+    {
+      "id": "sec_39a19bf0",
+      "event": "OTP_DISPATCHED",
+      "status": "success",
+      "details": "OTP generated for +919876568563 (purpose: register)",
+      "ip": "127.0.0.1",
+      "userAgent": "node",
+      "timestamp": 1789817484438
+    },
+    {
+      "id": "sec_dc837d58",
+      "userId": "user_c7479180",
+      "event": "LOGOUT",
+      "status": "success",
+      "details": "Session sess_f828ce9a logged out.",
+      "ip": "127.0.0.1",
+      "userAgent": "node",
+      "timestamp": 1789817465495
+    },
+    {
+      "id": "sec_cbc8c1c1",
+      "userId": "user_c7479180",
+      "event": "REGISTRATION_SUCCESS",
+      "status": "success",
+      "details": "Account created for rohit_in_74855 (+919876574855)",
+      "ip": "127.0.0.1",
+      "userAgent": "node",
+      "timestamp": 1789817465484
+    },
+    {
+      "id": "sec_92173aec",
+      "event": "OTP_VERIFIED",
+      "status": "success",
+      "details": "Phone +919876574855 verified successfully.",
+      "ip": "127.0.0.1",
+      "userAgent": "node",
+      "timestamp": 1789817465471
+    },
+    {
+      "id": "sec_47f0b2c7",
+      "event": "OTP_MISMATCH",
+      "status": "failure",
+      "details": "Wrong OTP for +919876574855. 4 attempts remaining.",
+      "ip": "127.0.0.1",
+      "userAgent": "node",
+      "timestamp": 1789817465466
+    },
+    {
+      "id": "sec_d651c0ab",
+      "event": "OTP_DISPATCHED",
+      "status": "success",
+      "details": "OTP generated for +919876574855 (purpose: register)",
+      "ip": "127.0.0.1",
+      "userAgent": "node",
+      "timestamp": 1789817465455
+    },
+    {
+      "id": "sec_d0218753",
+      "userId": "user_1b0c244a",
+      "event": "LOGOUT",
+      "status": "success",
+      "details": "Session sess_a06bf82e logged out.",
+      "ip": "127.0.0.1",
+      "userAgent": "node",
+      "timestamp": 1789817416649
+    },
+    {
+      "id": "sec_54c8c695",
+      "userId": "user_1b0c244a",
+      "event": "REGISTRATION_SUCCESS",
+      "status": "success",
+      "details": "Account created for rohit_in_6629 (+919876582080)",
+      "ip": "127.0.0.1",
+      "userAgent": "node",
+      "timestamp": 1789817416638
+    },
+    {
+      "id": "sec_c717fa2f",
+      "event": "OTP_VERIFIED",
+      "status": "success",
+      "details": "Phone +919876582080 verified successfully.",
+      "ip": "127.0.0.1",
+      "userAgent": "node",
+      "timestamp": 1789817416627
+    },
+    {
+      "id": "sec_d393a269",
+      "event": "OTP_MISMATCH",
+      "status": "failure",
+      "details": "Wrong OTP for +919876582080. 4 attempts remaining.",
+      "ip": "127.0.0.1",
+      "userAgent": "node",
+      "timestamp": 1789817416622
+    },
+    {
+      "id": "sec_728317b7",
+      "event": "OTP_DISPATCHED",
+      "status": "success",
+      "details": "OTP generated for +919876582080 (purpose: register)",
+      "ip": "127.0.0.1",
+      "userAgent": "node",
+      "timestamp": 1789817416613
+    },
+    {
+      "id": "sec_09060d45",
+      "event": "OTP_VERIFIED",
+      "status": "success",
+      "details": "Phone +919876543210 verified successfully.",
+      "ip": "127.0.0.1",
+      "userAgent": "node",
+      "timestamp": 1789817384317
+    },
+    {
+      "id": "sec_6815686f",
+      "event": "OTP_MISMATCH",
+      "status": "failure",
+      "details": "Wrong OTP for +919876543210. 4 attempts remaining.",
+      "ip": "127.0.0.1",
+      "userAgent": "node",
+      "timestamp": 1789817384304
+    },
+    {
+      "id": "sec_9df3e6a5",
+      "event": "OTP_DISPATCHED",
+      "status": "success",
+      "details": "OTP generated for +919876543210 (purpose: register)",
+      "ip": "127.0.0.1",
+      "userAgent": "node",
+      "timestamp": 1789817384289
+    },
+    {
       "id": "sec_d33f0e18",
       "event": "OTP_DISPATCHED",
       "status": "success",
@@ -1502,7 +1971,35 @@
       "timestamp": 1789817046377
     }
   ],
-  "security_notifications": [],
+  "security_notifications": [
+    {
+      "id": "snotif_674dd6d8",
+      "userId": "user_1b0c244a",
+      "title": "Welcome to GB Official",
+      "message": "Your account and phone number have been securely verified and registered.",
+      "timestamp": 1789817416635,
+      "read": false,
+      "type": "security"
+    },
+    {
+      "id": "snotif_6825ad9f",
+      "userId": "user_c7479180",
+      "title": "Welcome to GB Official",
+      "message": "Your account and phone number have been securely verified and registered.",
+      "timestamp": 1789817465482,
+      "read": false,
+      "type": "security"
+    },
+    {
+      "id": "snotif_6bf96536",
+      "userId": "user_6c539112",
+      "title": "Welcome to GB Official",
+      "message": "Your account and phone number have been securely verified and registered.",
+      "timestamp": 1789817484464,
+      "read": false,
+      "type": "security"
+    }
+  ],
   "two_factor_auth": {},
   "oauth_accounts": [],
   "password_resets": [
@@ -1587,6 +2084,13 @@
       "phoneOrEmail": "user_recovery_test_1789817062755@example.com",
       "code": "771863",
       "expiresAt": 1789817662755,
+      "attempts": 0,
+      "verified": false
+    },
+    {
+      "phoneOrEmail": "user_recovery_test_1789817497873@example.com",
+      "code": "860782",
+      "expiresAt": 1789818097873,
       "attempts": 0,
       "verified": false
     }

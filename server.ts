@@ -1700,7 +1700,7 @@ app.get('/api/auth/check-username', (req, res) => {
 
 // 5. Complete Registration (Phone + Profile Setup)
 app.post('/api/auth/phone/complete-registration', (req, res) => {
-  const { phone, verificationToken, fullName, username, email, avatar, bio } = req.body;
+  const { phone, verificationToken, fullName, username, email, avatar, bio, password } = req.body;
 
   if (!phone || !verificationToken || !fullName || !username) {
     res.status(400).json({ error: 'Phone, verification token, full name, and username are required.' });
@@ -1750,8 +1750,10 @@ app.post('/api/auth/phone/complete-registration', (req, res) => {
 
   const now = Date.now();
   const salt = crypto.randomBytes(16).toString('hex');
-  const defaultPassword = crypto.randomBytes(16).toString('hex');
-  const passwordHash = hashPassword(defaultPassword, salt);
+  const userPassword = password && typeof password === 'string' && password.trim().length >= 6
+    ? password.trim()
+    : crypto.randomBytes(16).toString('hex');
+  const passwordHash = hashPassword(userPassword, salt);
 
   const newUser = {
     id: 'user_' + crypto.randomUUID().slice(0, 8),
@@ -1843,13 +1845,14 @@ app.post('/api/auth/phone/complete-registration', (req, res) => {
 
 // 6. Real Login (Email/Username/Phone + Password)
 app.post('/api/auth/login', (req, res) => {
-  const { emailOrUsername, password, twoFactorPin } = req.body;
-  if (!emailOrUsername || !password) {
+  const { emailOrUsername, emailOrPhone, phone, username, email, password, twoFactorPin } = req.body;
+  const rawIdentifier = emailOrUsername || emailOrPhone || phone || username || email;
+  if (!rawIdentifier || !password) {
     res.status(400).json({ error: 'Username, email, or phone number and password are required.' });
     return;
   }
 
-  const identifier = emailOrUsername.trim().toLowerCase();
+  const identifier = rawIdentifier.toString().trim().toLowerCase();
   const rateKey = `login_fail_${identifier}`;
   const rate = checkRateLimit(rateKey, 5, 15 * 60 * 1000, 15 * 60 * 1000);
 
