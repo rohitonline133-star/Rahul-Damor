@@ -2355,7 +2355,7 @@ app.post('/api/auth/two-factor', (req, res) => {
     }
   }
   if (enabled) {
-    if (typeof pin !== 'string' || !/^\\d{6}$/.test(pin)) {
+    if (typeof pin !== 'string' || !/^\d{6}$/.test(pin)) {
       res.status(400).json({ error: 'Choose a 6-digit numeric PIN for two-step verification.' }); return;
     }
     const salt = crypto.randomBytes(16).toString('hex');
