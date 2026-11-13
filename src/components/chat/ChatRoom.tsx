@@ -63,6 +63,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [forwardingMsg, setForwardingMsg] = useState<Message | null>(null);
+  const [failedMediaIds, setFailedMediaIds] = useState<Set<string>>(() => new Set());
   const [showOptionsDropdown, setShowOptionsDropdown] = useState(false);
 
   // Voice recording state
@@ -534,29 +535,42 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
                 {/* Attachment Renderer */}
                 {msg.attachment && (
                   <div className="mb-2">
-                    {msg.type === 'image' && (
+                    {failedMediaIds.has(msg.id) && (
+                      <div
+                        role="status"
+                        className="rounded-xl p-3 bg-black/5 dark:bg-white/5 text-xs text-slate-500 dark:text-slate-400"
+                      >
+                        This media could not be loaded. Check your connection and try again later.
+                      </div>
+                    )}
+
+                    {!failedMediaIds.has(msg.id) && msg.type === 'image' && (
                       <img
                         src={msg.attachment.url}
                         alt="Attachment"
                         referrerPolicy="no-referrer"
+                        onError={() => setFailedMediaIds((previous) => new Set(previous).add(msg.id))}
                         className="rounded-xl max-h-64 w-full object-cover shadow-sm cursor-pointer hover:opacity-95 transition"
                       />
                     )}
 
-                    {msg.type === 'video' && (
+                    {!failedMediaIds.has(msg.id) && msg.type === 'video' && (
                       <video
                         src={msg.attachment.url}
                         controls
+                        preload="metadata"
+                        onError={() => setFailedMediaIds((previous) => new Set(previous).add(msg.id))}
                         className="rounded-xl max-h-64 w-full object-cover"
                       />
                     )}
 
-                    {msg.type === 'audio' && (
+                    {!failedMediaIds.has(msg.id) && msg.type === 'audio' && (
                       <div className="flex flex-col gap-1.5 p-2 rounded-xl bg-black/5 dark:bg-white/5 min-w-[220px]">
                         <audio
                           controls
                           preload="metadata"
                           src={msg.attachment.url}
+                          onError={() => setFailedMediaIds((previous) => new Set(previous).add(msg.id))}
                           className="w-full max-w-[260px]"
                           aria-label="Voice message playback"
                         />
