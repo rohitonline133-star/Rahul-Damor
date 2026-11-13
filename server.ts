@@ -3168,7 +3168,7 @@ app.post('/api/messages', (req, res) => {
   // development store. Reject malformed or oversized payloads before writing.
   if (type === 'audio') {
     const audioUrl = typeof attachment?.url === 'string' ? attachment.url : '';
-    const audioDataMatch = audioUrl.match(/^data:(audio\/(?:webm|mp4|mpeg|ogg|wav));base64,([A-Za-z0-9+/]+=*)$/i);
+    const audioDataMatch = audioUrl.match(/^data:(audio\/(?:webm|mp4|mpeg|ogg|wav))(?:;codecs=[a-zA-Z0-9.,_-]+)?;base64,([A-Za-z0-9+/]+=*)$/i);
     const declaredDuration = Number(attachment?.duration);
     const declaredSize = Number(attachment?.size);
     const audioBytes = audioDataMatch ? Math.floor((audioDataMatch[2].length * 3) / 4) - (audioDataMatch[2].endsWith('==') ? 2 : audioDataMatch[2].endsWith('=') ? 1 : 0) : 0;
