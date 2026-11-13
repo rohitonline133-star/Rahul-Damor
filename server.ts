@@ -19,6 +19,9 @@ const DB_FILE = path.join(DATA_DIR, 'database.json');
 
 // Real-time SSE Connections pool: userId -> Set of express Response streams
 const sseClients = new Map<string, Set<express.Response>>();
+// Short-lived, single-use tickets let EventSource authenticate without exposing
+// long-lived bearer tokens in its URL.
+const sseTickets = new Map<string, { userId: string; expiresAt: number }>();
 
 function broadcastToUsers(targetUserIds: string[] | 'all', eventType: string, payload: any) {
   const dataString = `event: ${eventType}\ndata: ${JSON.stringify(payload)}\n\n`;
@@ -1307,12 +1310,30 @@ function authenticate(req: express.Request): any | null {
 // -------------------------------------------------------------
 // REAL-TIME SERVER-SENT EVENTS (SSE)
 // -------------------------------------------------------------
-app.get('/api/events', (req, res) => {
-  const userId = req.query.userId as string;
-  if (!userId) {
-    res.status(400).send('userId query parameter is required');
+app.post('/api/events/ticket', (req, res) => {
+  const user = authenticate(req);
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized' });
     return;
   }
+
+  const ticket = crypto.randomBytes(32).toString('hex');
+  sseTickets.set(ticket, { userId: user.id, expiresAt: Date.now() + 30_000 });
+  res.json({ ticket, expiresAt: Date.now() + 30_000 });
+});
+
+app.get('/api/events', (req, res) => {
+  const ticket = typeof req.query.ticket === 'string' ? req.query.ticket : '';
+  const ticketRecord = sseTickets.get(ticket);
+  if (!ticketRecord || ticketRecord.expiresAt <= Date.now()) {
+    if (ticket) sseTickets.delete(ticket);
+    res.status(401).send('A valid, unused event-stream ticket is required');
+    return;
+  }
+
+  // Tickets are single-use, so reconnects must request a fresh ticket.
+  sseTickets.delete(ticket);
+  const userId = ticketRecord.userId;
 
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
