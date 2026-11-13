@@ -83,12 +83,42 @@ function getPresenceViewerIds(owner: any): string[] {
   return eligible.map((viewer: any) => viewer.id);
 }
 
+function canViewPresence(owner: any, viewer: any): boolean {
+  if (!owner || !viewer || owner.id === viewer.id) return false;
+  const privacy = owner.privacySettings?.lastSeen || 'everyone';
+  if (privacy === 'nobody') return false;
+  if ((owner.blockedUserIds || []).includes(viewer.id) ||
+      (viewer.blockedUserIds || []).includes(owner.id)) return false;
+  if (privacy === 'contacts') {
+    const follows = Array.isArray(db.followers) ? db.followers : [];
+    return follows.some((f: any) => f.followerId === viewer.id && f.followingId === owner.id) &&
+      follows.some((f: any) => f.followerId === owner.id && f.followingId === viewer.id);
+  }
+  return true;
+}
+
+function sanitizeUserForViewer(owner: any, viewer: any) {
+  const { passwordHash: _passwordHash, salt: _salt, email: _email, phone: _phone, ...safe } = owner;
+  const privacy = owner.privacySettings || {};
+  const photoPrivacy = privacy.profilePhoto || 'everyone';
+  const canSeePhoto = photoPrivacy === 'everyone' ||
+    (photoPrivacy === 'contacts' && canViewPresence({ ...owner, privacySettings: { ...privacy, lastSeen: 'contacts' } }, viewer)) ||
+    (owner.id === viewer?.id);
+  const canSeePresence = owner.id === viewer?.id || canViewPresence(owner, viewer);
+  return {
+    ...safe,
+    avatar: canSeePhoto ? owner.avatar : '',
+    online: canSeePresence && !!owner.online,
+    lastSeen: canSeePresence ? owner.lastSeen : null,
+  };
+}
+
 function broadcastPresence(owner: any) {
   if (!owner) return;
   const payload = {
     userId: owner.id,
     online: !!owner.online,
-    lastSeen: owner.privacySettings?.lastSeen === 'nobody' ? null : owner.lastSeen,
+    lastSeen: owner.lastSeen,
   };
   broadcastToUsers(getPresenceViewerIds(owner), 'user_status', payload);
 }
@@ -2801,22 +2831,24 @@ app.post('/api/auth/switch-account', (req, res) => {
 // -------------------------------------------------------------
 app.get('/api/users', (req, res) => {
   const currentUser = authenticate(req);
+  if (!currentUser) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
   const search = (req.query.q as string || '').toLowerCase();
 
   const users = db.users
     .filter((u) => {
-      if (currentUser && u.id === currentUser.id) return false;
+      if (u.id === currentUser.id) return false;
+      if ((currentUser.blockedUserIds || []).includes(u.id) ||
+          (u.blockedUserIds || []).includes(currentUser.id)) return false;
       if (!search) return true;
       return (
         u.username.toLowerCase().includes(search) ||
-        u.displayName.toLowerCase().includes(search) ||
-        u.email.toLowerCase().includes(search)
+        u.displayName.toLowerCase().includes(search)
       );
     })
-    .map((u) => {
-      const { passwordHash: _, salt: __, ...safe } = u;
-      return safe;
-    });
+    .map((u) => sanitizeUserForViewer(u, currentUser));
 
   res.json({ users });
 });
@@ -2880,8 +2912,7 @@ app.get('/api/conversations', (req, res) => {
       const memberDetails = conv.members.map((m: any) => {
         const u = db.users.find((usr) => usr.id === m.userId);
         if (u) {
-          const { passwordHash: _, salt: __, ...safe } = u;
-          return { ...safe, role: m.role, isMuted: m.isMuted };
+          return { ...sanitizeUserForViewer(u, user), role: m.role, isMuted: m.isMuted };
         }
         return { id: m.userId, displayName: 'Unknown', role: m.role };
       });
