@@ -53,7 +53,7 @@ const isSafeMediaAttachment = (
   const allowedMimes: Record<string, string[]> = {
     image: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
     video: ['video/mp4', 'video/webm'],
-    audio: ['audio/webm', 'audio/mpeg', 'audio/wav', 'audio/ogg'],
+    audio: ['audio/webm', 'audio/mp4', 'audio/mpeg', 'audio/wav', 'audio/ogg'],
     document: ['application/pdf', 'text/plain'],
   };
   const allowedForType = allowedMimes[type];
