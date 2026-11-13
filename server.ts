@@ -1317,7 +1317,9 @@ function logSecurityEvent(
   details: string,
   req?: express.Request
 ) {
-  const clientIp = req ? ((req.headers['x-forwarded-for'] as string) || req.ip || '127.0.0.1') : '127.0.0.1';
+  // Do not trust client-supplied X-Forwarded-For for security audit attribution.
+  // Express only derives req.ip from forwarded headers when trust proxy is explicitly configured.
+  const clientIp = req ? (req.ip || req.socket.remoteAddress || 'unknown') : 'unknown';
   const userAgent = req?.headers['user-agent'] || 'GB Official Android Engine';
   const entry = {
     id: 'sec_' + crypto.randomUUID().slice(0, 8),
