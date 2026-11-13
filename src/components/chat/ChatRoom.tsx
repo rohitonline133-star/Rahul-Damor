@@ -54,6 +54,7 @@ const isSafeMediaAttachment = (
     image: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
     video: ['video/mp4', 'video/webm'],
     audio: ['audio/webm', 'audio/mpeg', 'audio/wav', 'audio/ogg'],
+    document: ['application/pdf', 'text/plain'],
   };
   const allowedForType = allowedMimes[type];
   const mimeType = attachment.mimeType.toLowerCase();
@@ -620,17 +621,28 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
                     )}
 
                     {msg.type === 'document' && (
-                      <div className="flex items-center gap-2 p-2 rounded-xl bg-black/5 dark:bg-white/5">
+                      <a
+                        href={isSafeMediaAttachment(msg.attachment, msg.type) ? msg.attachment.url : undefined}
+                        download={msg.attachment.name.replace(/[\\/\\x00-\\x1f\\x7f]/g, '_').slice(0, 120) || 'attachment'}
+                        aria-disabled={!isSafeMediaAttachment(msg.attachment, msg.type)}
+                        className="flex items-center gap-2 p-2 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10"
+                        onClick={(event) => {
+                          if (!isSafeMediaAttachment(msg.attachment, msg.type)) {
+                            event.preventDefault();
+                            window.alert('This document is not available or has an unsupported format.');
+                          }
+                        }}
+                      >
                         <FileText className="w-7 h-7 text-[#00a884]" />
                         <div className="truncate flex-1 min-w-0">
                           <div className="text-xs font-semibold truncate">
                             {msg.attachment.name}
                           </div>
                           <div className="text-[10px] text-slate-500">
-                            {(msg.attachment.size / 1024).toFixed(1)} KB
+                            {(msg.attachment.size / 1024).toFixed(1)} KB · Download
                           </div>
                         </div>
-                      </div>
+                      </a>
                     )}
                   </div>
                 )}
