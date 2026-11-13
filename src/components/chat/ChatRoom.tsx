@@ -1180,6 +1180,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
     editMessage,
     deleteMessage,
     refreshConversations,
+    setActiveConversationId,
   } = useChat();
   const { currentUser, token } = useAuth();
   const { initiateCall } = useCall();
@@ -2231,6 +2232,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
           token={token || ''}
           onClose={() => setShowGroupSettings(false)}
           onUpdated={async () => { await refreshConversations(); }}
+          onLeft={() => setActiveConversationId(null)}
         />
       )}
       {showLocationModal && activeConversation && (
