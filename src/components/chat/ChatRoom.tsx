@@ -32,6 +32,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useCall } from '../../context/CallContext';
 import { Message } from '../../types';
 import { LocationShareModal } from '../location/LocationShareModal';
+import { GroupSettingsModal } from '../group/GroupSettingsModal';
 
 interface ChatRoomProps {
   onBack: () => void;
@@ -79,7 +80,7 @@ const isSafeMediaAttachment = (
   }
 };
 
-export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpenReport }) => {
+const ChatRoomLegacy: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpenReport }) => {
   const {
     activeConversation,
     conversations,
@@ -1178,6 +1179,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
     reactToMessage,
     editMessage,
     deleteMessage,
+    refreshConversations,
   } = useChat();
   const { currentUser, token } = useAuth();
   const { initiateCall } = useCall();
@@ -1194,6 +1196,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
   const [forwardingMsg, setForwardingMsg] = useState<Message | null>(null);
   const [failedMediaIds, setFailedMediaIds] = useState<Set<string>>(() => new Set());
   const [showOptionsDropdown, setShowOptionsDropdown] = useState(false);
+  const [showGroupSettings, setShowGroupSettings] = useState(false);
 
   // Voice recording state
   const [isRecording, setIsRecording] = useState(false);
@@ -1587,6 +1590,14 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
 
           {showOptionsDropdown && (
             <div className="absolute top-full right-0 mt-1 w-48 bg-white dark:bg-slate-850 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-1.5 z-50 text-slate-800 dark:text-slate-100 animate-in fade-in zoom-in-95 duration-150">
+              {isGroup && (
+                <button
+                  onClick={() => { setShowOptionsDropdown(false); setShowGroupSettings(true); }}
+                  className="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                >
+                  Group info & settings
+                </button>
+              )}
               <button
                 onClick={() => {
                   setShowOptionsDropdown(false);
@@ -2213,6 +2224,15 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
       </footer>
 
       {/* Location Share Dialog */}
+      {showGroupSettings && isGroup && activeConversation && currentUser && (
+        <GroupSettingsModal
+          conversation={activeConversation}
+          currentUserId={currentUser.id}
+          token={token || ''}
+          onClose={() => setShowGroupSettings(false)}
+          onUpdated={async () => { await refreshConversations(); }}
+        />
+      )}
       {showLocationModal && activeConversation && (
         <LocationShareModal
           conversationId={activeConversation.id}
