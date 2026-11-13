@@ -38,7 +38,7 @@ export const CallsTab: React.FC = () => {
             GB Calls
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Encrypted crystal voice and video calls
+            Voice and video calling
           </p>
         </div>
 
