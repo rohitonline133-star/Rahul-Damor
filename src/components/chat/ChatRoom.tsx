@@ -293,26 +293,40 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
   };
 
   const handleForwardMessage = async (targetConvId: string) => {
-    if (!forwardingMsg) return;
-    const textToForward = forwardingMsg.text;
-    const attachment = forwardingMsg.attachment;
-    const type = forwardingMsg.type;
+    if (!forwardingMsg || !targetConvId) return;
+    const token = localStorage.getItem('gb_token');
+    if (!token) {
+      window.alert('Please sign in again before forwarding a message.');
+      return;
+    }
 
-    // Send using standard API
-    await fetch(`/api/conversations/${targetConvId}/messages`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('gb_token')}`,
-      },
-      body: JSON.stringify({
-        text: textToForward ? `[Forwarded] ${textToForward}` : '[Forwarded attachment]',
-        type,
-        attachment,
-      }),
-    });
+    try {
+      const response = await fetch('/api/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          conversationId: targetConvId,
+          text: forwardingMsg.text
+            ? `[Forwarded] ${forwardingMsg.text}`
+            : (forwardingMsg.attachment ? '[Forwarded attachment]' : ''),
+          type: forwardingMsg.type,
+          attachment: forwardingMsg.attachment,
+        }),
+      });
 
-    setForwardingMsg(null);
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        window.alert(result.error || 'Message could not be forwarded. Check that you are a member of the destination chat.');
+        return;
+      }
+
+      setForwardingMsg(null);
+    } catch {
+      window.alert('Message could not be forwarded. Check your connection and try again.');
+    }
   };
 
   const quickEmojis = ['👍', '❤️', '😂', '😮', '😢', '🙏', '🔥'];
