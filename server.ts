@@ -1890,8 +1890,12 @@ app.get('/api/auth/check-username', (req, res) => {
 app.post('/api/auth/phone/complete-registration', (req, res) => {
   const { phone, verificationToken, fullName, username, email, avatar, bio, password } = req.body;
 
-  if (!phone || !verificationToken || !fullName || !username) {
-    res.status(400).json({ error: 'Phone, verification token, full name, and username are required.' });
+  if (!phone || !verificationToken || !fullName || !username || typeof password !== 'string') {
+    res.status(400).json({ error: 'Phone, verification token, full name, username, and password are required.' });
+    return;
+  }
+  if (password.length < 8 || password.length > 128) {
+    res.status(400).json({ error: 'Password must be between 8 and 128 characters.' });
     return;
   }
 
@@ -1938,9 +1942,8 @@ app.post('/api/auth/phone/complete-registration', (req, res) => {
 
   const now = Date.now();
   const salt = crypto.randomBytes(16).toString('hex');
-  const userPassword = password && typeof password === 'string' && password.trim().length >= 6
-    ? password.trim()
-    : crypto.randomBytes(16).toString('hex');
+  // Preserve the exact password the user entered; never silently trim or replace it.
+  const userPassword = password;
   const passwordHash = hashPassword(userPassword, salt);
 
   const newUser = {
@@ -2287,11 +2290,20 @@ app.post('/api/auth/recover/reset-password', (req, res) => {
   const expectedHash = typeof record.codeHash === 'string' ? record.codeHash : '';
   const matches = candidateHash.length === expectedHash.length && expectedHash.length > 0 && crypto.timingSafeEqual(Buffer.from(candidateHash, 'hex'), Buffer.from(expectedHash, 'hex'));
   if (!matches) { record.attempts = (record.attempts || 0) + 1; saveDb(db); res.status(400).json({ error: 'Invalid or expired recovery verification code.' }); return; }
+  const previousPasswordHash = user.passwordHash;
+  const previousSalt = user.salt;
+  const previousRecord = { ...record };
+  const previousSessions = (db.sessions || []).filter((session: any) => session.userId === user.id);
   const salt = crypto.randomBytes(16).toString('hex');
   user.passwordHash = hashPassword(newPassword, salt); user.salt = salt;
   record.verified = true; record.codeHash = undefined; record.code = undefined; record.consumedAt = Date.now();
-  (db.sessions || []).forEach((session: any) => { if (session.userId === user.id) { session.isRevoked = true; activeSessions.delete(session.token); } });
-  if (!saveDb(db)) { res.status(500).json({ error: 'Could not complete password reset.' }); return; }
+  previousSessions.forEach((session: any) => { session.isRevoked = true; activeSessions.delete(session.token); });
+  if (!saveDb(db)) {
+    user.passwordHash = previousPasswordHash; user.salt = previousSalt;
+    Object.assign(record, previousRecord);
+    previousSessions.forEach((session: any) => { session.isRevoked = false; activeSessions.set(session.token, user.id); });
+    res.status(500).json({ error: 'Could not complete password reset. Please try again.' }); return;
+  }
   logSecurityEvent(user.id, 'PASSWORD_RESET_SUCCESS', 'success', 'Password reset via verified recovery code; sessions revoked.', req);
   res.json({ success: true, message: 'Password reset successfully. Please sign in again.' });
 });
@@ -6367,9 +6379,19 @@ app.post('/api/shop/orders', (req, res) => {
     return;
   }
 
-  const { items, shippingAddress, paymentMethod } = req.body;
-  if (!items || !Array.isArray(items) || items.length === 0) {
-    res.status(400).json({ error: 'No items provided for order' });
+  const { items, shippingAddress, paymentMethod } = req.body || {};
+  if (!items || !Array.isArray(items) || items.length === 0 || items.length > 50) {
+    res.status(400).json({ error: 'Provide between 1 and 50 order items.' });
+    return;
+  }
+  if (!shippingAddress || typeof shippingAddress !== 'object' ||
+      ['fullName', 'address', 'city', 'postalCode', 'country'].some((key) =>
+        typeof shippingAddress[key] !== 'string' || !shippingAddress[key].trim() || shippingAddress[key].length > 200)) {
+    res.status(400).json({ error: 'A complete, valid shipping address is required.' });
+    return;
+  }
+  if (paymentMethod !== undefined && !['card', 'upi', 'netbanking', 'wallet', 'cod'].includes(paymentMethod)) {
+    res.status(400).json({ error: 'Unsupported payment method.' });
     return;
   }
 
@@ -6405,12 +6427,12 @@ app.post('/api/shop/orders', (req, res) => {
     shipping: 0,
     total,
     status: 'pending_payment',
-    shippingAddress: shippingAddress || {
-      fullName: user.displayName,
-      address: '144 GB Innovation Park, Sector 5',
-      city: 'Silicon City',
-      postalCode: '94016',
-      country: 'India',
+    shippingAddress: {
+      fullName: shippingAddress.fullName.trim(),
+      address: shippingAddress.address.trim(),
+      city: shippingAddress.city.trim(),
+      postalCode: shippingAddress.postalCode.trim(),
+      country: shippingAddress.country.trim(),
     },
     paymentMethod: paymentMethod || 'card',
     paymentStatus: 'pending',
@@ -6449,9 +6471,15 @@ app.post('/api/shop/orders', (req, res) => {
   };
   db.notifications = db.notifications || [];
   db.notifications.unshift(notif);
-  sendSSE(user.id, 'notification', { notification: notif });
 
-  saveDb(db);
+  if (!saveDb(db)) {
+    db.shop_orders = db.shop_orders.filter((order: any) => order.id !== newOrder.id);
+    db.transactions = db.transactions.filter((transaction: any) => transaction.userId !== user.id || transaction.createdAt !== newOrder.createdAt);
+    db.notifications = db.notifications.filter((notification: any) => notification.id !== notif.id);
+    res.status(500).json({ error: 'Could not save the order. No payment was taken; please try again.' });
+    return;
+  }
+  sendSSE(user.id, 'notification', { notification: notif });
 
   res.status(201).json({
     order: newOrder,
