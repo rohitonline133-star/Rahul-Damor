@@ -16,7 +16,7 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
 }) => {
   const { allUsers } = useAuth();
   const currentMembership = conversation.members.find((member) => member.userId === currentUserId);
-  const isAdmin = currentMembership?.role === 'admin' || currentMembership?.role === 'owner';
+  const isAdmin = currentMembership?.role === 'admin';
   const [name, setName] = useState(conversation.name || '');
   const [description, setDescription] = useState(conversation.description || '');
   const [selectedUserId, setSelectedUserId] = useState('');
@@ -130,7 +130,7 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
               return <div key={member.userId} className="flex items-center gap-2">
                 <img src={person?.avatar || ''} alt="" className="w-9 h-9 rounded-full object-cover bg-slate-100 dark:bg-slate-800" />
                 <div className="min-w-0 flex-1"><div className="text-xs font-semibold truncate">{person?.displayName || member.userId}{self ? ' (You)' : ''}</div><div className="text-[10px] text-slate-500">@{person?.username || 'member'} · {member.role}</div></div>
-                {isAdmin && !self && member.role !== 'owner' && <div className="flex items-center gap-1">
+                {isAdmin && !self && true && <div className="flex items-center gap-1">
                   <button disabled={busy} onClick={() => changeRole(member.userId, member.role === 'admin' ? 'member' : 'admin')} className="text-[10px] px-2 py-1 rounded-lg border">{member.role === 'admin' ? 'Make member' : 'Make admin'}</button>
                   <button disabled={busy} onClick={() => removeMember(member.userId)} aria-label="Remove member" className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>}
