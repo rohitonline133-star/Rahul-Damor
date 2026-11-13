@@ -60,13 +60,24 @@ const isSafeMediaAttachment = (
   if (!allowedForType || !allowedForType.includes(mimeType)) return false;
 
   if (attachment.url.startsWith('data:')) {
-    const escapedMime = mimeType.replace(/[.*+?^${}()|[\]\\]/g, '\\interface ChatRoomProps {
-  onBack: () => void;
-  onOpenProfile?: (userId: string) => void;
-  onOpenReport?: (message: Message) => void;
-}
-');
-    return new RegExp('^data:' + escapedMime + '(?:;codecs=[a-zA-Z0-9.,_-]+)?;base64,[A-Za-z0-9+/]+=*
+    const commaIndex = attachment.url.indexOf(',');
+    if (commaIndex < 0) return false;
+    const metadata = attachment.url.slice(5, commaIndex).split(';');
+    const payload = attachment.url.slice(commaIndex + 1);
+    return metadata[0]?.toLowerCase() === mimeType &&
+      metadata.includes('base64') &&
+      /^[A-Za-z0-9+/]+=*$/.test(payload);
+  }
+
+  try {
+    const mediaUrl = new URL(attachment.url);
+    return mediaUrl.protocol === 'https:' &&
+      !mediaUrl.username && !mediaUrl.password;
+  } catch {
+    return false;
+  }
+};
+
 export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpenReport }) => {
   const {
     activeConversation,
