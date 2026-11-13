@@ -6455,7 +6455,7 @@ app.post('/api/shop/orders', (req, res) => {
     currency: 'USD',
     status: 'pending',
     description: `GB Shop Order #${newOrder.id.slice(-6).toUpperCase()} — awaiting verified gateway payment`,
-    createdAt: Date.now(),
+    createdAt: newOrder.createdAt,
   });
 
   // Create notification
