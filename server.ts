@@ -3466,7 +3466,12 @@ app.post('/api/messages/:id/react', (req, res) => {
     return;
   }
 
-  const { emoji } = req.body;
+  const { emoji } = req.body || {};
+  const allowedMessageReactions = new Set(['🔥', '❤️', '👏', '😂', '😮', '😢', '🙏', '👍']);
+  if (typeof emoji !== 'string' || !allowedMessageReactions.has(emoji)) {
+    res.status(400).json({ error: 'Unsupported reaction emoji' });
+    return;
+  }
   const msg = db.messages.find((m) => m.id === req.params.id);
   if (!msg) {
     res.status(404).json({ error: 'Message not found' });
@@ -3478,12 +3483,15 @@ app.post('/api/messages/:id/react', (req, res) => {
     res.status(403).json({ error: 'Not a member of this conversation' });
     return;
   }
-  if (typeof emoji !== 'string' || emoji.length < 1 || emoji.length > 16) {
-    res.status(400).json({ error: 'Invalid reaction emoji' });
+  const messageAuthor = db.users.find((candidate) => candidate.id === msg.senderId);
+  if (!messageAuthor ||
+      (user.blockedUserIds || []).includes(messageAuthor.id) ||
+      (messageAuthor.blockedUserIds || []).includes(user.id)) {
+    res.status(403).json({ error: 'You cannot react to this message' });
     return;
   }
 
-  if (!msg.reactions) msg.reactions = [];
+  if (!Array.isArray(msg.reactions)) msg.reactions = [];
 
   const existingIdx = msg.reactions.findIndex((r: any) => r.userId === user.id && r.emoji === emoji);
   if (existingIdx > -1) {
@@ -3516,7 +3524,11 @@ app.post('/api/messages/:id/poll-vote', (req, res) => {
     return;
   }
 
-  const { optionId } = req.body;
+  const { optionId } = req.body || {};
+  if (typeof optionId !== 'string' || optionId.length < 1 || optionId.length > 64) {
+    res.status(400).json({ error: 'A valid poll option is required' });
+    return;
+  }
   const msg = db.messages.find((m) => m.id === req.params.id);
   if (!msg) {
     res.status(404).json({ error: 'Message not found' });
@@ -3529,15 +3541,27 @@ app.post('/api/messages/:id/poll-vote', (req, res) => {
     return;
   }
 
+  const messageAuthor = db.users.find((candidate) => candidate.id === msg.senderId);
+  if (!messageAuthor ||
+      (user.blockedUserIds || []).includes(messageAuthor.id) ||
+      (messageAuthor.blockedUserIds || []).includes(user.id)) {
+    res.status(403).json({ error: 'You cannot vote on this message' });
+    return;
+  }
+
   const pollData = msg.poll || (msg.attachment && msg.attachment.poll);
   if (!pollData || !Array.isArray(pollData.options)) {
     res.status(400).json({ error: 'No poll attached to this message' });
     return;
   }
+  const selectedOption = pollData.options.find((opt: any) => opt && opt.id === optionId);
+  if (!selectedOption || !pollData.options.every((opt: any) => opt && Array.isArray(opt.votes))) {
+    res.status(400).json({ error: 'Poll option not found or poll data is invalid' });
+    return;
+  }
 
-  // Toggle vote or add vote
+  // Toggle vote or add vote only after the requested option is validated.
   pollData.options.forEach((opt: any) => {
-    opt.votes = opt.votes || [];
     const idx = opt.votes.indexOf(user.id);
     if (opt.id === optionId) {
       if (idx > -1) {
