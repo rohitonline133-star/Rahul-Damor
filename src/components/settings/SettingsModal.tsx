@@ -83,7 +83,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onOpenBroadcasts,
   onOpenCommunities,
 }) => {
-  const { currentUser, updateProfile, token, toggleTwoFactor } = useAuth();
+  const { currentUser, updateProfile, token, toggleTwoFactor, requestChangePhone, verifyChangePhone } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
   const [currentSection, setCurrentSection] = useState<SettingSection>('root');
@@ -190,55 +190,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const handleRequestPhoneChange = async () => {
     if (!token || !newPhone.trim()) return;
     setPhoneError(null);
-    try {
-      const res = await fetch('/api/account/change-phone-request', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ newPhone: newPhone.trim() }),
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setPhoneStep(2);
-        setPhoneMsg(`Verification code dispatched. (Test code: ${data.testVerificationCode || '123456'})`);
-      } else {
-        setPhoneError(data.error || 'Failed to request phone change');
-      }
-    } catch (e: any) {
-      setPhoneError(e.message);
+    const result = await requestChangePhone(newPhone.trim());
+    if (result.success) {
+      setPhoneStep(2);
+      setPhoneMsg('Verification code sent by SMS. It expires in 5 minutes.');
+    } else {
+      setPhoneError(result.error || 'Could not send the verification code.');
     }
   };
 
   const handleVerifyPhoneChange = async () => {
     if (!token || !verificationCode.trim()) return;
     setPhoneError(null);
-    try {
-      const res = await fetch('/api/account/change-phone-verify', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          newPhone: newPhone.trim(),
-          verificationCode: verificationCode.trim(),
-        }),
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setPhone(newPhone);
-        setPhoneStep(1);
-        setNewPhone('');
-        setVerificationCode('');
-        setPhoneMsg('Phone number updated successfully!');
-        setTimeout(() => setPhoneMsg(null), 3000);
-      } else {
-        setPhoneError(data.error || 'Invalid verification code');
-      }
-    } catch (e: any) {
-      setPhoneError(e.message);
+    const result = await verifyChangePhone(newPhone.trim(), verificationCode.trim());
+    if (result.success) {
+      setPhone(newPhone);
+      setPhoneStep(1);
+      setNewPhone('');
+      setVerificationCode('');
+      setPhoneMsg('Phone number updated successfully!');
+      setTimeout(() => setPhoneMsg(null), 3000);
+    } else {
+      setPhoneError(result.error || 'Invalid or expired verification code.');
     }
   };
 
