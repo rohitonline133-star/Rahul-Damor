@@ -3294,16 +3294,57 @@ app.post('/api/messages', (req, res) => {
     return;
   }
 
-  const { conversationId, text, type = 'text', attachment, replyToId } = req.body;
-  if (!conversationId || (!text && !attachment)) {
-    res.status(400).json({ error: 'Conversation ID and content are required.' });
+  const { conversationId, text = '', type = 'text', attachment, replyToId } = req.body || {};
+  if (typeof conversationId !== 'string' || !conversationId.trim() ||
+      (typeof text !== 'string') || (!text.trim() && !attachment)) {
+    res.status(400).json({ error: 'Conversation ID and valid message content are required.' });
     return;
   }
 
   const allowedMessageTypes = ['text', 'image', 'video', 'audio', 'document', 'location', 'poll'];
-  if (!allowedMessageTypes.includes(type)) {
+  if (typeof type !== 'string' || !allowedMessageTypes.includes(type)) {
     res.status(400).json({ error: 'Unsupported message type.' });
     return;
+  }
+
+  // Check membership before inspecting or processing potentially large media payloads.
+  const conv = db.conversations.find((c) => c.id === conversationId);
+  if (!conv || !Array.isArray(conv.members) || !conv.members.some((m: any) => m.userId === user.id)) {
+    res.status(403).json({ error: 'Not a member of this conversation.' });
+    return;
+  }
+
+  if (replyToId !== undefined && (typeof replyToId !== 'string' || replyToId.length > 128)) {
+    res.status(400).json({ error: 'Invalid reply reference.' });
+    return;
+  }
+
+  // Image, video and document attachments must be bounded, MIME-matched data URLs.
+  if (['image', 'video', 'document'].includes(type)) {
+    const allowedAttachmentMimes = new Set([
+      'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+      'video/mp4', 'video/webm', 'application/pdf', 'text/plain',
+    ]);
+    const expectedPrefix = type === 'image' ? 'image/' : type === 'video' ? 'video/' : '';
+    const attachmentUrl = typeof attachment?.url === 'string' ? attachment.url : '';
+    const dataMatch = attachmentUrl.match(/^data:([a-z0-9.+-]+\\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/]+={0,2})$/i);
+    if (!attachment || typeof attachment !== 'object' ||
+        typeof attachment.name !== 'string' || attachment.name.length > 180 ||
+        typeof attachment.mimeType !== 'string' || !allowedAttachmentMimes.has(attachment.mimeType.toLowerCase()) ||
+        (expectedPrefix && !attachment.mimeType.toLowerCase().startsWith(expectedPrefix)) ||
+        !dataMatch || dataMatch[1].toLowerCase() !== attachment.mimeType.toLowerCase()) {
+      res.status(400).json({ error: 'Attachment is invalid or its MIME type does not match the message type.' });
+      return;
+    }
+    const fileBytes = Buffer.from(dataMatch[2], 'base64');
+    if (fileBytes.length < 1 || fileBytes.length > 18 * 1024 * 1024 ||
+        fileBytes.toString('base64') !== dataMatch[2] ||
+        !Number.isSafeInteger(attachment.size) || attachment.size !== fileBytes.length) {
+      res.status(413).json({ error: 'Attachment is malformed or exceeds the 18 MiB limit.' });
+      return;
+    }
+    attachment.name = attachment.name.replace(/[\\/]/g, '_').replace(/[\\x00-\\x1f\\x7f]/g, '').trim().slice(0, 120) || 'attachment';
+    attachment.mimeType = attachment.mimeType.toLowerCase();
   }
 
   // Voice notes are currently stored as bounded data URLs in the JSON-backed
@@ -3330,12 +3371,6 @@ app.post('/api/messages', (req, res) => {
     }
     attachment.mimeType = audioDataMatch[1].toLowerCase();
     attachment.size = audioBytes;
-  }
-
-  const conv = db.conversations.find((c) => c.id === conversationId);
-  if (!conv || !conv.members.some((m: any) => m.userId === user.id)) {
-    res.status(403).json({ error: 'Not a member of this conversation.' });
-    return;
   }
 
   let replyToMessage = undefined;
