@@ -4256,7 +4256,16 @@ app.get('/api/search', (req, res) => {
       community.name?.toLowerCase().includes(q) ||
       community.description?.toLowerCase().includes(q)
     )
-    .slice(0, 30);
+    .slice(0, 30)
+    .map((community: any) => {
+      const { memberIds, adminIds, groupIds, ...publicCommunity } = community;
+      return {
+        ...publicCommunity,
+        memberCount: Array.isArray(memberIds) ? memberIds.length : 0,
+        isMember: Array.isArray(memberIds) && memberIds.includes(user.id),
+        isAdmin: Array.isArray(adminIds) && adminIds.includes(user.id),
+      };
+    });
 
   const posts = (db.posts || [])
     .filter((post: any) =>
@@ -4273,7 +4282,16 @@ app.get('/api/search', (req, res) => {
       channel.username?.toLowerCase().includes(q) ||
       channel.description?.toLowerCase().includes(q)
     )
-    .slice(0, 30);
+    .slice(0, 30)
+    .map((channel: any) => {
+      const { subscriberIds, moderatorIds, ...publicChannel } = channel;
+      return {
+        ...publicChannel,
+        subscribersCount: Array.isArray(subscriberIds) ? subscriberIds.length : 0,
+        isSubscribed: Array.isArray(subscriberIds) && subscriberIds.includes(user.id),
+        isModerator: Array.isArray(moderatorIds) && moderatorIds.includes(user.id),
+      };
+    });
 
   res.json({ users, chats, messages, communities, posts, channels });
 });
