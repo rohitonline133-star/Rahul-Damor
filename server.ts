@@ -3694,28 +3694,46 @@ app.post('/api/messages/read', (req, res) => {
   }
   const now = Date.now();
   let updatedCount = 0;
+  let changed = false;
+  const fullyReadMessageIds: string[] = [];
 
   db.messages
     .filter((m) => m.conversationId === conversationId && m.senderId !== user.id)
     .forEach((m) => {
-      if (!m.readBy) m.readBy = [];
-      if (!m.readBy.some((r: any) => r.userId === user.id)) {
+      if (!Array.isArray(m.readBy)) m.readBy = [];
+      if (!m.readBy.some((r: any) => r && r.userId === user.id)) {
         m.readBy.push({ userId: user.id, readAt: now });
-        m.status = 'read';
         updatedCount++;
+        changed = true;
       }
+
+      const recipientIds = readConversation.members
+        .map((member: any) => member && member.userId)
+        .filter((memberId: any) => typeof memberId === 'string' && memberId !== m.senderId);
+      const readers = new Set(m.readBy.map((receipt: any) => receipt && receipt.userId));
+      const hasRecipientRead = recipientIds.some((memberId: string) => readers.has(memberId));
+      const allRecipientsRead = recipientIds.length > 0 &&
+        recipientIds.every((memberId: string) => readers.has(memberId));
+      const nextStatus = allRecipientsRead ? 'read' : hasRecipientRead ? 'delivered' : 'sent';
+      if (m.status !== nextStatus) {
+        m.status = nextStatus;
+        changed = true;
+      }
+      if (allRecipientsRead) fullyReadMessageIds.push(m.id);
     });
 
-  if (updatedCount > 0) {
+  if (changed) {
     saveDb(db);
-    const conv = db.conversations.find((c) => c.id === conversationId);
-    if (conv) {
-      const memberIds = conv.members.map((m: any) => m.userId);
-      broadcastToUsers(memberIds, 'messages_read', { conversationId, userId: user.id, readAt: now });
-    }
+    const memberIds = readConversation.members.map((m: any) => m.userId);
+    broadcastToUsers(memberIds, 'messages_read', {
+      conversationId,
+      userId: user.id,
+      readAt: now,
+      fullyReadMessageIds,
+    });
   }
 
-  res.json({ success: true, updatedCount });
+  res.json({ success: true, updatedCount, fullyReadCount: fullyReadMessageIds.length });
 });
 
 // -------------------------------------------------------------
