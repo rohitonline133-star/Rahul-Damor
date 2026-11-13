@@ -7047,66 +7047,17 @@ app.post('/api/settings', (req, res) => {
 function runAuthVerificationSuite(filterId?: number) {
   const tests: any[] = [];
 
-  // 1. New registration
+  // 1. Registration integration test is intentionally not simulated here.
+  // A real registration test must call the HTTP endpoint with a test SMS provider;
+  // never create fake verified users or OTP records in the application's database.
   if (!filterId || filterId === 1) {
-    try {
-      const testPhone = '+15550199991';
-      const testUsername = 'test_reg_' + Date.now().toString().slice(-4);
-      db.users = db.users.filter((u) => u.phone !== testPhone && u.username !== testUsername);
-      const code = crypto.randomInt(100000, 999999).toString();
-      const now = Date.now();
-      const pv = {
-        id: 'pv_test_' + Date.now(),
-        phone: testPhone,
-        code,
-        purpose: 'register',
-        createdAt: now,
-        expiresAt: now + 5 * 60 * 1000,
-        attempts: 0,
-        maxAttempts: 5,
-        verified: true,
-        verificationToken: 'gb_pvtok_test_' + crypto.randomBytes(16).toString('hex'),
-      };
-      if (!db.phone_verifications) db.phone_verifications = [];
-      db.phone_verifications.push(pv);
-
-      const salt = crypto.randomBytes(16).toString('hex');
-      const newUser = {
-        id: 'user_test_reg_' + Date.now(),
-        username: testUsername,
-        displayName: 'Test Registered User',
-        email: `${testUsername}@gbofficial.app`,
-        phone: testPhone,
-        passwordHash: hashPassword('TestPassword123!', salt),
-        salt,
-        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-        bio: 'Created via verified phone registration',
-        online: true,
-        lastSeen: now,
-        createdAt: now,
-        isVerified: true,
-        privacySettings: {
-          lastSeen: 'everyone',
-          profilePhoto: 'everyone',
-          statusPrivacy: 'everyone',
-          readReceipts: true,
-        },
-        blockedUserIds: [],
-        role: 'user',
-      };
-      db.users.push(newUser);
-      saveDb(db);
-
-      tests.push({
-        id: 1,
-        name: 'New registration',
-        category: 'Auth & Registration',
-        status: 'PASS',
-        details: `Successfully registered new account: @${testUsername} (${testPhone}) with verified OTP and server-side profile persistence.`,
-      });
-    } catch (err: any) {
-      tests.push({ id: 1, name: 'New registration', category: 'Auth & Registration', status: 'FAIL', details: err.message });
-    }
+    tests.push({
+      id: 1,
+      name: 'New registration integration',
+      category: 'Auth & Registration',
+      status: 'NOT TESTED',
+      details: 'Requires an isolated test database and a configured SMS test provider. No user, phone-verification, or OTP records were written by this diagnostic.',
+    });
   }
 
   // 2. Existing phone number
