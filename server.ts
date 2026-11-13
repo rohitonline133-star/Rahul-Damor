@@ -3694,7 +3694,7 @@ app.post('/api/messages/read', (req, res) => {
   }
   const readConversation = db.conversations.find((c) => c.id === conversationId);
   if (!readConversation || !Array.isArray(readConversation.members) ||
-      !readConversation.members.some((m: any) => m.userId === user.id)) {
+      !readConversation.members.some((m: any) => m && m.userId === user.id)) {
     res.status(403).json({ error: 'Not a member of this conversation' });
     return;
   }
@@ -3702,9 +3702,10 @@ app.post('/api/messages/read', (req, res) => {
   let updatedCount = 0;
   let changed = false;
   const fullyReadMessageIds: string[] = [];
+  const conversationMessages = Array.isArray(db.messages) ? db.messages : [];
 
-  db.messages
-    .filter((m) => m.conversationId === conversationId && m.senderId !== user.id)
+  conversationMessages
+    .filter((m) => m && m.conversationId === conversationId && m.senderId !== user.id)
     .forEach((m) => {
       if (!Array.isArray(m.readBy)) m.readBy = [];
       if (!m.readBy.some((r: any) => r && r.userId === user.id)) {
@@ -3730,8 +3731,10 @@ app.post('/api/messages/read', (req, res) => {
 
   if (changed) {
     saveDb(db);
-    const memberIds = readConversation.members.map((m: any) => m.userId);
-    broadcastToUsers(memberIds, 'messages_read', {
+    const memberIds = readConversation.members
+      .map((member: any) => member && member.userId)
+      .filter((memberId: any) => typeof memberId === 'string' && memberId.length > 0);
+    if (memberIds.length > 0) broadcastToUsers(memberIds, 'messages_read', {
       conversationId,
       userId: user.id,
       readAt: now,
