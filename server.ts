@@ -3127,13 +3127,240 @@ app.post('/api/conversations', (req, res) => {
     };
 
     db.conversations.push(newGroup);
-    saveDb(db);
+    if (!saveDb(db)) {
+      db.conversations.pop();
+      res.status(500).json({ error: 'Could not save the group conversation. Please try again.' });
+      return;
+    }
     broadcastToUsers(allMemberIds, 'conversation_created', newGroup);
     res.json({ conversation: newGroup });
     return;
   }
 
   res.status(400).json({ error: 'Invalid conversation type' });
+});
+
+// Group management: every mutation is authenticated, membership-scoped and persisted before broadcast.
+function getGroupMembership(conversation: any, userId: string) {
+  if (!conversation || conversation.type !== 'group' || !Array.isArray(conversation.members)) return null;
+  return conversation.members.find((member: any) => member && member.userId === userId) || null;
+}
+
+function isGroupAdmin(conversation: any, userId: string): boolean {
+  const membership = getGroupMembership(conversation, userId);
+  return !!membership && (membership.role === 'admin' || membership.role === 'owner');
+}
+
+function notifyGroupMembers(conversation: any, eventType: string, payload: any) {
+  const ids = [...new Set((Array.isArray(conversation?.members) ? conversation.members : [])
+    .map((member: any) => member?.userId)
+    .filter((id: any): id is string => typeof id === 'string' && id.length > 0))];
+  if (ids.length) broadcastToUsers(ids, eventType, payload);
+}
+
+app.patch('/api/conversations/:id/group', (req, res) => {
+  const user = authenticate(req);
+  if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+  const group = db.conversations.find((item: any) => item?.id === req.params.id);
+  if (!group || group.type !== 'group') { res.status(404).json({ error: 'Group not found' }); return; }
+  if (!isGroupAdmin(group, user.id)) { res.status(403).json({ error: 'Only group admins can update group settings' }); return; }
+
+  const { name, description, icon, permissions } = req.body || {};
+  if (name !== undefined && (typeof name !== 'string' || !name.trim() || name.trim().length > 80)) {
+    res.status(400).json({ error: 'Group name must be between 1 and 80 characters.' }); return;
+  }
+  if (description !== undefined && (typeof description !== 'string' || description.length > 500)) {
+    res.status(400).json({ error: 'Description must be 500 characters or fewer.' }); return;
+  }
+  if (icon !== undefined && (typeof icon !== 'string' || icon.length > 2048)) {
+    res.status(400).json({ error: 'Group icon must be a valid string.' }); return;
+  }
+  const allowedPermissionKeys = ['editInfo', 'sendMessages', 'addMembers'];
+  if (permissions !== undefined && (!permissions || typeof permissions !== 'object' || Array.isArray(permissions) ||
+      Object.keys(permissions).some((key) => !allowedPermissionKeys.includes(key)) ||
+      Object.values(permissions).some((value) => typeof value !== 'boolean'))) {
+    res.status(400).json({ error: 'Group permissions are invalid.' }); return;
+  }
+
+  const previous = { name: group.name, description: group.description, icon: group.icon,
+    permissions: group.permissions ? { ...group.permissions } : undefined, updatedAt: group.updatedAt };
+  if (name !== undefined) group.name = name.trim();
+  if (description !== undefined) group.description = description.trim();
+  if (icon !== undefined) group.icon = icon;
+  if (permissions !== undefined) group.permissions = { ...(group.permissions || {}), ...permissions };
+  group.updatedAt = Date.now();
+  if (!saveDb(db)) {
+    Object.assign(group, previous);
+    res.status(500).json({ error: 'Could not save group settings. Please try again.' }); return;
+  }
+  notifyGroupMembers(group, 'group_updated', { conversationId: group.id, name: group.name,
+    description: group.description, icon: group.icon, permissions: group.permissions, updatedAt: group.updatedAt });
+  res.json({ success: true, group });
+});
+
+app.post('/api/conversations/:id/members', (req, res) => {
+  const user = authenticate(req);
+  if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+  const group = db.conversations.find((item: any) => item?.id === req.params.id);
+  if (!group || group.type !== 'group') { res.status(404).json({ error: 'Group not found' }); return; }
+  const actorMembership = getGroupMembership(group, user.id);
+  if (!actorMembership) { res.status(403).json({ error: 'You are not a group member' }); return; }
+  if (!isGroupAdmin(group, user.id) && group.permissions?.addMembers !== true) {
+    res.status(403).json({ error: 'Only admins can add members' }); return;
+  }
+  const { userIds } = req.body || {};
+  if (!Array.isArray(userIds) || userIds.length < 1 || userIds.length > 100 ||
+      userIds.some((id: any) => typeof id !== 'string' || !id.trim() || id.length > 128)) {
+    res.status(400).json({ error: 'Provide between 1 and 100 valid member IDs.' }); return;
+  }
+  const uniqueIds = [...new Set(userIds.map((id: string) => id.trim()))];
+  if (uniqueIds.some((id) => !db.users.some((candidate: any) => candidate?.id === id))) {
+    res.status(404).json({ error: 'One or more users were not found.' }); return;
+  }
+  const blocked = uniqueIds.some((id) => {
+    const target = db.users.find((candidate: any) => candidate?.id === id);
+    return (user.blockedUserIds || []).includes(id) || (target?.blockedUserIds || []).includes(user.id);
+  });
+  if (blocked) { res.status(403).json({ error: 'A blocked relationship prevents adding one or more users.' }); return; }
+  const existingIds = new Set(group.members.map((member: any) => member?.userId));
+  const additions = uniqueIds.filter((id) => !existingIds.has(id))
+    .map((id) => ({ userId: id, role: 'member', joinedAt: Date.now() }));
+  if (!additions.length) { res.json({ success: true, added: [], group }); return; }
+  group.members.push(...additions);
+  if (!saveDb(db)) {
+    group.members = group.members.filter((member: any) => !additions.some((added) => added.userId === member?.userId));
+    res.status(500).json({ error: 'Could not save group members. Please try again.' }); return;
+  }
+  notifyGroupMembers(group, 'group_members_added', { conversationId: group.id, members: additions });
+  res.json({ success: true, added: additions, group });
+});
+
+app.delete('/api/conversations/:id/members/:userId', (req, res) => {
+  const user = authenticate(req);
+  if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+  const group = db.conversations.find((item: any) => item?.id === req.params.id);
+  if (!group || group.type !== 'group') { res.status(404).json({ error: 'Group not found' }); return; }
+  if (!isGroupAdmin(group, user.id)) { res.status(403).json({ error: 'Only admins can remove members' }); return; }
+  const targetId = req.params.userId;
+  const target = getGroupMembership(group, targetId);
+  if (!target) { res.status(404).json({ error: 'Member not found' }); return; }
+  if (target.role === 'owner' || (target.role === 'admin' && group.members.filter((m: any) => m?.role === 'admin' || m?.role === 'owner').length <= 1)) {
+    res.status(409).json({ error: 'The last group admin or owner cannot be removed.' }); return;
+  }
+  const previousMembers = group.members.slice();
+  group.members = group.members.filter((member: any) => member?.userId !== targetId);
+  if (!saveDb(db)) {
+    group.members = previousMembers;
+    res.status(500).json({ error: 'Could not save member removal. Please try again.' }); return;
+  }
+  notifyGroupMembers(group, 'group_member_removed', { conversationId: group.id, userId: targetId });
+  sendSSE(targetId, 'group_access_revoked', { conversationId: group.id });
+  res.json({ success: true, removedUserId: targetId });
+});
+
+app.post('/api/conversations/:id/leave', (req, res) => {
+  const user = authenticate(req);
+  if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+  const group = db.conversations.find((item: any) => item?.id === req.params.id);
+  if (!group || group.type !== 'group') { res.status(404).json({ error: 'Group not found' }); return; }
+  const membership = getGroupMembership(group, user.id);
+  if (!membership) { res.status(403).json({ error: 'You are not a group member' }); return; }
+  const admins = group.members.filter((member: any) => member && (member.role === 'admin' || member.role === 'owner'));
+  if ((membership.role === 'admin' || membership.role === 'owner') && admins.length <= 1) {
+    res.status(409).json({ error: 'Promote another admin before leaving this group.' }); return;
+  }
+  const previousMembers = group.members.slice();
+  group.members = group.members.filter((member: any) => member?.userId !== user.id);
+  group.pinnedForUserIds = (group.pinnedForUserIds || []).filter((id: string) => id !== user.id);
+  if (!saveDb(db)) {
+    group.members = previousMembers;
+    res.status(500).json({ error: 'Could not leave the group. Please try again.' }); return;
+  }
+  notifyGroupMembers(group, 'group_member_left', { conversationId: group.id, userId: user.id });
+  sendSSE(user.id, 'group_access_revoked', { conversationId: group.id });
+  res.json({ success: true });
+});
+
+app.post('/api/conversations/:id/admins/:userId', (req, res) => {
+  const user = authenticate(req);
+  if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+  const group = db.conversations.find((item: any) => item?.id === req.params.id);
+  if (!group || group.type !== 'group') { res.status(404).json({ error: 'Group not found' }); return; }
+  if (!isGroupAdmin(group, user.id)) { res.status(403).json({ error: 'Only admins can change admin roles' }); return; }
+  const target = getGroupMembership(group, req.params.userId);
+  if (!target) { res.status(404).json({ error: 'Member not found' }); return; }
+  if (target.role === 'owner') { res.status(409).json({ error: 'The group owner role cannot be changed.' }); return; }
+  const previousRole = target.role;
+  const nextRole = req.body?.role;
+  if (nextRole !== 'admin' && nextRole !== 'member') {
+    res.status(400).json({ error: 'Role must be admin or member.' }); return;
+  }
+  target.role = nextRole;
+  if (!saveDb(db)) {
+    target.role = previousRole;
+    res.status(500).json({ error: 'Could not save the role change. Please try again.' }); return;
+  }
+  notifyGroupMembers(group, 'group_role_updated', { conversationId: group.id, userId: target.userId, role: nextRole });
+  res.json({ success: true, userId: target.userId, role: nextRole });
+});
+
+app.post('/api/conversations/:id/invite', (req, res) => {
+  const user = authenticate(req);
+  if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+  const group = db.conversations.find((item: any) => item?.id === req.params.id);
+  if (!group || group.type !== 'group') { res.status(404).json({ error: 'Group not found' }); return; }
+  if (!isGroupAdmin(group, user.id)) { res.status(403).json({ error: 'Only admins can create or reset invite links' }); return; }
+  const previous = { inviteCode: group.inviteCode, inviteEnabled: group.inviteEnabled };
+  group.inviteCode = crypto.randomBytes(24).toString('base64url');
+  group.inviteEnabled = true;
+  group.inviteCreatedAt = Date.now();
+  if (!saveDb(db)) {
+    group.inviteCode = previous.inviteCode;
+    group.inviteEnabled = previous.inviteEnabled;
+    res.status(500).json({ error: 'Could not create an invite link. Please try again.' }); return;
+  }
+  res.json({ success: true, inviteCode: group.inviteCode, inviteEnabled: true });
+});
+
+app.delete('/api/conversations/:id/invite', (req, res) => {
+  const user = authenticate(req);
+  if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+  const group = db.conversations.find((item: any) => item?.id === req.params.id);
+  if (!group || group.type !== 'group') { res.status(404).json({ error: 'Group not found' }); return; }
+  if (!isGroupAdmin(group, user.id)) { res.status(403).json({ error: 'Only admins can disable invite links' }); return; }
+  const previous = { inviteCode: group.inviteCode, inviteEnabled: group.inviteEnabled };
+  group.inviteEnabled = false;
+  group.inviteCode = null;
+  if (!saveDb(db)) {
+    group.inviteCode = previous.inviteCode;
+    group.inviteEnabled = previous.inviteEnabled;
+    res.status(500).json({ error: 'Could not disable the invite link. Please try again.' }); return;
+  }
+  res.json({ success: true, inviteEnabled: false });
+});
+
+app.post('/api/group-invites/:code/join', (req, res) => {
+  const user = authenticate(req);
+  if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+  const code = req.params.code;
+  if (typeof code !== 'string' || code.length < 20 || code.length > 128) {
+    res.status(400).json({ error: 'Invalid invite code.' }); return;
+  }
+  const group = db.conversations.find((item: any) =>
+    item?.type === 'group' && item.inviteEnabled === true && item.inviteCode === code);
+  if (!group) { res.status(404).json({ error: 'Invite link is invalid or disabled.' }); return; }
+  if (getGroupMembership(group, user.id)) { res.json({ success: true, conversationId: group.id, alreadyMember: true }); return; }
+  if ((user.blockedUserIds || []).some((id: string) => group.members.some((member: any) => member?.userId === id))) {
+    res.status(403).json({ error: 'A blocked relationship prevents joining this group.' }); return;
+  }
+  const added = { userId: user.id, role: 'member', joinedAt: Date.now() };
+  group.members.push(added);
+  if (!saveDb(db)) {
+    group.members.pop();
+    res.status(500).json({ error: 'Could not join the group. Please try again.' }); return;
+  }
+  notifyGroupMembers(group, 'group_members_added', { conversationId: group.id, members: [added] });
+  res.json({ success: true, conversationId: group.id, alreadyMember: false });
 });
 
 app.post('/api/conversations/:id/pin', (req, res) => {
