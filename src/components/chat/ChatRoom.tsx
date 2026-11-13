@@ -146,11 +146,17 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
 
     if (!inputText.trim()) return;
     const textToSend = inputText.trim();
-    setInputText('');
     const replyId = replyingTo?.id;
-    setReplyingTo(null);
 
-    await sendMessage(textToSend, 'text', undefined, replyId);
+    const sent = await sendMessage(textToSend, 'text', undefined, replyId);
+    if (sent) {
+      setInputText('');
+      setReplyingTo(null);
+    } else {
+      // Keep the user's draft and reply context when the server rejects or
+      // the network drops the message, so a retry does not lose their text.
+      window.alert('Message could not be sent. Your text is still here; check your connection and try again.');
+    }
   };
 
   const handleStartVoiceRecord = async () => {
@@ -262,14 +268,26 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
     if (!file) return;
 
     setShowAttachMenu(false);
+    if (file.size < 1 || file.size > 18 * 1024 * 1024) {
+      window.alert('Attachments must be between 1 byte and 18 MB. Please choose a smaller file.');
+      e.target.value = '';
+      return;
+    }
     const reader = new FileReader();
+    reader.onerror = () => {
+      window.alert('The selected file could not be read. Please choose it again.');
+    };
     reader.onload = async () => {
-      const dataUrl = reader.result as string;
+      if (typeof reader.result !== 'string') {
+        window.alert('The selected file could not be prepared. Please try again.');
+        return;
+      }
+      const dataUrl = reader.result;
       const isImg = file.type.startsWith('image/');
       const isVid = file.type.startsWith('video/');
       const type = isImg ? 'image' : isVid ? 'video' : 'document';
 
-      await sendMessage(
+      const sent = await sendMessage(
         '',
         type,
         {
@@ -280,7 +298,11 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
         },
         replyingTo?.id
       );
-      setReplyingTo(null);
+      if (sent) {
+        setReplyingTo(null);
+      } else {
+        window.alert('Attachment could not be sent. Check the file type and your connection, then try again.');
+      }
     };
     reader.readAsDataURL(file);
     e.target.value = '';
