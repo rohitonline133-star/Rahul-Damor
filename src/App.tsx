@@ -110,7 +110,7 @@ const GbMainApp: React.FC = () => {
             <span className="font-black text-2xl tracking-tighter">GB</span>
           </div>
           <h2 className="text-lg font-bold text-[#111b21] dark:text-[#e9edef]">GB Official</h2>
-          <p className="text-xs text-[#00a884] font-medium mt-1">End-to-end encrypted messaging</p>
+          <p className="text-xs text-[#00a884] font-medium mt-1">Private messaging</p>
         </div>
       ) : !currentUser ? (
         <AuthModal
