@@ -6365,16 +6365,14 @@ app.post('/api/shop/orders', (req, res) => {
     },
     paymentMethod: paymentMethod || 'card',
     paymentStatus: 'pending',
-    trackingNumber: 'GB-TRK-' + Math.floor(100000 + Math.random() * 900000),
+    trackingNumber: null,
     createdAt: Date.now(),
   };
 
   db.shop_orders = db.shop_orders || [];
   db.shop_orders.unshift(newOrder);
 
-  // Clear user cart if ordered from cart
-  db.shop_cart = db.shop_cart || {};
-  db.shop_cart[user.id] = [];
+  // Keep the cart intact until a payment gateway confirms settlement.
 
   // Record transaction
   db.transactions = db.transactions || [];
