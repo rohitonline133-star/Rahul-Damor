@@ -236,7 +236,14 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setToast({
                 id: msg.id,
                 title: msg.senderName,
-                body: msg.text || 'Media attachment',
+                body: msg.text || (
+                  msg.type === 'audio' ? 'Voice note' :
+                  msg.type === 'video' ? 'Video' :
+                  msg.type === 'image' ? 'Photo' :
+                  msg.type === 'document' ? 'Document' :
+                  msg.type === 'location' ? 'Location' :
+                  msg.type === 'poll' ? 'Poll' : 'Media attachment'
+                ),
                 avatar: msg.senderAvatar,
                 conversationId: convId,
               });
