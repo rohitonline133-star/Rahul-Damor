@@ -56,6 +56,43 @@ function sendSSE(userId: string, eventType: string, payload: any) {
   broadcastToUsers([userId], eventType, payload);
 }
 
+// Presence is private by default when a user selects "nobody" or "contacts".
+// The app has no address-book contacts table yet, so "contacts" is represented
+// conservatively by mutual follows until a first-class contacts model exists.
+function getPresenceViewerIds(owner: any): string[] {
+  const privacy = owner?.privacySettings?.lastSeen || 'everyone';
+  if (privacy === 'nobody') return [];
+
+  const blockedIds = new Set<string>(owner?.blockedUserIds || []);
+  const eligible = db.users.filter((viewer: any) =>
+    viewer.id !== owner.id &&
+    !blockedIds.has(viewer.id) &&
+    !(viewer.blockedUserIds || []).includes(owner.id)
+  );
+
+  if (privacy === 'contacts') {
+    const follows = Array.isArray(db.followers) ? db.followers : [];
+    return eligible
+      .filter((viewer: any) =>
+        follows.some((f: any) => f.followerId === viewer.id && f.followingId === owner.id) &&
+        follows.some((f: any) => f.followerId === owner.id && f.followingId === viewer.id)
+      )
+      .map((viewer: any) => viewer.id);
+  }
+
+  return eligible.map((viewer: any) => viewer.id);
+}
+
+function broadcastPresence(owner: any) {
+  if (!owner) return;
+  const payload = {
+    userId: owner.id,
+    online: !!owner.online,
+    lastSeen: owner.privacySettings?.lastSeen === 'nobody' ? null : owner.lastSeen,
+  };
+  broadcastToUsers(getPresenceViewerIds(owner), 'user_status', payload);
+}
+
 // Security password hashing
 function hashPassword(password: string, salt: string): string {
   return crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
@@ -1362,7 +1399,7 @@ app.get('/api/events', (req, res) => {
     user.online = true;
     user.lastSeen = Date.now();
     saveDb(db);
-    broadcastToUsers('all', 'user_status', { userId, online: true, lastSeen: user.lastSeen });
+    broadcastPresence(user);
   }
 
   req.on('close', () => {
@@ -1375,7 +1412,7 @@ app.get('/api/events', (req, res) => {
           user.online = false;
           user.lastSeen = Date.now();
           saveDb(db);
-          broadcastToUsers('all', 'user_status', { userId, online: false, lastSeen: user.lastSeen });
+          broadcastPresence(user);
         }
       }
     }
