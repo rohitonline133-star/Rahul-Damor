@@ -64,7 +64,7 @@ interface AuthContextType {
   revokeSession: (sessionId: string) => Promise<boolean>;
   securityLogs: SecurityLog[];
   fetchSecurityLogs: () => Promise<SecurityLog[]>;
-  toggleTwoFactor: (enabled: boolean, pin?: string) => Promise<{ success: boolean; error?: string }>;
+  toggleTwoFactor: (enabled: boolean, pin?: string, currentPassword?: string) => Promise<{ success: boolean; error?: string }>;
   requestChangePhone: (newPhone: string) => Promise<{ success: boolean; error?: string; devOtp?: string }>;
   verifyChangePhone: (newPhone: string, code: string) => Promise<{ success: boolean; error?: string }>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
