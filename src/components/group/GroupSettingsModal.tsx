@@ -109,14 +109,14 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
             <img src={conversation.icon || ''} alt="" className="w-14 h-14 rounded-full object-cover bg-slate-100 dark:bg-slate-800" />
             <div><div className="font-bold">{conversation.name || 'Group chat'}</div><div className="text-xs text-slate-500">{conversation.members.length} members</div></div>
           </div>
-          {canEditInfo && <>
-            <div className="space-y-2">
+          {(canEditInfo || canAddMembers) && <>
+            {canEditInfo && <div className="space-y-2">
               <label className="block text-xs font-semibold">Group name</label>
               <input value={name} onChange={(event) => setName(event.target.value)} maxLength={80} className="w-full rounded-xl px-3 py-2 bg-slate-100 dark:bg-slate-800 text-sm" />
               <label className="block text-xs font-semibold">Description</label>
               <textarea value={description} onChange={(event) => setDescription(event.target.value)} maxLength={500} rows={2} className="w-full rounded-xl px-3 py-2 bg-slate-100 dark:bg-slate-800 text-sm resize-none" />
               <button disabled={busy || !name.trim()} onClick={saveInfo} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 text-white px-4 py-2 text-xs font-semibold disabled:opacity-50"><Save className="w-4 h-4" /> Save group info</button>
-            </div>
+            </div>}
             {isAdmin && <div className="border-t border-slate-100 dark:border-slate-800 pt-4 space-y-3">
               <div className="text-sm font-bold">Group permissions</div>
               <label className="flex items-center justify-between gap-3 text-xs">
@@ -135,20 +135,20 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
                   onChange={(event) => setPermissions((prev) => ({ ...prev, addMembers: event.target.checked }))} />
               </label>
             </div>}
-            <div className="border-t border-slate-100 dark:border-slate-800 pt-4 space-y-2">
-              {canAddMembers && <div className="text-sm font-bold flex items-center gap-2"><UserPlus className="w-4 h-4" /> Add members</div>}
+            {canAddMembers && <div className="border-t border-slate-100 dark:border-slate-800 pt-4 space-y-2">
+              <div className="text-sm font-bold flex items-center gap-2"><UserPlus className="w-4 h-4" /> Add members</div>
               {canAddMembers && <div className="flex gap-2">
                 <select value={selectedUserId} onChange={(event) => setSelectedUserId(event.target.value)} className="min-w-0 flex-1 rounded-xl px-3 py-2 bg-slate-100 dark:bg-slate-800 text-xs">
                   <option value="">Choose a person</option>{availableUsers.map((person) => <option key={person.id} value={person.id}>{person.displayName} (@{person.username})</option>)}
                 </select>
                 <button disabled={busy || !selectedUserId} onClick={addMember} className="rounded-xl bg-emerald-600 text-white px-3 text-xs font-semibold disabled:opacity-50">Add</button>
-              </div>}
-            </div>
-            <div className="border-t border-slate-100 dark:border-slate-800 pt-4 space-y-2">
+              </div>
+            </div>}
+            {isAdmin && <div className="border-t border-slate-100 dark:border-slate-800 pt-4 space-y-2">
               <div className="text-sm font-bold flex items-center gap-2"><Link2 className="w-4 h-4" /> Invite link</div>
               {inviteCode ? <div className="flex gap-2"><input readOnly value={inviteUrl} className="min-w-0 flex-1 rounded-xl px-3 py-2 bg-slate-100 dark:bg-slate-800 text-xs" /><button onClick={() => navigator.clipboard?.writeText(inviteUrl).then(() => setNotice('Invite link copied.')).catch(() => setNotice('Could not copy the invite link.'))} className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800" aria-label="Copy invite link"><Copy className="w-4 h-4" /></button><button disabled={busy} onClick={disableInvite} className="px-3 rounded-xl border text-xs">Disable</button></div>
                 : <button disabled={busy} onClick={createInvite} className="rounded-xl border border-emerald-500/40 text-emerald-600 px-3 py-2 text-xs font-semibold">Create invite link</button>}
-            </div>
+            </div>}
           </>}
           <div className="border-t border-slate-100 dark:border-slate-800 pt-4 space-y-3">
             <div className="font-bold text-sm flex items-center gap-2"><Shield className="w-4 h-4" /> Members</div>
