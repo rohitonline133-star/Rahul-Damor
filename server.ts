@@ -130,9 +130,9 @@ function hashPassword(password: string, salt: string): string {
 }
 
 function verifyPassword(password: string, salt: string, storedHash: string): { valid: boolean; needsUpgrade: boolean } {
+  if (typeof storedHash !== 'string' || !/^[a-f0-9]{128}$/i.test(storedHash)) return { valid: false, needsUpgrade: false };
   const current = hashPassword(password, salt);
   if (current.length === storedHash.length && crypto.timingSafeEqual(Buffer.from(current, 'hex'), Buffer.from(storedHash, 'hex'))) return { valid: true, needsUpgrade: false };
-  if (!/^[a-f0-9]{128}$/i.test(storedHash)) return { valid: false, needsUpgrade: false };
   const legacy = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
   const valid = legacy.length === storedHash.length && crypto.timingSafeEqual(Buffer.from(legacy, 'hex'), Buffer.from(storedHash, 'hex'));
   return { valid, needsUpgrade: valid };
@@ -913,7 +913,7 @@ function getInitialDb(): DbSchema {
         'Unlimited HD Video & Audio Calling',
         'Priority Broadcast Channels & Polls',
         'Custom Chat Themes, Wallpapers & App Icons',
-        'End-to-End Cryptographic Cloud Backup',
+        'Private cloud backup',
       ],
     },
     user_alex: {
@@ -922,7 +922,7 @@ function getInitialDb(): DbSchema {
       pricePerMonth: 0,
       renewalDate: now + 365 * 86400000,
       features: [
-        'Standard Encrypted Chat & Media (up to 100MB)',
+        'Private chat and media (up to 100MB)',
         'Status Updates & Disappearing Stories',
         'Group Chats & Communities',
         'Standard WebRTC Calls',
@@ -2238,16 +2238,18 @@ app.post('/api/auth/recover/send-otp', async (req, res) => {
   const rate = checkRateLimit(rateKey, 3, 60 * 60 * 1000, 60 * 60 * 1000);
   if (!rate.allowed) { res.status(429).json({ error: 'Too many recovery requests. Please try again later.' }); return; }
   recordFailedAttempt(rateKey);
+  const isEmail = clean.includes('@');
+  const pepper = process.env.RECOVERY_OTP_PEPPER;
+  if (!pepper || (isEmail && (!process.env.SENDGRID_API_KEY || !process.env.RECOVERY_FROM_EMAIL)) ||
+      (!isEmail && (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_PHONE_NUMBER))) {
+    res.status(503).json({ error: 'Password recovery delivery is not configured.' }); return;
+  }
   const normalizedPhone = normalizePhoneNumber(clean);
   const user = db.users.find((candidate) => candidate.email?.toLowerCase() === clean || (candidate.phone && normalizePhoneNumber(candidate.phone) === normalizedPhone));
   if (!user) { res.status(202).json({ success: true, message: 'If the account exists, a recovery code will be sent to its registered contact.' }); return; }
-  const isEmail = clean.includes('@');
   const code = crypto.randomInt(100000, 1000000).toString();
-  const pepper = process.env.RECOVERY_OTP_PEPPER;
-  if (!pepper) { res.status(503).json({ error: 'Password recovery delivery is not configured.' }); return; }
   try {
     if (isEmail) {
-      if (!process.env.SENDGRID_API_KEY || !process.env.RECOVERY_FROM_EMAIL) { res.status(503).json({ error: 'Email recovery delivery is not configured.' }); return; }
       const delivery = await fetch('https://api.sendgrid.com/v3/mail/send', {
         method: 'POST', headers: { Authorization: `Bearer ${process.env.SENDGRID_API_KEY}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ personalizations: [{ to: [{ email: user.email }] }], from: { email: process.env.RECOVERY_FROM_EMAIL }, subject: 'GB Official password recovery code', content: [{ type: 'text/plain', value: `Your GB Official recovery code is ${code}. It expires in 10 minutes. If you did not request this, ignore this message.` }] }),
@@ -2255,7 +2257,7 @@ app.post('/api/auth/recover/send-otp', async (req, res) => {
       if (!delivery.ok) throw new Error('Email provider rejected the recovery message.');
     } else {
       const sid = process.env.TWILIO_ACCOUNT_SID, secret = process.env.TWILIO_AUTH_TOKEN, from = process.env.TWILIO_PHONE_NUMBER;
-      if (!sid || !secret || !from || !user.phone) { res.status(503).json({ error: 'SMS recovery delivery is not configured.' }); return; }
+      if (!user.phone) { res.status(202).json({ success: true, message: 'If the account exists, a recovery code will be sent to its registered contact.' }); return; }
       const authHeader = Buffer.from(`${sid}:${secret}`).toString('base64');
       const body = new URLSearchParams({ To: user.phone, From: from, Body: `Your GB Official recovery code is ${code}. It expires in 10 minutes.` });
       const delivery = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, { method: 'POST', headers: { Authorization: `Basic ${authHeader}`, 'Content-Type': 'application/x-www-form-urlencoded' }, body });
@@ -6489,7 +6491,7 @@ app.get('/api/subscriptions', (req, res) => {
     pricePerMonth: 0,
     renewalDate: Date.now() + 365 * 86400000,
     features: [
-      'Standard Encrypted Chat & Media (up to 100MB)',
+      'Private chat and media (up to 100MB)',
       'Status Updates & Disappearing Stories',
       'Group Chats & Communities',
       'Standard WebRTC Voice & Video Calls',
@@ -6504,7 +6506,7 @@ app.get('/api/subscriptions', (req, res) => {
       currency: 'USD',
       billing: 'Forever Free',
       features: [
-        'Standard Encrypted Chat & Media',
+        'Private chat and media',
         'Status Updates & Disappearing Stories',
         'Standard WebRTC Calls',
       ],
@@ -6522,7 +6524,7 @@ app.get('/api/subscriptions', (req, res) => {
         'Unlimited HD Video & Audio Calling',
         'Priority Broadcast Channels & Polls',
         'Custom Chat Themes, Wallpapers & App Icons',
-        'End-to-End Cryptographic Cloud Backup',
+        'Private cloud backup',
       ],
     },
     {
@@ -6578,7 +6580,7 @@ app.post('/api/subscriptions/upgrade', (req, res) => {
           'Custom Themes & Wallpapers',
         ]
       : [
-          'Standard Encrypted Chat & Media',
+          'Private chat and media',
           'Status Updates & Disappearing Stories',
           'Standard WebRTC Calls',
         ];
@@ -6628,7 +6630,7 @@ app.post('/api/subscriptions/cancel', (req, res) => {
     pricePerMonth: 0,
     renewalDate: Date.now() + 365 * 86400000,
     features: [
-      'Standard Encrypted Chat & Media',
+      'Private chat and media',
       'Status Updates & Disappearing Stories',
       'Standard WebRTC Calls',
     ],
@@ -7039,7 +7041,7 @@ app.post('/api/settings', (req, res) => {
   if (privacySettings) user.privacySettings = { ...user.privacySettings, ...privacySettings };
   if (bio !== undefined) user.bio = bio;
   if (displayName) user.displayName = displayName;
-  if (phone !== undefined) user.phone = phone;
+  // Phone changes must go through the OTP-verified change-phone endpoints.
   if (avatar) user.avatar = avatar;
 
   saveDb(db);
@@ -8224,10 +8226,16 @@ function runAutomatedTestSuite() {
 }
 
 app.all('/api/tests/run', (req, res) => {
+  if (process.env.NODE_ENV === 'production') { res.status(404).json({ error: 'Not found' }); return; }
+  const user = authenticate(req);
+  if (!user || user.role !== 'admin') { res.status(403).json({ error: 'Administrator access required.' }); return; }
   res.json(runAutomatedTestSuite());
 });
 
 app.post('/api/tests/run-single', (req, res) => {
+  if (process.env.NODE_ENV === 'production') { res.status(404).json({ error: 'Not found' }); return; }
+  const user = authenticate(req);
+  if (!user || user.role !== 'admin') { res.status(403).json({ error: 'Administrator access required.' }); return; }
   const { testId } = req.body;
   if (!testId) {
     res.status(400).json({ error: 'testId is required' });
