@@ -150,7 +150,22 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   (message as Message).conversationId === conversationId
                 )
               : [];
-            setMessages(fetchedMessages);
+            // Preserve messages delivered by SSE while this history request was in flight.
+            // Merge by ID so a late history response cannot erase a newer real-time message.
+            setMessages((previous) => {
+              const merged = new Map<string, Message>();
+              for (const message of fetchedMessages) merged.set(message.id, message);
+              for (const message of previous) {
+                if (message.conversationId === conversationId && !merged.has(message.id)) {
+                  merged.set(message.id, message);
+                }
+              }
+              return Array.from(merged.values()).sort((a, b) => {
+                const aTime = Number.isFinite(a.createdAt) ? a.createdAt : 0;
+                const bTime = Number.isFinite(b.createdAt) ? b.createdAt : 0;
+                return aTime - bTime;
+              });
+            });
             markConversationRead(conversationId);
           }
         }
