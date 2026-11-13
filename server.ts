@@ -3772,8 +3772,15 @@ app.get('/api/communities', (req, res) => {
     return;
   }
 
-  // Community discovery is available to signed-in users only.
-  res.json({ communities: db.communities });
+  // Keep membership and administrator identifiers private in discovery results.
+  const communities = db.communities.map((community: any) => {
+    const { memberIds, adminIds, groupIds, ...publicCommunity } = community;
+    return {
+      ...publicCommunity,
+      memberCount: Array.isArray(memberIds) ? memberIds.length : 0,
+    };
+  });
+  res.json({ communities });
 });
 
 app.post('/api/communities', (req, res) => {
@@ -4436,8 +4443,15 @@ app.get('/api/channels', (req, res) => {
     return;
   }
 
-  // Channel discovery is available to signed-in users only.
-  res.json({ channels: db.channels || [] });
+  // Do not disclose subscriber or moderator account IDs in channel discovery.
+  const channels = (db.channels || []).map((channel: any) => {
+    const { subscriberIds, moderatorIds, ...publicChannel } = channel;
+    return {
+      ...publicChannel,
+      subscribersCount: Array.isArray(subscriberIds) ? subscriberIds.length : 0,
+    };
+  });
+  res.json({ channels });
 });
 
 app.post('/api/channels', (req, res) => {
