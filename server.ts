@@ -3960,14 +3960,8 @@ app.post('/api/upload', (req, res) => {
     return;
   }
 
-  const { dataUrl, filename, mimeType, size } = req.body;
-  if (!dataUrl) {
-    res.status(400).json({ error: 'File data is required' });
-    return;
-  }
-
-  // Validate allowed mime types & size (<25MB)
-  const allowed = [
+  const { dataUrl, filename, mimeType, size } = req.body || {};
+  const allowed = new Set([
     'image/jpeg',
     'image/png',
     'image/webp',
@@ -3980,24 +3974,48 @@ app.post('/api/upload', (req, res) => {
     'audio/ogg',
     'application/pdf',
     'text/plain',
-  ];
+  ]);
 
-  if (mimeType && !allowed.includes(mimeType)) {
-    res.status(400).json({ error: 'Unsupported file format for GB Messenger' });
+  if (typeof dataUrl !== 'string' || typeof mimeType !== 'string' || !allowed.has(mimeType)) {
+    res.status(400).json({ error: 'A supported file and matching MIME type are required' });
     return;
   }
 
-  if (size && size > 25 * 1024 * 1024) {
-    res.status(400).json({ error: 'File exceeds 25MB safety limit' });
+  // JSON requests are base64-expanded; keep decoded files below the parser's
+  // 25 MiB request ceiling until a streaming/object-storage provider is added.
+  const match = dataUrl.match(/^data:([a-z0-9.+-]+\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/]+={0,2})$/i);
+  if (!match || match[1].toLowerCase() !== mimeType.toLowerCase()) {
+    res.status(400).json({ error: 'File data URL does not match the declared MIME type' });
     return;
   }
 
-  // Generate safe storage URL (simulated cloud storage return with persisted data URL)
+  const encoded = match[2];
+  const bytes = Buffer.from(encoded, 'base64');
+  if (bytes.length < 1 || bytes.toString('base64') !== encoded ||
+      bytes.length > 18 * 1024 * 1024) {
+    res.status(400).json({ error: 'File is empty, malformed, or exceeds the 18 MiB upload limit' });
+    return;
+  }
+  if (size !== undefined && (!Number.isSafeInteger(size) || size !== bytes.length)) {
+    res.status(400).json({ error: 'Declared file size does not match uploaded data' });
+    return;
+  }
+
+  const safeFilename = typeof filename === 'string'
+    ? filename.replace(/[\\/]/g, '_').replace(/[\\x00-\\x1f\\x7f]/g, '').trim().slice(0, 120)
+    : '';
+  if (filename !== undefined && typeof filename !== 'string') {
+    res.status(400).json({ error: 'Invalid filename' });
+    return;
+  }
+
+  // This development endpoint validates and returns a data URL; it does not
+  // persist files to private object storage. Production storage is still required.
   res.json({
     url: dataUrl,
-    filename: filename || 'attachment',
-    mimeType: mimeType || 'application/octet-stream',
-    size: size || Math.round(dataUrl.length * 0.75),
+    filename: safeFilename || 'attachment',
+    mimeType: mimeType.toLowerCase(),
+    size: bytes.length,
   });
 });
 
