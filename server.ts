@@ -4267,6 +4267,7 @@ app.post('/api/upload', (req, res) => {
     'video/mp4',
     'video/webm',
     'audio/webm',
+    'audio/mp4',
     'audio/mpeg',
     'audio/wav',
     'audio/ogg',
@@ -4315,6 +4316,8 @@ app.post('/api/upload', (req, res) => {
       case 'video/webm':
       case 'audio/webm':
         return startsWith(0x1a, 0x45, 0xdf, 0xa3);
+      case 'audio/mp4':
+        return bytes.length >= 12 && bytes.toString('ascii', 4, 8) === 'ftyp';
       case 'audio/mpeg':
         return bytes.toString('ascii', 0, 3) === 'ID3' ||
           (bytes.length >= 2 && bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0);
