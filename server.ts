@@ -3047,12 +3047,36 @@ app.post('/api/conversations', (req, res) => {
   }
 
   if (type === 'group') {
-    if (!name) {
-      res.status(400).json({ error: 'Group name is required.' });
+    if (typeof name !== 'string' || !name.trim() || name.trim().length > 80) {
+      res.status(400).json({ error: 'Group name must be between 1 and 80 characters.' });
+      return;
+    }
+    if (memberIds !== undefined &&
+        (!Array.isArray(memberIds) || memberIds.length > 255 ||
+         memberIds.some((id: any) => typeof id !== 'string' || !id.trim() || id.length > 128))) {
+      res.status(400).json({ error: 'Group members must be a valid list of user IDs.' });
+      return;
+    }
+    if (description !== undefined &&
+        (typeof description !== 'string' || description.length > 500)) {
+      res.status(400).json({ error: 'Group description must be 500 characters or fewer.' });
+      return;
+    }
+    if (icon !== undefined &&
+        (typeof icon !== 'string' || icon.length > 2048)) {
+      res.status(400).json({ error: 'Group icon must be a valid string.' });
       return;
     }
 
-    const allMemberIds = Array.from(new Set([user.id, ...(memberIds || [])]));
+    const requestedMemberIds = Array.isArray(memberIds) ? memberIds : [];
+    const allMemberIds = Array.from(new Set([user.id, ...requestedMemberIds]));
+    const missingMember = allMemberIds.find((id) =>
+      !db.users.some((candidate) => candidate && candidate.id === id)
+    );
+    if (missingMember) {
+      res.status(400).json({ error: 'One or more selected group members do not exist.' });
+      return;
+    }
     const members = allMemberIds.map((id) => ({
       userId: id,
       role: id === user.id ? 'admin' : 'member',
