@@ -56,7 +56,7 @@ export const ActiveCallOverlay: React.FC = () => {
         <div className="text-center pt-8 space-y-2">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-semibold">
             <ShieldCheck className="w-3.5 h-3.5" />
-            GB Encrypted {incomingCall.type === 'video' ? 'Video' : 'Voice'} Call
+            GB Official {incomingCall.type === 'video' ? 'Video' : 'Voice'} Call
           </div>
           <h2 className="text-2xl font-bold">{incomingCall.callerName}</h2>
           <p className="text-sm text-slate-400">Incoming call...</p>
@@ -136,7 +136,7 @@ export const ActiveCallOverlay: React.FC = () => {
       <div className="relative z-20 pt-8 px-6 pb-4 bg-gradient-to-b from-black/80 via-black/40 to-transparent flex flex-col items-center text-center space-y-1">
         <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-black/40 backdrop-blur-md text-emerald-400 text-[11px] font-semibold border border-white/10">
           <ShieldCheck className="w-3 h-3" />
-          End-to-End Encrypted
+          Private call session
         </div>
         <h2 className="text-xl font-bold">{partnerName}</h2>
         <div className="text-sm font-mono text-emerald-400 font-medium">
