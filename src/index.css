@@ -61,3 +61,38 @@
 }
 .gb-custom-chat-theme .gb-chat-composer .text-slate-500,
 .gb-custom-chat-theme .gb-chat-composer .text-slate-400 { color: #6e5660 !important; }
+
+
+/* GB Official in-chat virtual keyboard inspired by the supplied black/red/white/pink reference */
+.gb-custom-chat-theme .gb-virtual-keyboard {
+  background:
+    radial-gradient(ellipse at 20% 0%, rgba(125, 10, 32, .35), transparent 45%),
+    linear-gradient(145deg, #09090c, #1b0c12 55%, #08090c) !important;
+}
+.gb-custom-chat-theme .gb-key {
+  min-width: 0;
+  min-height: 38px;
+  padding: 5px 3px;
+  border-radius: 10px;
+  border: 1px solid #c8c3c6;
+  color: #171116;
+  font-size: 14px;
+  font-weight: 800;
+  text-shadow: 0 1px 0 rgba(255,255,255,.9);
+  background:
+    repeating-linear-gradient(105deg, rgba(255,255,255,.22) 0 1px, transparent 1px 4px),
+    linear-gradient(145deg, #fff, #dedde1 65%, #f8f7f8);
+  box-shadow: 0 3px 0 #aaa3a8, 0 4px 7px rgba(0,0,0,.45), inset 0 1px 0 #fff;
+}
+.gb-custom-chat-theme .gb-key:active { transform: translateY(2px); box-shadow: 0 1px 0 #aaa3a8; }
+.gb-custom-chat-theme .gb-key-tool { min-height: 30px; font-size: 11px; border-radius: 9px; }
+.gb-custom-chat-theme .gb-key-special {
+  color: #fff;
+  border-color: #a91a3b;
+  text-shadow: 0 1px 2px #390513;
+  background: linear-gradient(145deg, #f13c65, #8b0d2d 72%, #5b071c);
+  box-shadow: 0 3px 0 #4e0719, 0 4px 7px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.35);
+}
+@media (max-width: 380px) {
+  .gb-custom-chat-theme .gb-key { min-height: 34px; font-size: 12px; padding-inline: 1px; }
+}
