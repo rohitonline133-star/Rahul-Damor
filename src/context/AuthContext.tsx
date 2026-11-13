@@ -215,16 +215,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoading(true);
       fetchOAuthConfig();
       if (token) {
-        const ok = await fetchCurrentUser(token);
-        if (!ok) {
-          localStorage.removeItem('gb_token');
-          setToken(null);
-          await login('jordan_gb', 'GbOfficial2026!');
-        }
-      } else {
-        // Auto-login default user so modern messaging UI loads immediately
-        await login('jordan_gb', 'GbOfficial2026!');
+        await fetchCurrentUser(token);
       }
+      // Unauthenticated visitors must use the real login or registration flow.
       setIsLoading(false);
     };
     init();
@@ -469,25 +462,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCurrentSession(null);
   };
 
-  const switchAccount = async (userId: string): Promise<boolean> => {
-    try {
-      const res = await fetch('/api/auth/switch-account', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setToken(data.token);
-        localStorage.setItem('gb_token', data.token);
-        setCurrentUser(data.user);
-        if (data.session) setCurrentSession(data.session);
-        return true;
-      }
-      return false;
-    } catch {
-      return false;
-    }
+  const switchAccount = async (_userId: string): Promise<boolean> => {
+    // Account switching by user ID alone is unsafe; use logout and credential login.
+    return false;
   };
 
   const updateProfile = async (data: Partial<User>): Promise<boolean> => {
