@@ -59,48 +59,77 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [currentUser]);
 
-  // Listen to SSE events for incoming calls and status updates
+  // Authenticate the call event stream with a short-lived, single-use ticket.
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser || !token) return;
 
-    const eventSource = new EventSource(`/api/events?userId=${currentUser.id}`);
+    let eventSource: EventSource | null = null;
+    let reconnectTimeout: number | null = null;
+    let isDisposed = false;
 
-    eventSource.addEventListener('incoming_call', (e) => {
+    const connectSSE = async () => {
       try {
-        const call: CallRecord = JSON.parse(e.data);
-        if (call.receiverId === currentUser.id && call.status === 'ringing') {
-          setIncomingCall(call);
-          ringStopRef.current?.();
-          ringStopRef.current = sounds.playRingtone();
-        }
-      } catch {
-        // ignore
-      }
-    });
+        const ticketResponse = await fetch('/api/events/ticket', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!ticketResponse.ok) throw new Error('Could not authenticate call event stream');
+        const ticketData = await ticketResponse.json();
+        if (isDisposed || typeof ticketData.ticket !== 'string') return;
 
-    eventSource.addEventListener('call_status_updated', (e) => {
-      try {
-        const updated: CallRecord = JSON.parse(e.data);
-        if (updated.status === 'ongoing') {
-          ringStopRef.current?.();
-          setActiveCall(updated);
-          setIncomingCall(null);
-        } else if (['completed', 'declined', 'missed'].includes(updated.status)) {
-          ringStopRef.current?.();
-          setActiveCall(null);
-          setIncomingCall(null);
-          refreshCallHistory();
-        }
+        const source = new EventSource(`/api/events?ticket=${encodeURIComponent(ticketData.ticket)}`);
+        eventSource = source;
+
+        source.addEventListener('incoming_call', (e) => {
+          try {
+            const call: CallRecord = JSON.parse(e.data);
+            if (call.receiverId === currentUser.id && call.status === 'ringing') {
+              setIncomingCall(call);
+              ringStopRef.current?.();
+              ringStopRef.current = sounds.playRingtone();
+            }
+          } catch {
+            // ignore malformed events
+          }
+        });
+
+        source.addEventListener('call_status_updated', (e) => {
+          try {
+            const updated: CallRecord = JSON.parse(e.data);
+            if (updated.status === 'ongoing') {
+              ringStopRef.current?.();
+              setActiveCall(updated);
+              setIncomingCall(null);
+            } else if (['completed', 'declined', 'missed'].includes(updated.status)) {
+              ringStopRef.current?.();
+              setActiveCall(null);
+              setIncomingCall(null);
+              refreshCallHistory();
+            }
+          } catch {
+            // ignore malformed events
+          }
+        });
+
+        source.onerror = () => {
+          source.close();
+          if (eventSource === source) eventSource = null;
+          if (!isDisposed) reconnectTimeout = window.setTimeout(() => { void connectSSE(); }, 3000);
+        };
       } catch {
-        // ignore
+        if (!isDisposed) reconnectTimeout = window.setTimeout(() => { void connectSSE(); }, 3000);
       }
-    });
+    };
+
+    void connectSSE();
 
     return () => {
-      eventSource.close();
+      isDisposed = true;
+      eventSource?.close();
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
       ringStopRef.current?.();
     };
-  }, [currentUser]);
+  }, [currentUser, token]);
 
   // Call duration timer
   useEffect(() => {
