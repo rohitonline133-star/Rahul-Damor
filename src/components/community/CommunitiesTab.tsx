@@ -22,8 +22,8 @@ export const CommunitiesTab: React.FC<CommunitiesTabProps> = ({
   const [announceContent, setAnnounceContent] = useState('');
 
   const activeComm = selectedCommunity || communities[0] || null;
-  const isMember = Boolean(activeComm && activeComm.memberIds.includes(currentUser?.id || ''));
-  const isAdmin = Boolean(activeComm && activeComm.adminIds.includes(currentUser?.id || ''));
+  const isMember = Boolean(activeComm?.isMember);
+  const isAdmin = Boolean(activeComm?.isAdmin);
 
   const communityGroups = conversations.filter(
     (c) => c.type === 'group' && c.communityId === activeComm?.id
@@ -79,7 +79,7 @@ export const CommunitiesTab: React.FC<CommunitiesTabProps> = ({
                   {activeComm.name}
                 </h3>
                 <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
-                  {activeComm.memberIds.length} members • {communityGroups.length} linked groups
+                  {activeComm.memberCount} members • {communityGroups.length} linked groups
                 </span>
               </div>
             </div>
