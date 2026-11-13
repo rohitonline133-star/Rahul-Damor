@@ -19,8 +19,6 @@ import {
   X,
   FileText,
   Image as ImageIcon,
-  Play,
-  Pause,
   UserCheck,
   AlertCircle,
   Square,
@@ -109,6 +107,16 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
     };
   }, [isRecording]);
 
+  // Stop microphone tracks if the chat screen is unmounted.
+  useEffect(() => {
+    return () => {
+      discardRecordingRef.current = true;
+      const recorder = mediaRecorderRef.current;
+      if (recorder && recorder.state !== 'inactive') recorder.stop();
+      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+    };
+  }, []);
+
   if (!activeConversation) {
     return (
       <div className="flex-1 flex items-center justify-center p-6 text-slate-400">
@@ -153,6 +161,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
       const supportedMimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4']
         .find((mimeType) => MediaRecorder.isTypeSupported(mimeType));
       const recorder = supportedMimeType
@@ -162,7 +171,6 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
       audioChunksRef.current = [];
       discardRecordingRef.current = false;
       recordingStartedAtRef.current = Date.now();
-      mediaStreamRef.current = stream;
       mediaRecorderRef.current = recorder;
 
       recorder.ondataavailable = (event) => {
@@ -235,14 +243,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
     recorder.stop();
   };
 
-  useEffect(() => {
-    return () => {
-      discardRecordingRef.current = true;
-      const recorder = mediaRecorderRef.current;
-      if (recorder && recorder.state !== 'inactive') recorder.stop();
-      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
-    };
-  }, []);
+
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
