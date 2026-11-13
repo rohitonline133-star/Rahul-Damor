@@ -132,6 +132,7 @@ function hashPassword(password: string, salt: string): string {
 function verifyPassword(password: string, salt: string, storedHash: string): { valid: boolean; needsUpgrade: boolean } {
   const current = hashPassword(password, salt);
   if (current.length === storedHash.length && crypto.timingSafeEqual(Buffer.from(current, 'hex'), Buffer.from(storedHash, 'hex'))) return { valid: true, needsUpgrade: false };
+  if (!/^[a-f0-9]{128}$/i.test(storedHash)) return { valid: false, needsUpgrade: false };
   const legacy = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
   const valid = legacy.length === storedHash.length && crypto.timingSafeEqual(Buffer.from(legacy, 'hex'), Buffer.from(storedHash, 'hex'));
   return { valid, needsUpgrade: valid };
@@ -468,7 +469,7 @@ function getInitialDb(): DbSchema {
           authorId: 'user_jordan',
           authorName: 'Jordan Miller',
           title: 'Welcome to GB Official 🚀',
-          content: 'We are thrilled to launch GB Official! Enjoy ultra-fast encrypted chat, stories, crystal voice calls, and communities.',
+          content: 'We are thrilled to launch GB Official! Enjoy private messaging, stories, crystal voice calls, and communities.',
           createdAt: now - 24 * 3600 * 1000,
         },
       ],
@@ -517,7 +518,7 @@ function getInitialDb(): DbSchema {
       authorUsername: 'jordan_gb',
       authorAvatar: userJordan.avatar,
       authorVerified: true,
-      content: '🚀 Excited to announce the official release of GB Official! Featuring native Android UI density, end-to-end messaging, 24-hour disappearing status stories, low-latency audio/video calls, and dedicated Channels! Built with high-contrast Material ergonomics.',
+      content: '🚀 Excited to announce the official release of GB Official! Featuring native Android UI density, private messaging, 24-hour disappearing status stories, low-latency audio/video calls, and dedicated Channels! Built with high-contrast Material ergonomics.',
       mediaUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80',
       mediaType: 'image',
       tags: ['GBOfficial', 'Android', 'MobileDesign', 'Release'],
@@ -1229,6 +1230,22 @@ function saveDb(data: DbSchema): boolean {
 }
 
 db = loadDb();
+
+// The previously tracked database contained exposed session tokens and OTP material.
+// Revoke all persisted sessions and pending verification codes at startup.
+db.sessions = [];
+db.password_resets = [];
+db.phone_verifications = [];
+// Seed accounts are demonstration fixtures, never real login identities.
+const demoAccountIds = new Set(['user_jordan', 'user_alex', 'user_sarah', 'user_liam', 'user_kunal']);
+for (const demoUser of db.users) {
+  if (demoAccountIds.has(demoUser.id)) {
+    const replacementSalt = crypto.randomBytes(16).toString('hex');
+    demoUser.salt = replacementSalt;
+    demoUser.passwordHash = hashPassword(crypto.randomBytes(32).toString('hex'), replacementSalt);
+  }
+}
+saveDb(db);
 
 // Authentication Token & Persistent Session Manager
 const activeSessions = new Map<string, string>(); // token -> userId
@@ -2070,8 +2087,8 @@ app.post('/api/auth/login', (req, res) => {
       });
       return;
     }
-    const pinHash = hashPassword(twoFactorPin, tfa.salt || user.salt);
-    if (pinHash !== tfa.pinHash) {
+    const pinCheck = verifyPassword(twoFactorPin, tfa.salt || user.salt, tfa.pinHash);
+    if (!pinCheck.valid) {
       recordFailedAttempt(rateKey);
       res.status(401).json({ error: 'Invalid Two-step verification PIN.' });
       return;
@@ -2971,7 +2988,7 @@ app.post('/api/conversations', (req, res) => {
     return;
   }
 
-  const { type, targetUserId, name, icon, description, memberIds } = req.body;
+  const { type, targetUserId, name, icon, description, memberIds, communityId } = req.body;
 
   if (type === 'direct') {
     if (typeof targetUserId !== 'string' || !targetUserId.trim() || targetUserId.length > 128) {
@@ -3052,6 +3069,14 @@ app.post('/api/conversations', (req, res) => {
       return;
     }
 
+    let linkedCommunity: any = null;
+    if (communityId !== undefined) {
+      if (typeof communityId !== 'string' || !communityId.trim()) { res.status(400).json({ error: 'Invalid community ID.' }); return; }
+      linkedCommunity = db.communities.find((community: any) => community.id === communityId);
+      if (!linkedCommunity || !Array.isArray(linkedCommunity.memberIds) || !linkedCommunity.memberIds.includes(user.id)) {
+        res.status(403).json({ error: 'You must belong to the selected community to create a linked group.' }); return;
+      }
+    }
     const requestedMemberIds = Array.isArray(memberIds) ? memberIds : [];
     const allMemberIds = Array.from(new Set([user.id, ...requestedMemberIds]));
     const missingMember = allMemberIds.find((id) =>
@@ -3086,6 +3111,7 @@ app.post('/api/conversations', (req, res) => {
         'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=150&auto=format&fit=crop&q=80',
       description: description?.trim() || '',
       creatorId: user.id,
+      ...(linkedCommunity ? { communityId: linkedCommunity.id } : {}),
       members,
       pinnedForUserIds: [],
       createdAt: Date.now(),
@@ -3093,8 +3119,13 @@ app.post('/api/conversations', (req, res) => {
     };
 
     db.conversations.push(newGroup);
+    if (linkedCommunity) {
+      linkedCommunity.groupIds = Array.isArray(linkedCommunity.groupIds) ? linkedCommunity.groupIds : [];
+      if (!linkedCommunity.groupIds.includes(newGroup.id)) linkedCommunity.groupIds.push(newGroup.id);
+    }
     if (!saveDb(db)) {
       db.conversations.pop();
+      if (linkedCommunity) linkedCommunity.groupIds = linkedCommunity.groupIds.filter((id: string) => id !== newGroup.id);
       res.status(500).json({ error: 'Could not save the group conversation. Please try again.' });
       return;
     }
@@ -6290,21 +6321,26 @@ app.post('/api/shop/orders', (req, res) => {
   }
 
   let subtotal = 0;
-  const orderItems = items.map((item: any) => {
-    const prod = (db.shop_products || []).find((p) => p.id === item.productId);
-    const price = prod ? prod.price : Number(item.unitPrice || 0);
-    const name = prod ? prod.name : item.name || 'GB Store Item';
-    const image = prod ? prod.image : item.image || '';
-    const quantity = Math.max(1, Number(item.quantity || 1));
+  const orderItems = [] as any[];
+  for (const item of items) {
+    const prod = (db.shop_products || []).find((p) => p.id === item?.productId);
+    if (!prod) { res.status(400).json({ error: 'One or more products are unavailable. Refresh the store and try again.' }); return; }
+    const quantity = Number(item.quantity);
+    if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 100) { res.status(400).json({ error: 'Product quantity must be between 1 and 100.' }); return; }
+    if (prod.inStock === false || (Number.isFinite(prod.stockCount) && prod.stockCount < quantity)) { res.status(409).json({ error: `${prod.name} is out of stock or has insufficient quantity.` }); return; }
+    const price = Number(prod.price);
+    if (!Number.isFinite(price) || price < 0) { res.status(500).json({ error: 'A store product has an invalid price.' }); return; }
+    const name = prod.name;
+    const image = prod.image || '';
     subtotal += price * quantity;
-    return {
+    orderItems.push({
       productId: item.productId,
       name,
       quantity,
       unitPrice: price,
       image,
-    };
-  });
+    });
+  }
 
   const total = Number(subtotal.toFixed(2));
   const newOrder = {
