@@ -3462,8 +3462,12 @@ app.post('/api/messages', (req, res) => {
   conv.lastMessageTime = now;
   saveDb(db);
 
-  const memberIds = conv.members.map((m: any) => m.userId);
-  broadcastToUsers(memberIds, 'new_message', { message: newMessage, conversationId });
+  const memberIds = conv.members
+    .map((member: any) => member && member.userId)
+    .filter((memberId: any) => typeof memberId === 'string' && memberId.length > 0);
+  if (memberIds.length > 0) {
+    broadcastToUsers(memberIds, 'new_message', { message: newMessage, conversationId });
+  }
 
   res.json({ message: newMessage });
 });
