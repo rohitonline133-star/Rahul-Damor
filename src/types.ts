@@ -179,9 +179,9 @@ export interface Community {
   description: string;
   icon: string;
   creatorId: string;
-  adminIds: string[];
-  memberIds: string[];
-  groupIds: string[];
+  memberCount: number;
+  isMember: boolean;
+  isAdmin: boolean;
   announcements: CommunityAnnouncement[];
   createdAt: number;
 }
