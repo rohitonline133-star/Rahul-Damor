@@ -3158,6 +3158,38 @@ app.post('/api/messages', (req, res) => {
     return;
   }
 
+  const allowedMessageTypes = ['text', 'image', 'video', 'audio', 'document', 'location', 'poll'];
+  if (!allowedMessageTypes.includes(type)) {
+    res.status(400).json({ error: 'Unsupported message type.' });
+    return;
+  }
+
+  // Voice notes are currently stored as bounded data URLs in the JSON-backed
+  // development store. Reject malformed or oversized payloads before writing.
+  if (type === 'audio') {
+    const audioUrl = typeof attachment?.url === 'string' ? attachment.url : '';
+    const audioDataMatch = audioUrl.match(/^data:(audio\/(?:webm|mp4|mpeg|ogg|wav));base64,([A-Za-z0-9+/]+=*)$/i);
+    const declaredDuration = Number(attachment?.duration);
+    const declaredSize = Number(attachment?.size);
+    const audioBytes = audioDataMatch ? Math.floor((audioDataMatch[2].length * 3) / 4) - (audioDataMatch[2].endsWith('==') ? 2 : audioDataMatch[2].endsWith('=') ? 1 : 0) : 0;
+    const maxAudioBytes = 5 * 1024 * 1024;
+
+    if (!audioDataMatch || audioBytes < 1 || audioBytes > maxAudioBytes) {
+      res.status(413).json({ error: 'Voice notes must be valid audio files no larger than 5 MB.' });
+      return;
+    }
+    if (!Number.isFinite(declaredDuration) || declaredDuration < 1 || declaredDuration > 300) {
+      res.status(400).json({ error: 'Voice note duration must be between 1 and 300 seconds.' });
+      return;
+    }
+    if (!Number.isFinite(declaredSize) || declaredSize !== audioBytes) {
+      res.status(400).json({ error: 'Voice note size does not match its audio data.' });
+      return;
+    }
+    attachment.mimeType = audioDataMatch[1].toLowerCase();
+    attachment.size = audioBytes;
+  }
+
   const conv = db.conversations.find((c) => c.id === conversationId);
   if (!conv || !conv.members.some((m: any) => m.userId === user.id)) {
     res.status(403).json({ error: 'Not a member of this conversation.' });
