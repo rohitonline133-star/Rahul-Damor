@@ -3464,11 +3464,39 @@ app.post('/api/messages/read', (req, res) => {
 // -------------------------------------------------------------
 // STATUS / STORIES
 // -------------------------------------------------------------
+function canViewStatus(status: any, viewer: any): boolean {
+  if (!viewer) return false;
+  if (status.userId === viewer.id) return true;
+
+  const owner = db.users.find((candidate) => candidate.id === status.userId);
+  if (!owner) return false;
+  if ((viewer.blockedUserIds || []).includes(owner.id) ||
+      (owner.blockedUserIds || []).includes(viewer.id)) return false;
+
+  if (status.privacy === 'contacts') {
+    db.followers = db.followers || [];
+    const followsOwner = db.followers.some(
+      (follow: any) => follow.followerId === viewer.id && follow.followingId === owner.id
+    );
+    const ownerFollowsViewer = db.followers.some(
+      (follow: any) => follow.followerId === owner.id && follow.followingId === viewer.id
+    );
+    return followsOwner && ownerFollowsViewer;
+  }
+
+  return status.privacy === 'everyone' || !status.privacy;
+}
+
 app.get('/api/statuses', (req, res) => {
+  const user = authenticate(req);
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
   const now = Date.now();
-  // Filter out expired statuses (>24h)
   const activeStatuses = db.statuses
-    .filter((s) => s.expiresAt > now)
+    .filter((status) => status.expiresAt > now && canViewStatus(status, user))
     .sort((a, b) => b.createdAt - a.createdAt);
 
   res.json({ statuses: activeStatuses });
@@ -3484,6 +3512,11 @@ app.post('/api/statuses', (req, res) => {
   const { type = 'text', content, caption, backgroundColor, privacy = 'everyone' } = req.body;
   if (!content) {
     res.status(400).json({ error: 'Content is required for status' });
+    return;
+  }
+  if (!['text', 'image', 'video'].includes(type) || !['everyone', 'contacts'].includes(privacy) ||
+      typeof content !== 'string' || content.length > 10_000) {
+    res.status(400).json({ error: 'Invalid status type, privacy setting, or content length' });
     return;
   }
 
@@ -3506,7 +3539,10 @@ app.post('/api/statuses', (req, res) => {
   db.statuses.unshift(newStatus);
   saveDb(db);
 
-  broadcastToUsers('all', 'new_status', newStatus);
+  const allowedViewerIds = db.users
+    .filter((viewer) => canViewStatus(newStatus, viewer))
+    .map((viewer) => viewer.id);
+  broadcastToUsers(allowedViewerIds, 'new_status', newStatus);
   res.json({ status: newStatus });
 });
 
@@ -3520,6 +3556,11 @@ app.post('/api/statuses/:id/view', (req, res) => {
   const status = db.statuses.find((s) => s.id === req.params.id);
   if (!status) {
     res.status(404).json({ error: 'Status not found' });
+    return;
+  }
+
+  if (!canViewStatus(status, user)) {
+    res.status(403).json({ error: 'You are not allowed to view this status' });
     return;
   }
 
