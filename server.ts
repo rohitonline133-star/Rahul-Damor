@@ -1202,11 +1202,21 @@ function loadDb(): DbSchema {
   return fresh;
 }
 
-function saveDb(data: DbSchema) {
+function saveDb(data: DbSchema): boolean {
+  const tempFile = `${DB_FILE}.${process.pid}.${crypto.randomUUID()}.tmp`;
   try {
-    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
+    const serialized = JSON.stringify(data, null, 2);
+    fs.writeFileSync(tempFile, serialized, { encoding: 'utf-8', flag: 'wx' });
+    fs.renameSync(tempFile, DB_FILE);
+    return true;
   } catch (err) {
     console.error('Error saving DB:', err);
+    try {
+      if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
+    } catch (cleanupError) {
+      console.error('Error cleaning up temporary DB file:', cleanupError);
+    }
+    return false;
   }
 }
 
@@ -3054,7 +3064,11 @@ app.post('/api/conversations', (req, res) => {
     };
 
     db.conversations.push(newConv);
-    saveDb(db);
+    if (!saveDb(db)) {
+      db.conversations.pop();
+      res.status(500).json({ error: 'Could not save the direct conversation. Please try again.' });
+      return;
+    }
     broadcastToUsers([user.id, normalizedTargetUserId], 'conversation_created', newConv);
     res.json({ conversation: newConv });
     return;
