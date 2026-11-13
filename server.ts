@@ -2308,8 +2308,8 @@ app.post('/api/auth/change-password', (req, res) => {
     res.status(400).json({ error: 'Current password and new password are required.' });
     return;
   }
-  if (newPassword.length < 6) {
-    res.status(400).json({ error: 'New password must be at least 6 characters.' });
+  if (typeof newPassword !== 'string' || newPassword.length < 8 || newPassword.length > 128) {
+    res.status(400).json({ error: 'New password must be between 8 and 128 characters.' });
     return;
   }
 
@@ -2322,38 +2322,52 @@ app.post('/api/auth/change-password', (req, res) => {
   const salt = crypto.randomBytes(16).toString('hex');
   user.passwordHash = hashPassword(newPassword, salt);
   user.salt = salt;
-  saveDb(db);
+  const currentToken = req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : '';
+  (db.sessions || []).forEach((session: any) => {
+    if (session.userId === user.id && session.token !== currentToken) {
+      session.isRevoked = true;
+      activeSessions.delete(session.token);
+    }
+  });
+  if (!saveDb(db)) { res.status(500).json({ error: 'Could not save the password change.' }); return; }
 
-  logSecurityEvent(user.id, 'PASSWORD_CHANGED', 'success', 'Password changed in Account Settings.', req);
+  logSecurityEvent(user.id, 'PASSWORD_CHANGED', 'success', 'Password changed; other sessions revoked.', req);
   res.json({ success: true, message: 'Password changed successfully.' });
 });
 
 // 16. Two-Step Verification Toggle (Authenticated in Settings -> Account)
+app.get('/api/auth/two-factor', (req, res) => {
+  const user = authenticate(req);
+  if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+  res.json({ enabled: Boolean(db.two_factor_auth?.[user.id]?.enabled) });
+});
+
 app.post('/api/auth/two-factor', (req, res) => {
   const user = authenticate(req);
-  if (!user) {
-    res.status(401).json({ error: 'Unauthorized' });
-    return;
-  }
-  const { enabled, pin } = req.body;
+  if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+  const { enabled, pin, currentPassword } = req.body || {};
+  if (typeof enabled !== 'boolean') { res.status(400).json({ error: 'A valid two-step verification setting is required.' }); return; }
   if (!db.two_factor_auth) db.two_factor_auth = {};
-
+  const existing = db.two_factor_auth[user.id];
+  if (existing?.enabled || !enabled) {
+    if (typeof currentPassword !== 'string' || !verifyPassword(currentPassword, user.salt, user.passwordHash).valid) {
+      res.status(401).json({ error: 'Enter your current password to change two-step verification.' }); return;
+    }
+  }
   if (enabled) {
-    if (!pin || pin.toString().length !== 6 || !/^\d{6}$/.test(pin.toString())) {
-      res.status(400).json({ error: 'A 6-digit numeric PIN is required to enable two-step verification.' });
-      return;
+    if (typeof pin !== 'string' || !/^\\d{6}$/.test(pin)) {
+      res.status(400).json({ error: 'Choose a 6-digit numeric PIN for two-step verification.' }); return;
     }
     const salt = crypto.randomBytes(16).toString('hex');
-    const pinHash = hashPassword(pin.toString(), salt);
-    db.two_factor_auth[user.id] = { enabled: true, pinHash, salt, updatedAt: Date.now() };
-    saveDb(db);
-    logSecurityEvent(user.id, '2FA_ENABLED', 'success', 'Two-step verification PIN enabled.', req);
-    res.json({ success: true, enabled: true, message: 'Two-step verification PIN enabled successfully.' });
+    db.two_factor_auth[user.id] = { enabled: true, pinHash: hashPassword(pin, salt), salt, updatedAt: Date.now() };
+    if (!saveDb(db)) { res.status(500).json({ error: 'Could not save two-step verification.' }); return; }
+    logSecurityEvent(user.id, '2FA_ENABLED', 'success', 'Two-step verification enabled.', req);
+    res.json({ success: true, enabled: true });
   } else {
     db.two_factor_auth[user.id] = { enabled: false, updatedAt: Date.now() };
-    saveDb(db);
-    logSecurityEvent(user.id, '2FA_DISABLED', 'warning', 'Two-step verification PIN disabled.', req);
-    res.json({ success: true, enabled: false, message: 'Two-step verification has been disabled.' });
+    if (!saveDb(db)) { res.status(500).json({ error: 'Could not save two-step verification.' }); return; }
+    logSecurityEvent(user.id, '2FA_DISABLED', 'warning', 'Two-step verification disabled after password confirmation.', req);
+    res.json({ success: true, enabled: false });
   }
 });
 
@@ -6977,18 +6991,8 @@ app.post('/api/account/change-phone-verify', (req, res) => {
   res.json({ success: true, user, message: 'Phone number updated successfully' });
 });
 
-app.post('/api/account/two-factor', (req, res) => {
-  const user = authenticate(req);
-  if (!user) {
-    res.status(401).json({ error: 'Unauthorized' });
-    return;
-  }
-
-  const { enabled } = req.body;
-  user.twoFactorEnabled = Boolean(enabled);
-  saveDb(db);
-
-  res.json({ success: true, twoFactorEnabled: user.twoFactorEnabled });
+app.post('/api/account/two-factor', (_req, res) => {
+  res.status(410).json({ error: 'This legacy endpoint is disabled. Use the verified /api/auth/two-factor flow.' });
 });
 
 app.post('/api/account/export', (req, res) => {
