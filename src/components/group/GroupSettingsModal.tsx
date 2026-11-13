@@ -137,7 +137,7 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
             </div>}
             {canAddMembers && <div className="border-t border-slate-100 dark:border-slate-800 pt-4 space-y-2">
               <div className="text-sm font-bold flex items-center gap-2"><UserPlus className="w-4 h-4" /> Add members</div>
-              {canAddMembers && <div className="flex gap-2">
+              <div className="flex gap-2">
                 <select value={selectedUserId} onChange={(event) => setSelectedUserId(event.target.value)} className="min-w-0 flex-1 rounded-xl px-3 py-2 bg-slate-100 dark:bg-slate-800 text-xs">
                   <option value="">Choose a person</option>{availableUsers.map((person) => <option key={person.id} value={person.id}>{person.displayName} (@{person.username})</option>)}
                 </select>
