@@ -716,7 +716,11 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
                 {/* Delete Button (author or admin) */}
                 {(isMe || currentUser?.role === 'admin') && (
                   <button
-                    onClick={() => deleteMessage(msg.id)}
+                    onClick={() => {
+                      if (window.confirm('Delete this message for everyone?')) {
+                        void deleteMessage(msg.id);
+                      }
+                    }}
                     className="p-1 rounded-lg hover:bg-red-100 dark:hover:bg-red-950/40 text-red-500 transition"
                     title="Delete message"
                   >
