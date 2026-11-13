@@ -331,6 +331,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   ): Promise<boolean> => {
     if (!token || !activeConversationId || (!text && !attachment)) return false;
 
+    // Capture the target before awaiting the network: the user may switch chats
+    // while this request is in flight.
+    const targetConversationId = activeConversationId;
     sounds.playSent();
     try {
       const res = await fetch('/api/messages', {
@@ -340,23 +343,32 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          conversationId: activeConversationId,
+          conversationId: targetConversationId,
           text,
           type,
           attachment,
           replyToId,
         }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        setMessages((prev) => {
-          if (prev.some((m) => m.id === data.message.id)) return prev;
-          return [...prev, data.message];
-        });
-        refreshConversations();
-        return true;
+      if (!res.ok) return false;
+
+      const data = await res.json();
+      const sentMessage = data?.message;
+      if (!sentMessage || typeof sentMessage.id !== 'string' ||
+          sentMessage.conversationId !== targetConversationId) {
+        return false;
       }
-      return false;
+
+      // Never append a late response from another chat into the currently
+      // visible conversation. SSE/fetch for the target chat can load it later.
+      if (activeConvRef.current === targetConversationId) {
+        setMessages((prev) => {
+          if (prev.some((message) => message.id === sentMessage.id)) return prev;
+          return [...prev, sentMessage];
+        });
+      }
+      refreshConversations();
+      return true;
     } catch {
       return false;
     }
