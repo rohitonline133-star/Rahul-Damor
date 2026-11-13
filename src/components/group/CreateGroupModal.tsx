@@ -9,12 +9,13 @@ interface CreateGroupModalProps {
 }
 
 export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ onClose, onGroupCreated }) => {
-  const { createGroupChat } = useChat();
+  const { createGroupChat, communities } = useChat();
   const { allUsers, currentUser } = useAuth();
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [communityId, setCommunityId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const availableContacts = allUsers.filter((u) => u.id !== currentUser?.id);
@@ -28,7 +29,7 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ onClose, onG
   const handleCreate = async () => {
     if (!name.trim()) return;
     setIsSubmitting(true);
-    const convId = await createGroupChat(name.trim(), selectedUserIds, description.trim());
+    const convId = await createGroupChat(name.trim(), selectedUserIds, description.trim(), undefined, communityId || undefined);
     setIsSubmitting(false);
     if (convId) {
       onGroupCreated(convId);
@@ -84,6 +85,14 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ onClose, onG
               className="w-full px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
           </div>
+
+          {communities.length > 0 && <div>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Link to a community (Optional)</label>
+            <select value={communityId} onChange={(event) => setCommunityId(event.target.value)} className="w-full px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm text-slate-900 dark:text-slate-100">
+              <option value="">No community</option>
+              {communities.filter((community) => community.isMember).map((community) => <option key={community.id} value={community.id}>{community.name}</option>)}
+            </select>
+          </div>}
 
           {/* Members Checklist */}
           <div>
