@@ -3743,10 +3743,20 @@ app.post('/api/messages/read', (req, res) => {
         changed = true;
       }
 
-      const recipientIds = readConversation.members
-        .map((member: any) => member && member.userId)
-        .filter((memberId: any) => typeof memberId === 'string' && memberId !== m.senderId);
-      const readers = new Set(m.readBy.map((receipt: any) => receipt && receipt.userId));
+      // Normalize membership before aggregating group receipts. Duplicate or
+      // malformed member records must not distort the delivered/read calculation.
+      const recipientIds = [...new Set(
+        readConversation.members
+          .map((member: any) => member && member.userId)
+          .filter((memberId: any): memberId is string =>
+            typeof memberId === 'string' && memberId.length > 0 && memberId !== m.senderId
+          )
+      )];
+      const readers = new Set(
+        m.readBy
+          .map((receipt: any) => receipt && receipt.userId)
+          .filter((readerId: any): readerId is string => typeof readerId === 'string' && readerId.length > 0)
+      );
       const hasRecipientRead = recipientIds.some((memberId: string) => readers.has(memberId));
       const allRecipientsRead = recipientIds.length > 0 &&
         recipientIds.every((memberId: string) => readers.has(memberId));
