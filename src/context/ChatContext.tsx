@@ -237,8 +237,15 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       eventSource.addEventListener('message_reaction', (e) => {
         try {
           const payload = JSON.parse(e.data);
+          if (typeof payload?.messageId !== 'string' ||
+              typeof payload?.conversationId !== 'string' ||
+              !Array.isArray(payload?.reactions) ||
+              activeConvRef.current !== payload.conversationId) return;
           setMessages((prev) =>
-            prev.map((m) => (m.id === payload.messageId ? { ...m, reactions: payload.reactions } : m))
+            prev.map((message) => message.id === payload.messageId &&
+              message.conversationId === payload.conversationId
+              ? { ...message, reactions: payload.reactions }
+              : message)
           );
         } catch {
           // ignore
@@ -248,8 +255,14 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       eventSource.addEventListener('message_edited', (e) => {
         try {
           const payload = JSON.parse(e.data);
-          const editedMsg = payload.message;
-          setMessages((prev) => prev.map((m) => (m.id === editedMsg.id ? editedMsg : m)));
+          const editedMsg = payload?.message as Message | undefined;
+          if (!editedMsg || typeof editedMsg.id !== 'string' ||
+              typeof editedMsg.conversationId !== 'string' ||
+              activeConvRef.current !== editedMsg.conversationId) return;
+          setMessages((prev) => prev.map((message) =>
+            message.id === editedMsg.id &&
+            message.conversationId === editedMsg.conversationId ? editedMsg : message
+          ));
         } catch {
           // ignore
         }
@@ -258,7 +271,13 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       eventSource.addEventListener('message_deleted', (e) => {
         try {
           const payload = JSON.parse(e.data);
-          setMessages((prev) => prev.filter((m) => m.id !== payload.messageId));
+          if (typeof payload?.messageId !== 'string' ||
+              typeof payload?.conversationId !== 'string' ||
+              activeConvRef.current !== payload.conversationId) return;
+          setMessages((prev) => prev.filter((message) =>
+            !(message.id === payload.messageId &&
+              message.conversationId === payload.conversationId)
+          ));
           refreshConversations();
         } catch {
           // ignore
@@ -268,6 +287,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       eventSource.addEventListener('messages_read', (e) => {
         try {
           const payload = JSON.parse(e.data);
+          if (typeof payload?.conversationId !== 'string' ||
+              activeConvRef.current !== payload.conversationId ||
+              typeof payload?.userId !== 'string') return;
           const fullyReadIds = new Set(
             Array.isArray(payload.fullyReadMessageIds) ? payload.fullyReadMessageIds : []
           );
