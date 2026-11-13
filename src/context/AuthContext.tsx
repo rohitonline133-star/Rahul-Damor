@@ -511,7 +511,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const toggleTwoFactor = async (
     enabled: boolean,
-    pin?: string
+    pin?: string,
+    currentPassword?: string
   ): Promise<{ success: boolean; error?: string }> => {
     if (!token) return { success: false, error: 'Unauthorized' };
     try {
@@ -521,7 +522,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ enabled, pin }),
+        body: JSON.stringify({ enabled, pin, currentPassword }),
       });
       const data = await res.json();
       if (!res.ok) return { success: false, error: data.error || 'Failed to update 2FA' };
