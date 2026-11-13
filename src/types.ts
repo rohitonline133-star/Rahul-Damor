@@ -120,9 +120,15 @@ export interface Message {
 
 export interface ConversationMember {
   userId: string;
-  role: 'admin' | 'member';
+  role: 'admin' | 'member' | 'owner';
   joinedAt: number;
   isMuted?: boolean;
+}
+
+export interface ConversationPermissions {
+  editInfo?: boolean;
+  sendMessages?: boolean;
+  addMembers?: boolean;
 }
 
 export interface Conversation {
@@ -131,6 +137,7 @@ export interface Conversation {
   name?: string; // For groups
   icon?: string; // For groups
   description?: string;
+  permissions?: ConversationPermissions;
   creatorId?: string;
   communityId?: string;
   members: ConversationMember[];
