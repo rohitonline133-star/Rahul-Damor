@@ -3907,11 +3907,46 @@ app.post('/api/calls/initiate', (req, res) => {
     return;
   }
 
-  const { receiverId, type = 'voice', conversationId } = req.body;
+  const { receiverId, type = 'voice', conversationId } = req.body || {};
+  if (typeof receiverId !== 'string' || !receiverId.trim() ||
+      !['voice', 'video'].includes(type)) {
+    res.status(400).json({ error: 'A valid receiver and call type are required' });
+    return;
+  }
+  if (receiverId === user.id) {
+    res.status(400).json({ error: 'You cannot call your own account' });
+    return;
+  }
+
   const receiver = db.users.find((u) => u.id === receiverId);
   if (!receiver) {
     res.status(404).json({ error: 'Receiver not found' });
     return;
+  }
+
+  // Do not allow calls across an active block in either direction.
+  if ((user.blockedUserIds || []).includes(receiver.id) ||
+      (receiver.blockedUserIds || []).includes(user.id)) {
+    res.status(403).json({ error: 'Calls are unavailable for this user' });
+    return;
+  }
+
+  // If a call is tied to a chat, both participants must belong to that chat.
+  if (conversationId !== undefined) {
+    if (typeof conversationId !== 'string' || !conversationId.trim()) {
+      res.status(400).json({ error: 'Invalid conversation ID' });
+      return;
+    }
+    const conversation = db.conversations.find((c) =>
+      c.id === conversationId &&
+      Array.isArray(c.members) &&
+      c.members.some((member: any) => member.userId === user.id) &&
+      c.members.some((member: any) => member.userId === receiver.id)
+    );
+    if (!conversation) {
+      res.status(403).json({ error: 'Both users must belong to the selected conversation' });
+      return;
+    }
   }
 
   const now = Date.now();
