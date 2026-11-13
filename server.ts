@@ -6972,59 +6972,12 @@ app.post('/api/broadcasts/:id/send', (req, res) => {
 // -------------------------------------------------------------
 // ACCOUNT MANAGEMENT & SETTINGS API
 // -------------------------------------------------------------
-const pendingPhoneOtps = new Map<string, { newPhone: string; otp: string; expiresAt: number }>();
-
-app.post('/api/account/change-phone-request', (req, res) => {
-  const user = authenticate(req);
-  if (!user) {
-    res.status(401).json({ error: 'Unauthorized' });
-    return;
-  }
-
-  const { newPhone } = req.body;
-  if (!newPhone || newPhone.trim().length < 8) {
-    res.status(400).json({ error: 'Valid phone number is required' });
-    return;
-  }
-
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  pendingPhoneOtps.set(user.id, {
-    newPhone: newPhone.trim(),
-    otp,
-    expiresAt: Date.now() + 10 * 60 * 1000,
-  });
-
-  res.json({
-    success: true,
-    message: `Verification code dispatched to ${newPhone}. (Simulated OTP: ${otp})`,
-    demoOtp: otp,
-  });
+app.post('/api/account/change-phone-request', (_req, res) => {
+  res.status(410).json({ error: 'Simulated phone verification is disabled. Use the SMS-verified phone change flow.' });
 });
 
-app.post('/api/account/change-phone-verify', (req, res) => {
-  const user = authenticate(req);
-  if (!user) {
-    res.status(401).json({ error: 'Unauthorized' });
-    return;
-  }
-
-  const { otp } = req.body;
-  const pending = pendingPhoneOtps.get(user.id);
-  if (!pending || pending.expiresAt < Date.now()) {
-    res.status(400).json({ error: 'OTP expired or not requested' });
-    return;
-  }
-
-  if (pending.otp !== otp?.trim()) {
-    res.status(400).json({ error: 'Invalid verification code' });
-    return;
-  }
-
-  user.phone = pending.newPhone;
-  pendingPhoneOtps.delete(user.id);
-  saveDb(db);
-
-  res.json({ success: true, user, message: 'Phone number updated successfully' });
+app.post('/api/account/change-phone-verify', (_req, res) => {
+  res.status(410).json({ error: 'Simulated phone verification is disabled. Use the SMS-verified phone change flow.' });
 });
 
 app.post('/api/account/two-factor', (_req, res) => {
