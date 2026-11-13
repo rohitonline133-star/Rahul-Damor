@@ -191,10 +191,18 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
 
         const audioBlob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
         const duration = Math.max(1, Math.round((Date.now() - recordingStartedAtRef.current) / 1000));
+        if (audioBlob.size > 5 * 1024 * 1024 || duration > 300) {
+          window.alert('Voice notes are limited to 5 MB and 5 minutes. Please record a shorter message.');
+          return;
+        }
+
         const reader = new FileReader();
+        reader.onerror = () => {
+          window.alert('The voice note could not be prepared. Please try recording again.');
+        };
         reader.onloadend = async () => {
           if (typeof reader.result !== 'string') return;
-          await sendMessage(
+          const sent = await sendMessage(
             '',
             'audio',
             {
@@ -206,7 +214,11 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
             },
             replyingTo?.id
           );
-          setReplyingTo(null);
+          if (sent) {
+            setReplyingTo(null);
+          } else {
+            window.alert('The voice note could not be sent. Check your connection and try again.');
+          }
         };
         reader.readAsDataURL(audioBlob);
       };
