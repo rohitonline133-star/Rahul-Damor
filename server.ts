@@ -3569,6 +3569,7 @@ app.post('/api/messages/:id/react', (req, res) => {
     return;
   }
 
+  const previousReactions = Array.isArray(msg.reactions) ? [...msg.reactions] : [];
   if (!Array.isArray(msg.reactions)) msg.reactions = [];
 
   const existingIdx = msg.reactions.findIndex((r: any) => r.userId === user.id && r.emoji === emoji);
@@ -3581,7 +3582,11 @@ app.post('/api/messages/:id/react', (req, res) => {
     msg.reactions.push({ emoji, userId: user.id, userName: user.displayName });
   }
 
-  saveDb(db);
+  if (!saveDb(db)) {
+    msg.reactions = previousReactions;
+    res.status(500).json({ error: 'Could not save the message reaction. Please try again.' });
+    return;
+  }
   const conv = db.conversations.find((c) => c.id === msg.conversationId);
   if (conv && Array.isArray(conv.members)) {
     const memberIds = conv.members
@@ -3641,6 +3646,15 @@ app.post('/api/messages/:id/poll-vote', (req, res) => {
     return;
   }
 
+  // Snapshot poll state so a failed disk write cannot report or retain an unsaved vote.
+  const previousPollOptions = pollData.options.map((opt: any) => ({
+    ...opt,
+    votes: [...opt.votes],
+  }));
+  const previousTotalVotes = pollData.totalVotes;
+  const previousMessagePoll = msg.poll;
+  const previousAttachmentPoll = msg.attachment?.poll;
+
   // Toggle vote or add vote only after the requested option is validated.
   pollData.options.forEach((opt: any) => {
     const idx = opt.votes.indexOf(user.id);
@@ -3661,7 +3675,14 @@ app.post('/api/messages/:id/poll-vote', (req, res) => {
     msg.attachment.poll = pollData;
   }
   msg.poll = pollData;
-  saveDb(db);
+  if (!saveDb(db)) {
+    pollData.options = previousPollOptions;
+    pollData.totalVotes = previousTotalVotes;
+    msg.poll = previousMessagePoll;
+    if (msg.attachment) msg.attachment.poll = previousAttachmentPoll;
+    res.status(500).json({ error: 'Could not save the poll vote. Please try again.' });
+    return;
+  }
 
   const conv = db.conversations.find((c) => c.id === msg.conversationId);
   if (conv && Array.isArray(conv.members)) {
@@ -3707,10 +3728,19 @@ app.post('/api/messages/:id/edit', (req, res) => {
     return;
   }
 
+  const previousText = msg.text;
+  const previousIsEdited = msg.isEdited;
+  const previousUpdatedAt = msg.updatedAt;
   msg.text = text.trim();
   msg.isEdited = true;
   msg.updatedAt = Date.now();
-  saveDb(db);
+  if (!saveDb(db)) {
+    msg.text = previousText;
+    msg.isEdited = previousIsEdited;
+    msg.updatedAt = previousUpdatedAt;
+    res.status(500).json({ error: 'Could not save the edited message. Please try again.' });
+    return;
+  }
 
   const conv = db.conversations.find((c) => c.id === msg.conversationId);
   if (conv && Array.isArray(conv.members)) {
@@ -3752,7 +3782,11 @@ app.delete('/api/messages/:id', (req, res) => {
 
   const convId = msg.conversationId;
   db.messages.splice(msgIdx, 1);
-  saveDb(db);
+  if (!saveDb(db)) {
+    db.messages.splice(msgIdx, 0, msg);
+    res.status(500).json({ error: 'Could not delete the message. Please try again.' });
+    return;
+  }
 
   const conv = db.conversations.find((c) => c.id === convId);
   if (conv && Array.isArray(conv.members)) {
@@ -3790,6 +3824,14 @@ app.post('/api/messages/read', (req, res) => {
   let changed = false;
   const fullyReadMessageIds: string[] = [];
   const conversationMessages = Array.isArray(db.messages) ? db.messages : [];
+  const readStateSnapshot = conversationMessages
+    .filter((m) => m && m.conversationId === conversationId && m.senderId !== user.id)
+    .map((message: any) => ({
+      message,
+      hadReadBy: Object.prototype.hasOwnProperty.call(message, 'readBy'),
+      readBy: Array.isArray(message.readBy) ? message.readBy.map((receipt: any) => ({ ...receipt })) : message.readBy,
+      status: message.status,
+    }));
 
   conversationMessages
     .filter((m) => m && m.conversationId === conversationId && m.senderId !== user.id)
@@ -3827,7 +3869,15 @@ app.post('/api/messages/read', (req, res) => {
     });
 
   if (changed) {
-    saveDb(db);
+    if (!saveDb(db)) {
+      readStateSnapshot.forEach((snapshot: any) => {
+        if (snapshot.hadReadBy) snapshot.message.readBy = snapshot.readBy;
+        else delete snapshot.message.readBy;
+        snapshot.message.status = snapshot.status;
+      });
+      res.status(500).json({ error: 'Could not save message read receipts. Please try again.' });
+      return;
+    }
     const memberIds = readConversation.members
       .map((member: any) => member && member.userId)
       .filter((memberId: any) => typeof memberId === 'string' && memberId.length > 0);
