@@ -152,13 +152,22 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Real-time SSE Connection
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser || !token) return;
 
     let eventSource: EventSource | null = null;
     let reconnectTimeout: number | null = null;
+    let isDisposed = false;
 
-    const connectSSE = () => {
-      eventSource = new EventSource(`/api/events?userId=${currentUser.id}`);
+    const connectSSE = async () => {
+      try {
+        const ticketResponse = await fetch('/api/events/ticket', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!ticketResponse.ok) throw new Error('Could not authenticate event stream');
+        const ticketData = await ticketResponse.json();
+        if (isDisposed) return;
+        eventSource = new EventSource(`/api/events?ticket=${encodeURIComponent(ticketData.ticket)}`);
 
       eventSource.addEventListener('new_message', (e) => {
         try {
@@ -268,19 +277,23 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       });
 
-      eventSource.onerror = () => {
-        eventSource?.close();
-        reconnectTimeout = window.setTimeout(connectSSE, 3000);
-      };
+        eventSource.onerror = () => {
+          eventSource?.close();
+          if (!isDisposed) reconnectTimeout = window.setTimeout(() => { void connectSSE(); }, 3000);
+        };
+      } catch {
+        if (!isDisposed) reconnectTimeout = window.setTimeout(() => { void connectSSE(); }, 3000);
+      }
     };
 
-    connectSSE();
+    void connectSSE();
 
     return () => {
+      isDisposed = true;
       eventSource?.close();
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
     };
-  }, [currentUser, refreshConversations]);
+  }, [currentUser, token, refreshConversations]);
 
   const sendMessage = async (
     text: string,
