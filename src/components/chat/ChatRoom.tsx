@@ -72,8 +72,12 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const recordIntervalRef = useRef<number | null>(null);
 
-  // Audio playback state (voice notes)
-  const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
+  // Real microphone recording state for voice notes
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const discardRecordingRef = useRef(false);
+  const recordingStartedAtRef = useRef(0);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -141,31 +145,104 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
     await sendMessage(textToSend, 'text', undefined, replyId);
   };
 
-  const handleStartVoiceRecord = () => {
-    setIsRecording(true);
+  const handleStartVoiceRecord = async () => {
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      window.alert('Voice recording is not supported in this browser. Please use a supported browser with microphone access.');
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const supportedMimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4']
+        .find((mimeType) => MediaRecorder.isTypeSupported(mimeType));
+      const recorder = supportedMimeType
+        ? new MediaRecorder(stream, { mimeType: supportedMimeType })
+        : new MediaRecorder(stream);
+
+      audioChunksRef.current = [];
+      discardRecordingRef.current = false;
+      recordingStartedAtRef.current = Date.now();
+      mediaStreamRef.current = stream;
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+      };
+
+      recorder.onstop = () => {
+        stream.getTracks().forEach((track) => track.stop());
+        mediaStreamRef.current = null;
+        mediaRecorderRef.current = null;
+
+        const chunks = audioChunksRef.current;
+        audioChunksRef.current = [];
+        if (discardRecordingRef.current || chunks.length === 0) {
+          discardRecordingRef.current = false;
+          return;
+        }
+
+        const audioBlob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+        const duration = Math.max(1, Math.round((Date.now() - recordingStartedAtRef.current) / 1000));
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          if (typeof reader.result !== 'string') return;
+          await sendMessage(
+            '',
+            'audio',
+            {
+              name: `Voice note (${duration}s)`,
+              size: audioBlob.size,
+              mimeType: audioBlob.type || 'audio/webm',
+              url: reader.result,
+              duration,
+            },
+            replyingTo?.id
+          );
+          setReplyingTo(null);
+        };
+        reader.readAsDataURL(audioBlob);
+      };
+
+      recorder.start(250);
+      setIsRecording(true);
+    } catch {
+      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+      window.alert('Microphone permission was not granted. Allow microphone access and try again.');
+    }
   };
 
   const handleCancelVoiceRecord = () => {
+    discardRecordingRef.current = true;
+    audioChunksRef.current = [];
     setIsRecording(false);
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== 'inactive') {
+      recorder.stop();
+    } else {
+      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+    }
   };
 
-  const handleSendVoiceRecord = async () => {
+  const handleSendVoiceRecord = () => {
+    const recorder = mediaRecorderRef.current;
+    if (!recorder || recorder.state === 'inactive') {
+      setIsRecording(false);
+      return;
+    }
     setIsRecording(false);
-    const duration = recordingSeconds || 3;
-    await sendMessage(
-      '',
-      'audio',
-      {
-        name: `Voice note (${duration}s)`,
-        size: 1024 * 32 * duration,
-        mimeType: 'audio/webm',
-        url: 'data:audio/webm;base64,mock',
-        duration,
-      },
-      replyingTo?.id
-    );
-    setReplyingTo(null);
+    recorder.stop();
   };
+
+  useEffect(() => {
+    return () => {
+      discardRecordingRef.current = true;
+      const recorder = mediaRecorderRef.current;
+      if (recorder && recorder.state !== 'inactive') recorder.stop();
+      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+    };
+  }, []);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -406,31 +483,17 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
                     )}
 
                     {msg.type === 'audio' && (
-                      <div className="flex items-center gap-2.5 p-2 rounded-xl bg-black/5 dark:bg-white/5">
-                        <button
-                          onClick={() =>
-                            setPlayingAudioId(playingAudioId === msg.id ? null : msg.id)
-                          }
-                          className="w-8 h-8 rounded-full bg-[#00a884] text-white flex items-center justify-center shrink-0 shadow"
-                        >
-                          {playingAudioId === msg.id ? (
-                            <Pause className="w-4 h-4" />
-                          ) : (
-                            <Play className="w-4 h-4 ml-0.5" />
-                          )}
-                        </button>
-                        <div className="flex-1 min-w-0">
-                          <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full bg-[#00a884] ${
-                                playingAudioId === msg.id ? 'w-3/4 animate-pulse' : 'w-1/3'
-                              }`}
-                            />
-                          </div>
-                          <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 block">
-                            Voice note ({msg.attachment.duration || 4}s)
-                          </span>
-                        </div>
+                      <div className="flex flex-col gap-1.5 p-2 rounded-xl bg-black/5 dark:bg-white/5 min-w-[220px]">
+                        <audio
+                          controls
+                          preload="metadata"
+                          src={msg.attachment.url}
+                          className="w-full max-w-[260px]"
+                          aria-label="Voice message playback"
+                        />
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                          Voice note ({msg.attachment.duration || 1}s)
+                        </span>
                       </div>
                     )}
 
