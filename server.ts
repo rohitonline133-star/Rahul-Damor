@@ -3943,17 +3943,34 @@ app.post('/api/calls/:id/respond', (req, res) => {
     return;
   }
 
-  const { status, durationSeconds } = req.body; // 'ongoing' | 'completed' | 'declined' | 'missed'
+  const { status, durationSeconds } = req.body || {};
   const call = db.calls.find((c) => c.id === req.params.id);
   if (!call) {
     res.status(404).json({ error: 'Call not found' });
     return;
   }
 
+  // A signed-in user may only update calls in which they are a participant.
+  if (call.callerId !== user.id && call.receiverId !== user.id) {
+    res.status(403).json({ error: 'You are not a participant in this call' });
+    return;
+  }
+
+  const allowedStatuses = new Set(['ongoing', 'completed', 'declined', 'missed']);
+  if (typeof status !== 'string' || !allowedStatuses.has(status)) {
+    res.status(400).json({ error: 'Invalid call status' });
+    return;
+  }
+  if (durationSeconds !== undefined &&
+      (!Number.isSafeInteger(durationSeconds) || durationSeconds < 0 || durationSeconds > 24 * 60 * 60)) {
+    res.status(400).json({ error: 'Invalid call duration' });
+    return;
+  }
+
   call.status = status;
   if (status === 'completed' || status === 'declined' || status === 'missed') {
     call.endedAt = Date.now();
-    call.durationSeconds = durationSeconds || Math.round((call.endedAt - call.startedAt) / 1000);
+    call.durationSeconds = durationSeconds ?? Math.max(0, Math.round((call.endedAt - call.startedAt) / 1000));
   }
 
   saveDb(db);
