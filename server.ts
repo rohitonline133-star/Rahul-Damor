@@ -3227,7 +3227,7 @@ app.post('/api/messages', (req, res) => {
 
   let replyToMessage = undefined;
   if (replyToId) {
-    const parentMsg = db.messages.find((m) => m.id === replyToId);
+    const parentMsg = db.messages.find((m) => m.id === replyToId && m.conversationId === conversationId);
     if (parentMsg) {
       replyToMessage = {
         id: parentMsg.id,
@@ -3280,6 +3280,16 @@ app.post('/api/messages/:id/react', (req, res) => {
     return;
   }
 
+  const reactionConversation = db.conversations.find((c) => c.id === msg.conversationId);
+  if (!reactionConversation || !reactionConversation.members.some((m: any) => m.userId === user.id)) {
+    res.status(403).json({ error: 'Not a member of this conversation' });
+    return;
+  }
+  if (typeof emoji !== 'string' || emoji.length < 1 || emoji.length > 16) {
+    res.status(400).json({ error: 'Invalid reaction emoji' });
+    return;
+  }
+
   if (!msg.reactions) msg.reactions = [];
 
   const existingIdx = msg.reactions.findIndex((r: any) => r.userId === user.id && r.emoji === emoji);
@@ -3317,6 +3327,12 @@ app.post('/api/messages/:id/poll-vote', (req, res) => {
   const msg = db.messages.find((m) => m.id === req.params.id);
   if (!msg) {
     res.status(404).json({ error: 'Message not found' });
+    return;
+  }
+
+  const pollConversation = db.conversations.find((c) => c.id === msg.conversationId);
+  if (!pollConversation || !pollConversation.members.some((m: any) => m.userId === user.id)) {
+    res.status(403).json({ error: 'Not a member of this conversation' });
     return;
   }
 
@@ -3376,6 +3392,11 @@ app.post('/api/messages/:id/edit', (req, res) => {
     return;
   }
 
+  const editConversation = db.conversations.find((c) => c.id === msg.conversationId);
+  if (!editConversation || !editConversation.members.some((m: any) => m.userId === user.id)) {
+    res.status(403).json({ error: 'Not a member of this conversation' });
+    return;
+  }
   if (msg.senderId !== user.id) {
     res.status(403).json({ error: 'Cannot edit someone elses message' });
     return;
@@ -3409,6 +3430,11 @@ app.delete('/api/messages/:id', (req, res) => {
   }
 
   const msg = db.messages[msgIdx];
+  const deleteConversation = db.conversations.find((c) => c.id === msg.conversationId);
+  if (!deleteConversation || !deleteConversation.members.some((m: any) => m.userId === user.id)) {
+    res.status(403).json({ error: 'Not a member of this conversation' });
+    return;
+  }
   if (msg.senderId !== user.id && user.role !== 'admin') {
     res.status(403).json({ error: 'Permission denied to delete' });
     return;
@@ -3435,6 +3461,11 @@ app.post('/api/messages/read', (req, res) => {
   }
 
   const { conversationId } = req.body;
+  const readConversation = db.conversations.find((c) => c.id === conversationId);
+  if (!readConversation || !readConversation.members.some((m: any) => m.userId === user.id)) {
+    res.status(403).json({ error: 'Not a member of this conversation' });
+    return;
+  }
   const now = Date.now();
   let updatedCount = 0;
 
