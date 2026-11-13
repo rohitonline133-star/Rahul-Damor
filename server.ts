@@ -126,7 +126,15 @@ function broadcastPresence(owner: any) {
 
 // Security password hashing
 function hashPassword(password: string, salt: string): string {
-  return crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
+  return crypto.pbkdf2Sync(password, salt, 310000, 64, 'sha512').toString('hex');
+}
+
+function verifyPassword(password: string, salt: string, storedHash: string): { valid: boolean; needsUpgrade: boolean } {
+  const current = hashPassword(password, salt);
+  if (current.length === storedHash.length && crypto.timingSafeEqual(Buffer.from(current, 'hex'), Buffer.from(storedHash, 'hex'))) return { valid: true, needsUpgrade: false };
+  const legacy = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
+  const valid = legacy.length === storedHash.length && crypto.timingSafeEqual(Buffer.from(legacy, 'hex'), Buffer.from(storedHash, 'hex'));
+  return { valid, needsUpgrade: valid };
 }
 
 // In-Memory Database initialized with default seed records
@@ -179,7 +187,7 @@ function getInitialDb(): DbSchema {
     username: 'jordan_gb',
     displayName: 'Jordan Miller',
     email: 'jordan@gbofficial.app',
-    passwordHash: hashPassword('GbOfficial2026!', salt1),
+    passwordHash: hashPassword(crypto.randomBytes(32).toString('hex'), salt1),
     salt: salt1,
     avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
     bio: 'Lead Engineer @ GB Official • Building next-gen mobile communications 🚀',
@@ -202,7 +210,7 @@ function getInitialDb(): DbSchema {
     username: 'alex_gb',
     displayName: 'Alex Rivera',
     email: 'alex@gbofficial.app',
-    passwordHash: hashPassword('GbOfficial2026!', salt2),
+    passwordHash: hashPassword(crypto.randomBytes(32).toString('hex'), salt2),
     salt: salt2,
     avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80',
     bio: 'Android Core Architect. Clean architecture & reactive streams.',
@@ -225,7 +233,7 @@ function getInitialDb(): DbSchema {
     username: 'sarah_chen',
     displayName: 'Sarah Chen',
     email: 'sarah@gbofficial.app',
-    passwordHash: hashPassword('GbOfficial2026!', salt3),
+    passwordHash: hashPassword(crypto.randomBytes(32).toString('hex'), salt3),
     salt: salt3,
     avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
     bio: 'Product Design Lead • GB Design System & Android Motion ✨',
@@ -248,7 +256,7 @@ function getInitialDb(): DbSchema {
     username: 'liam_v',
     displayName: 'Liam Vance',
     email: 'liam@gbofficial.app',
-    passwordHash: hashPassword('GbOfficial2026!', salt4),
+    passwordHash: hashPassword(crypto.randomBytes(32).toString('hex'), salt4),
     salt: salt4,
     avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
     bio: 'Security & WebRTC specialist. High performance encrypted streams.',
@@ -271,7 +279,7 @@ function getInitialDb(): DbSchema {
     username: 'kunal_s',
     displayName: 'Kunal Sharma',
     email: 'kunal@gbofficial.app',
-    passwordHash: hashPassword('GbOfficial2026!', salt5),
+    passwordHash: hashPassword(crypto.randomBytes(32).toString('hex'), salt5),
     salt: salt5,
     avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
     bio: 'Mobile Systems & Real-time protocol engineer',
@@ -2043,8 +2051,8 @@ app.post('/api/auth/login', (req, res) => {
     return;
   }
 
-  const checkHash = hashPassword(password, user.salt);
-  if (checkHash !== user.passwordHash) {
+  const passwordCheck = verifyPassword(password, user.salt, user.passwordHash);
+  if (!passwordCheck.valid) {
     recordFailedAttempt(rateKey);
     logSecurityEvent(user.id, 'LOGIN_FAILED', 'failure', `Password mismatch for ${user.username}`, req);
     res.status(401).json({ error: 'Invalid credentials. Incorrect password.' });
@@ -2069,6 +2077,8 @@ app.post('/api/auth/login', (req, res) => {
       return;
     }
   }
+
+  if (passwordCheck.needsUpgrade) user.passwordHash = hashPassword(password, user.salt);
 
   // Clear rate limits on successful login
   clearRateLimit(rateKey);
@@ -2202,112 +2212,69 @@ app.get('/api/auth/security-logs', (req, res) => {
   res.json({ logs });
 });
 
-// 13. Password Recovery (OTP based)
-app.post('/api/auth/recover/send-otp', (req, res) => {
-  const { phoneOrEmail } = req.body;
-  if (!phoneOrEmail) {
-    res.status(400).json({ error: 'Registered phone or email address is required.' });
-    return;
-  }
-
-  const clean = phoneOrEmail.trim().toLowerCase();
+// 13. Password Recovery (provider-backed, hashed, attempt-limited and single-use)
+app.post('/api/auth/recover/send-otp', async (req, res) => {
+  const rawContact = req.body?.phoneOrEmail;
+  if (typeof rawContact !== 'string' || !rawContact.trim()) { res.status(400).json({ error: 'Registered phone or email address is required.' }); return; }
+  const clean = rawContact.trim().toLowerCase();
+  const rateKey = `password_recovery:${clean}`;
+  const rate = checkRateLimit(rateKey, 3, 60 * 60 * 1000, 60 * 60 * 1000);
+  if (!rate.allowed) { res.status(429).json({ error: 'Too many recovery requests. Please try again later.' }); return; }
+  recordFailedAttempt(rateKey);
   const normalizedPhone = normalizePhoneNumber(clean);
-  const user = db.users.find(
-    (u) =>
-      u.email.toLowerCase() === clean ||
-      (u.phone && normalizePhoneNumber(u.phone) === normalizedPhone)
-  );
-
-  if (!user) {
-    res.status(404).json({ error: 'No account found with this phone number or email.' });
-    return;
-  }
-
-  const recoveryCode = crypto.randomInt(100000, 999999).toString();
-  const now = Date.now();
-
+  const user = db.users.find((candidate) => candidate.email?.toLowerCase() === clean || (candidate.phone && normalizePhoneNumber(candidate.phone) === normalizedPhone));
+  if (!user) { res.status(202).json({ success: true, message: 'If the account exists, a recovery code will be sent to its registered contact.' }); return; }
+  const isEmail = clean.includes('@');
+  const code = crypto.randomInt(100000, 1000000).toString();
+  const pepper = process.env.RECOVERY_OTP_PEPPER;
+  if (!pepper) { res.status(503).json({ error: 'Password recovery delivery is not configured.' }); return; }
+  try {
+    if (isEmail) {
+      if (!process.env.SENDGRID_API_KEY || !process.env.RECOVERY_FROM_EMAIL) { res.status(503).json({ error: 'Email recovery delivery is not configured.' }); return; }
+      const delivery = await fetch('https://api.sendgrid.com/v3/mail/send', {
+        method: 'POST', headers: { Authorization: `Bearer ${process.env.SENDGRID_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ personalizations: [{ to: [{ email: user.email }] }], from: { email: process.env.RECOVERY_FROM_EMAIL }, subject: 'GB Official password recovery code', content: [{ type: 'text/plain', value: `Your GB Official recovery code is ${code}. It expires in 10 minutes. If you did not request this, ignore this message.` }] }),
+      });
+      if (!delivery.ok) throw new Error('Email provider rejected the recovery message.');
+    } else {
+      const sid = process.env.TWILIO_ACCOUNT_SID, secret = process.env.TWILIO_AUTH_TOKEN, from = process.env.TWILIO_PHONE_NUMBER;
+      if (!sid || !secret || !from || !user.phone) { res.status(503).json({ error: 'SMS recovery delivery is not configured.' }); return; }
+      const authHeader = Buffer.from(`${sid}:${secret}`).toString('base64');
+      const body = new URLSearchParams({ To: user.phone, From: from, Body: `Your GB Official recovery code is ${code}. It expires in 10 minutes.` });
+      const delivery = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, { method: 'POST', headers: { Authorization: `Basic ${authHeader}`, 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+      if (!delivery.ok) throw new Error('SMS provider rejected the recovery message.');
+    }
+  } catch (error) { console.error('Password recovery delivery failed:', error); res.status(503).json({ error: 'Could not deliver a recovery code. Please try again later.' }); return; }
+  const codeHash = crypto.createHash('sha256').update(`${pepper}:${user.id}:${code}`).digest('hex');
   if (!db.password_resets) db.password_resets = [];
-  db.password_resets.push({
-    phoneOrEmail: user.phone || user.email,
-    code: recoveryCode,
-    expiresAt: now + 10 * 60 * 1000,
-    attempts: 0,
-    verified: false,
-  });
-  saveDb(db);
-
-  logSecurityEvent(user.id, 'RECOVERY_OTP_SENT', 'success', `Password recovery code generated for ${user.username}`, req);
-
-  const isTwilioConfigured = !!(
-    process.env.TWILIO_ACCOUNT_SID &&
-    process.env.TWILIO_AUTH_TOKEN &&
-    process.env.TWILIO_PHONE_NUMBER
-  );
-  const isProduction = process.env.NODE_ENV === 'production';
-
-  if (!isTwilioConfigured && user.phone) {
-    res.status(503).json({
-      success: false,
-      smsConfigured: false,
-      error: 'SMS OTP service is not configured.',
-      message:
-        'Production SMS OTP is NOT CONFIGURED. Carrier SMS requires TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER.',
-    });
-    return;
-  }
-
-  res.json({
-    success: true,
-    message: isTwilioConfigured
-      ? `Password recovery code sent via carrier SMS.`
-      : `Password recovery code dispatched to your registered contact.`,
-    smsConfigured: isTwilioConfigured,
-  });
+  db.password_resets = db.password_resets.filter((record: any) => record.phoneOrEmail !== user.phone && record.phoneOrEmail !== user.email);
+  db.password_resets.push({ phoneOrEmail: user.phone || user.email, codeHash, expiresAt: Date.now() + 10 * 60 * 1000, attempts: 0, verified: false });
+  if (!saveDb(db)) { res.status(500).json({ error: 'Could not save the recovery request.' }); return; }
+  res.status(202).json({ success: true, message: 'If the account exists, a recovery code will be sent to its registered contact.' });
 });
 
-// 14. Reset Password with Recovery OTP
+// 14. Reset Password with a single-use recovery code
 app.post('/api/auth/recover/reset-password', (req, res) => {
-  const { phoneOrEmail, code, newPassword } = req.body;
-  if (!phoneOrEmail || !code || !newPassword) {
-    res.status(400).json({ error: 'Contact info, verification code, and new password are required.' });
-    return;
-  }
-
-  if (newPassword.length < 6) {
-    res.status(400).json({ error: 'New password must be at least 6 characters.' });
-    return;
-  }
-
-  const clean = phoneOrEmail.trim().toLowerCase();
-  const normalizedPhone = normalizePhoneNumber(clean);
-  const user = db.users.find(
-    (u) =>
-      u.email.toLowerCase() === clean ||
-      (u.phone && normalizePhoneNumber(u.phone) === normalizedPhone)
-  );
-
-  if (!user) {
-    res.status(404).json({ error: 'Account not found.' });
-    return;
-  }
-
-  const resetRecord = (db.password_resets || [])
-    .filter((r) => r.phoneOrEmail === user.phone || r.phoneOrEmail === user.email)
-    .sort((a, b) => b.expiresAt - a.expiresAt)[0];
-
-  if (!resetRecord || resetRecord.expiresAt < Date.now() || resetRecord.code !== code.toString().trim()) {
-    res.status(400).json({ error: 'Invalid or expired recovery verification code.' });
-    return;
-  }
-
+  const { phoneOrEmail, code, newPassword } = req.body || {};
+  if (typeof phoneOrEmail !== 'string' || typeof code !== 'string' || typeof newPassword !== 'string') { res.status(400).json({ error: 'Contact info, verification code, and new password are required.' }); return; }
+  if (newPassword.length < 8 || newPassword.length > 128) { res.status(400).json({ error: 'New password must be between 8 and 128 characters.' }); return; }
+  const clean = phoneOrEmail.trim().toLowerCase(), normalizedPhone = normalizePhoneNumber(clean);
+  const user = db.users.find((candidate) => candidate.email?.toLowerCase() === clean || (candidate.phone && normalizePhoneNumber(candidate.phone) === normalizedPhone));
+  if (!user) { res.status(400).json({ error: 'Invalid or expired recovery verification code.' }); return; }
+  const record = (db.password_resets || []).filter((item: any) => (item.phoneOrEmail === user.phone || item.phoneOrEmail === user.email) && !item.verified).sort((a: any, b: any) => b.expiresAt - a.expiresAt)[0];
+  if (!record || record.expiresAt <= Date.now() || (record.attempts || 0) >= 5) { res.status(400).json({ error: 'Invalid or expired recovery verification code.' }); return; }
+  const pepper = process.env.RECOVERY_OTP_PEPPER;
+  const candidateHash = pepper ? crypto.createHash('sha256').update(`${pepper}:${user.id}:${code.trim()}`).digest('hex') : '';
+  const expectedHash = typeof record.codeHash === 'string' ? record.codeHash : '';
+  const matches = candidateHash.length === expectedHash.length && expectedHash.length > 0 && crypto.timingSafeEqual(Buffer.from(candidateHash, 'hex'), Buffer.from(expectedHash, 'hex'));
+  if (!matches) { record.attempts = (record.attempts || 0) + 1; saveDb(db); res.status(400).json({ error: 'Invalid or expired recovery verification code.' }); return; }
   const salt = crypto.randomBytes(16).toString('hex');
-  user.passwordHash = hashPassword(newPassword, salt);
-  user.salt = salt;
-  resetRecord.verified = true;
-  saveDb(db);
-
-  logSecurityEvent(user.id, 'PASSWORD_RESET_SUCCESS', 'success', `Password updated via recovery code.`, req);
-  res.json({ success: true, message: 'Password reset successfully. You can now log in with your new password.' });
+  user.passwordHash = hashPassword(newPassword, salt); user.salt = salt;
+  record.verified = true; record.codeHash = undefined; record.code = undefined; record.consumedAt = Date.now();
+  (db.sessions || []).forEach((session: any) => { if (session.userId === user.id) { session.isRevoked = true; activeSessions.delete(session.token); } });
+  if (!saveDb(db)) { res.status(500).json({ error: 'Could not complete password reset.' }); return; }
+  logSecurityEvent(user.id, 'PASSWORD_RESET_SUCCESS', 'success', 'Password reset via verified recovery code; sessions revoked.', req);
+  res.json({ success: true, message: 'Password reset successfully. Please sign in again.' });
 });
 
 // 15. Change Password (Authenticated in Settings -> Account)
@@ -2327,8 +2294,8 @@ app.post('/api/auth/change-password', (req, res) => {
     return;
   }
 
-  const checkHash = hashPassword(currentPassword, user.salt);
-  if (checkHash !== user.passwordHash) {
+  const passwordCheck = verifyPassword(currentPassword, user.salt, user.passwordHash);
+  if (!passwordCheck.valid) {
     res.status(400).json({ error: 'Current password is incorrect.' });
     return;
   }
@@ -2821,20 +2788,9 @@ app.post('/api/auth/oauth/instagram', async (req, res) => {
   }
 });
 
-// 25. Switch Account (Quick Developer Switcher)
-app.post('/api/auth/switch-account', (req, res) => {
-  const { userId } = req.body;
-  const user = db.users.find((u) => u.id === userId);
-  if (!user) {
-    res.status(404).json({ error: 'User not found.' });
-    return;
-  }
-  const { token, session } = createSessionRecord(user.id, req, 'GB Switch Account');
-  user.online = true;
-  user.lastSeen = Date.now();
-  saveDb(db);
-  const { passwordHash: _, salt: __, ...safeUser } = user;
-  res.json({ token, user: safeUser, session });
+// Account switching requires fresh credentials; the old userId-only route enabled impersonation.
+app.post('/api/auth/switch-account', (_req, res) => {
+  res.status(410).json({ error: 'Quick account switching is disabled. Please sign in with the selected account credentials.' });
 });
 
 // -------------------------------------------------------------
@@ -3173,9 +3129,13 @@ app.patch('/api/conversations/:id/group', (req, res) => {
   if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
   const group = db.conversations.find((item: any) => item?.id === req.params.id);
   if (!group || group.type !== 'group') { res.status(404).json({ error: 'Group not found' }); return; }
-  if (!isGroupAdmin(group, user.id) && group.permissions?.editInfo !== true) { res.status(403).json({ error: 'Group settings can only be changed by admins or members allowed to edit group info.' }); return; }
+  const actorMembership = getGroupMembership(group, user.id);
+  if (!actorMembership) { res.status(403).json({ error: 'You must be a group member to change group settings.' }); return; }
+  const actorIsAdmin = isGroupAdmin(group, user.id);
+  if (!actorIsAdmin && group.permissions?.editInfo !== true) { res.status(403).json({ error: 'Only admins or members allowed to edit group info can change these settings.' }); return; }
 
   const { name, description, icon, permissions } = req.body || {};
+  if (permissions !== undefined && !actorIsAdmin) { res.status(403).json({ error: 'Only group admins can change group permissions.' }); return; }
   if (name !== undefined && (typeof name !== 'string' || !name.trim() || name.trim().length > 80)) {
     res.status(400).json({ error: 'Group name must be between 1 and 80 characters.' }); return;
   }
@@ -6355,7 +6315,7 @@ app.post('/api/shop/orders', (req, res) => {
     subtotal: total,
     shipping: 0,
     total,
-    status: 'confirmed',
+    status: 'pending_payment',
     shippingAddress: shippingAddress || {
       fullName: user.displayName,
       address: '144 GB Innovation Park, Sector 5',
@@ -6364,7 +6324,7 @@ app.post('/api/shop/orders', (req, res) => {
       country: 'India',
     },
     paymentMethod: paymentMethod || 'card',
-    paymentStatus: 'paid',
+    paymentStatus: 'pending',
     trackingNumber: 'GB-TRK-' + Math.floor(100000 + Math.random() * 900000),
     createdAt: Date.now(),
   };
@@ -6384,8 +6344,8 @@ app.post('/api/shop/orders', (req, res) => {
     type: 'shop_purchase',
     amount: total,
     currency: 'USD',
-    status: 'completed',
-    description: `GB Shop Order #${newOrder.id.slice(-6).toUpperCase()}`,
+    status: 'pending',
+    description: `GB Shop Order #${newOrder.id.slice(-6).toUpperCase()} — awaiting verified gateway payment`,
     createdAt: Date.now(),
   });
 
@@ -6393,8 +6353,8 @@ app.post('/api/shop/orders', (req, res) => {
   const notif = {
     id: 'notif_' + Date.now(),
     userId: user.id,
-    title: 'Order Confirmed! 📦',
-    body: `Your order for ${orderItems[0].name} has been confirmed. Tracking: ${newOrder.trackingNumber}`,
+    title: 'Order Created — Payment Pending',
+    body: `Your order for ${orderItems[0].name} was created. It will be confirmed only after the payment gateway verifies payment.`,
     type: 'system',
     targetId: newOrder.id,
     isRead: false,
@@ -6408,7 +6368,7 @@ app.post('/api/shop/orders', (req, res) => {
 
   res.status(201).json({
     order: newOrder,
-    gatewayNotice: 'Payment processed in GB Sandbox mode. For production bank clearing, connect Stripe in Settings.',
+    gatewayNotice: 'No live payment was collected. Order remains pending until a trusted payment gateway confirms payment.',
   });
 });
 
