@@ -179,7 +179,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const handleToggle2FA = async (enabled: boolean) => {
     const pin = enabled ? window.prompt('Choose a new 6-digit verification PIN:') : undefined;
-    if (enabled && (!pin || !/^\\d{6}$/.test(pin))) return;
+    if (enabled && (!pin || !/^\d{6}$/.test(pin))) return;
     const currentPassword = twoFactor ? window.prompt('Enter your current password to change two-step verification:') : undefined;
     if (twoFactor && !currentPassword) return;
     const result = await toggleTwoFactor(enabled, pin || undefined, currentPassword || undefined);
