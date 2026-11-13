@@ -4055,6 +4055,21 @@ app.post('/api/calls/:id/respond', (req, res) => {
     return;
   }
 
+  // Call state transitions are role-aware and terminal states cannot be reopened.
+  const isCaller = call.callerId === user.id;
+  const isReceiver = call.receiverId === user.id;
+  const canTransition =
+    (call.status === 'ringing' && (
+      (status === 'ongoing' && isReceiver) ||
+      ((status === 'declined' || status === 'missed') && isReceiver) ||
+      (status === 'completed' && isCaller)
+    )) ||
+    (call.status === 'ongoing' && status === 'completed');
+  if (!canTransition) {
+    res.status(409).json({ error: 'This call status transition is not allowed' });
+    return;
+  }
+
   call.status = status;
   if (status === 'completed' || status === 'declined' || status === 'missed') {
     call.endedAt = Date.now();
