@@ -107,6 +107,7 @@ function sanitizeUserForViewer(owner: any, viewer: any) {
   const canSeePresence = owner.id === viewer?.id || canViewPresence(owner, viewer);
   return {
     ...safe,
+    ...(owner.id === viewer?.id ? { email: owner.email, phone: owner.phone } : {}),
     avatar: canSeePhoto ? owner.avatar : '',
     online: canSeePresence && !!owner.online,
     lastSeen: canSeePresence ? owner.lastSeen : null,
