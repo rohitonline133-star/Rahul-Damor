@@ -3919,13 +3919,35 @@ app.post('/api/communities/:id/announcements', (req, res) => {
     return;
   }
 
-  const { title, content } = req.body;
+  const body = req.body || {};
+  const titleInput = body.title;
+  const contentInput = body.content;
+  if ((titleInput !== undefined && typeof titleInput !== 'string') ||
+      typeof contentInput !== 'string') {
+    res.status(400).json({ error: 'Announcement title and content must be text' });
+    return;
+  }
+
+  const cleanTitle = (titleInput || '').trim() || 'Announcement';
+  const cleanContent = contentInput.trim();
+  if (!cleanContent || cleanTitle.length > 120 || cleanContent.length > 5000) {
+    res.status(400).json({ error: 'Announcement title must be at most 120 characters and content must be 1–5000 characters' });
+    return;
+  }
+
+  comm.announcements = Array.isArray(comm.announcements) ? comm.announcements : [];
+  comm.memberIds = Array.isArray(comm.memberIds) ? comm.memberIds : [];
+  if (!comm.memberIds.includes(user.id)) {
+    res.status(403).json({ error: 'Community membership is required to post announcements' });
+    return;
+  }
+
   const ann = {
     id: 'ann_' + crypto.randomUUID().slice(0, 6),
     authorId: user.id,
     authorName: user.displayName,
-    title: title?.trim() || 'Announcement',
-    content: content.trim(),
+    title: cleanTitle,
+    content: cleanContent,
     createdAt: Date.now(),
   };
 
