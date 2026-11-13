@@ -2398,13 +2398,45 @@ app.post('/api/auth/change-phone/request', (req, res) => {
     return;
   }
 
-  const otpCode = crypto.randomInt(100000, 999999).toString();
+  const sid = process.env.TWILIO_ACCOUNT_SID;
+  const secret = process.env.TWILIO_AUTH_TOKEN;
+  const from = process.env.TWILIO_PHONE_NUMBER;
+  const pepper = process.env.PHONE_OTP_PEPPER;
+  if (!sid || !secret || !from || !pepper || pepper.length < 32) {
+    res.status(503).json({ success: false, smsConfigured: false, error: 'SMS verification is not configured securely.' });
+    return;
+  }
+  const rateKey = `change_phone_otp:${user.id}`;
+  const rate = checkRateLimit(rateKey, 3, 60 * 60 * 1000, 60 * 60 * 1000);
+  if (!rate.allowed) { res.status(429).json({ error: 'Too many verification requests. Try again later.' }); return; }
+
+  const otpCode = crypto.randomInt(100000, 1000000).toString();
+  const authHeader = Buffer.from(`${sid}:${secret}`).toString('base64');
+  const smsBody = new URLSearchParams({ To: normalized, From: from, Body: `Your GB Official phone verification code is ${otpCode}. It expires in 5 minutes.` });
+  try {
+    const delivery = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+      method: 'POST',
+      headers: { Authorization: `Basic ${authHeader}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: smsBody,
+    });
+    if (!delivery.ok) throw new Error('SMS provider rejected the verification message.');
+  } catch (error) {
+    console.error('Phone change OTP delivery failed:', error);
+    res.status(503).json({ success: false, smsConfigured: true, error: 'Could not deliver the verification code.' });
+    return;
+  }
+
   const now = Date.now();
   if (!db.phone_verifications) db.phone_verifications = [];
+  db.phone_verifications = db.phone_verifications.filter((record: any) =>
+    !(record.userId === user.id && record.purpose === 'change_phone')
+  );
+  const codeHash = crypto.createHmac('sha256', pepper).update(`${user.id}:${normalized}:${otpCode}`).digest('hex');
   db.phone_verifications.push({
     id: 'pv_' + crypto.randomUUID().slice(0, 8),
+    userId: user.id,
     phone: normalized,
-    code: otpCode,
+    codeHash,
     purpose: 'change_phone',
     createdAt: now,
     expiresAt: now + 5 * 60 * 1000,
@@ -2412,35 +2444,13 @@ app.post('/api/auth/change-phone/request', (req, res) => {
     maxAttempts: 5,
     verified: false,
   });
-  saveDb(db);
-
-  logSecurityEvent(user.id, 'PHONE_CHANGE_OTP_SENT', 'success', `OTP sent to new number ${normalized}`, req);
-
-  const isTwilioConfigured = !!(
-    process.env.TWILIO_ACCOUNT_SID &&
-    process.env.TWILIO_AUTH_TOKEN &&
-    process.env.TWILIO_PHONE_NUMBER
-  );
-  const isProduction = process.env.NODE_ENV === 'production';
-
-  if (!isTwilioConfigured) {
-    res.status(503).json({
-      success: false,
-      smsConfigured: false,
-      error: 'SMS OTP service is not configured.',
-      message:
-        'Production SMS OTP is NOT CONFIGURED. Carrier SMS requires TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER.',
-    });
+  if (!saveDb(db)) {
+    res.status(500).json({ error: 'Could not save the verification request.' });
     return;
   }
-
-  res.json({
-    success: true,
-    message: isTwilioConfigured
-      ? `Verification code sent to ${normalized} via carrier SMS.`
-      : `Verification code dispatched for ${normalized}.`,
-    smsConfigured: isTwilioConfigured,
-  });
+  recordFailedAttempt(rateKey);
+  logSecurityEvent(user.id, 'PHONE_CHANGE_OTP_SENT', 'success', 'Phone change verification SMS dispatched.', req);
+  res.json({ success: true, message: 'Verification code sent by SMS.', smsConfigured: true });
 });
 
 // 18. Change Phone Number (Step 2: Verify & Update)
@@ -2450,22 +2460,48 @@ app.post('/api/auth/change-phone/verify', (req, res) => {
     res.status(401).json({ error: 'Unauthorized' });
     return;
   }
-  const { newPhone, code } = req.body;
+  const { newPhone, code } = req.body || {};
+  if (typeof newPhone !== 'string' || typeof code !== 'string' || !/^\\d{6}$/.test(code.trim())) {
+    res.status(400).json({ error: 'A valid phone number and 6-digit code are required.' });
+    return;
+  }
   const normalized = normalizePhoneNumber(newPhone);
   const record = (db.phone_verifications || [])
-    .filter((pv) => pv.phone === normalized && pv.purpose === 'change_phone')
-    .sort((a, b) => b.createdAt - a.createdAt)[0];
-
-  if (!record || record.expiresAt < Date.now() || record.code !== code.toString().trim()) {
+    .filter((pv: any) => pv.userId === user.id && pv.phone === normalized && pv.purpose === 'change_phone' && !pv.verified)
+    .sort((a: any, b: any) => b.createdAt - a.createdAt)[0];
+  const pepper = process.env.PHONE_OTP_PEPPER;
+  if (!record || !pepper || pepper.length < 32 || record.expiresAt <= Date.now() || record.attempts >= record.maxAttempts) {
     res.status(400).json({ error: 'Invalid or expired verification code.' });
     return;
   }
+  const candidateHash = crypto.createHmac('sha256', pepper).update(`${user.id}:${normalized}:${code.trim()}`).digest('hex');
+  const expectedHash = typeof record.codeHash === 'string' ? record.codeHash : '';
+  const matches = candidateHash.length === expectedHash.length && expectedHash.length > 0 &&
+    crypto.timingSafeEqual(Buffer.from(candidateHash, 'hex'), Buffer.from(expectedHash, 'hex'));
+  if (!matches) {
+    record.attempts = (record.attempts || 0) + 1;
+    saveDb(db);
+    res.status(400).json({ error: 'Invalid or expired verification code.' });
+    return;
+  }
+  const existingPhone = db.users.find((candidate: any) =>
+    candidate.id !== user.id && candidate.phone && normalizePhoneNumber(candidate.phone) === normalized
+  );
+  if (existingPhone) { res.status(409).json({ error: 'This phone number is already registered.' }); return; }
 
+  const previousPhone = user.phone;
   user.phone = normalized;
   record.verified = true;
-  saveDb(db);
-
-  logSecurityEvent(user.id, 'PHONE_CHANGED', 'success', `Phone number updated to ${normalized}`, req);
+  record.codeHash = undefined;
+  record.consumedAt = Date.now();
+  db.phone_verifications = db.phone_verifications.filter((entry: any) => entry.id !== record.id);
+  if (!saveDb(db)) {
+    user.phone = previousPhone;
+    res.status(500).json({ error: 'Could not save the phone number change.' });
+    return;
+  }
+  clearRateLimit(`change_phone_otp:${user.id}`);
+  logSecurityEvent(user.id, 'PHONE_CHANGED', 'success', 'Phone number updated after OTP verification.', req);
   res.json({ success: true, phone: normalized, message: 'Phone number updated successfully.' });
 });
 
