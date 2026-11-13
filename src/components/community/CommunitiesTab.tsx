@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Users2, Megaphone, Plus, ChevronRight, ShieldCheck, MessageSquare, Globe } from 'lucide-react';
 import { useChat } from '../../context/ChatContext';
-import { useAuth } from '../../context/AuthContext';
 import { Community } from '../../types';
 
 interface CommunitiesTabProps {
@@ -14,7 +13,6 @@ export const CommunitiesTab: React.FC<CommunitiesTabProps> = ({
   onOpenGroup,
 }) => {
   const { communities, joinCommunity, postAnnouncement, conversations } = useChat();
-  const { currentUser } = useAuth();
 
   const [selectedCommunity, setSelectedCommunity] = useState<Community | null>(null);
   const [showAnnounceModal, setShowAnnounceModal] = useState(false);
