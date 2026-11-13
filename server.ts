@@ -3173,7 +3173,7 @@ app.patch('/api/conversations/:id/group', (req, res) => {
   if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
   const group = db.conversations.find((item: any) => item?.id === req.params.id);
   if (!group || group.type !== 'group') { res.status(404).json({ error: 'Group not found' }); return; }
-  if (!isGroupAdmin(group, user.id)) { res.status(403).json({ error: 'Only group admins can update group settings' }); return; }
+  if (!isGroupAdmin(group, user.id) && group.permissions?.editInfo !== true) { res.status(403).json({ error: 'Group settings can only be changed by admins or members allowed to edit group info.' }); return; }
 
   const { name, description, icon, permissions } = req.body || {};
   if (name !== undefined && (typeof name !== 'string' || !name.trim() || name.trim().length > 80)) {
@@ -3629,6 +3629,11 @@ app.post('/api/messages', (req, res) => {
   if (!conv || !Array.isArray(conv.members) ||
       !conv.members.some((member: any) => member && member.userId === user.id)) {
     res.status(403).json({ error: 'Not a member of this conversation.' });
+    return;
+  }
+  if (conv.type === 'group' && conv.permissions?.sendMessages === false &&
+      !isGroupAdmin(conv, user.id)) {
+    res.status(403).json({ error: 'Only group admins can send messages in this group.' });
     return;
   }
 
