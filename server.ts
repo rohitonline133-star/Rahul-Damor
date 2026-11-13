@@ -4990,12 +4990,22 @@ app.post('/api/channels/:id/posts/:postId/react', (req, res) => {
     return;
   }
 
-  post.reactions = post.reactions || [];
+  // Respect blocks in both directions before allowing reactions.
+  const postAuthor = db.users.find((candidate) => candidate.id === post.authorId);
+  if (!postAuthor ||
+      (user.blockedUserIds || []).includes(postAuthor.id) ||
+      (postAuthor.blockedUserIds || []).includes(user.id)) {
+    res.status(403).json({ error: 'You cannot interact with this channel post' });
+    return;
+  }
+
+  post.reactions = Array.isArray(post.reactions) ? post.reactions : [];
   let existingReaction = post.reactions.find((r: any) => r.emoji === emoji);
   if (!existingReaction) {
     existingReaction = { emoji, count: 0, users: [] };
     post.reactions.push(existingReaction);
   }
+  if (!Array.isArray(existingReaction.users)) existingReaction.users = [];
 
   const uIdx = existingReaction.users.indexOf(user.id);
   if (uIdx >= 0) {
