@@ -133,16 +133,26 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     let isSubscribed = true;
+    const conversationId = activeConversationId;
     const fetchMsgs = async () => {
       setLoadingMessages(true);
       try {
-        const res = await fetch(`/api/conversations/${activeConversationId}/messages`, {
+        const res = await fetch(`/api/conversations/${encodeURIComponent(conversationId)}/messages`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok && isSubscribed) {
           const data = await res.json();
-          setMessages(data.messages || []);
-          markConversationRead(activeConversationId);
+          if (isSubscribed && activeConvRef.current === conversationId) {
+            const fetchedMessages = Array.isArray(data?.messages)
+              ? data.messages.filter((message: unknown) =>
+                  !!message && typeof message === 'object' &&
+                  typeof (message as Message).id === 'string' &&
+                  (message as Message).conversationId === conversationId
+                )
+              : [];
+            setMessages(fetchedMessages);
+            markConversationRead(conversationId);
+          }
         }
       } catch {
         // ignore
@@ -188,8 +198,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       eventSource.addEventListener('new_message', (e) => {
         try {
           const payload = JSON.parse(e.data);
-          const msg: Message = payload.message;
-          const convId: string = payload.conversationId;
+          const msg = payload?.message as Message | undefined;
+          const convId = payload?.conversationId;
+
+          if (!msg || typeof msg.id !== 'string' ||
+              typeof convId !== 'string' || msg.conversationId !== convId) return;
 
           if (activeConvRef.current === convId) {
             setMessages((prev) => {
