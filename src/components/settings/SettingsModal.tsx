@@ -588,7 +588,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div className="p-3 rounded-2xl bg-slate-50 dark:bg-[#111b21] flex items-center justify-between border border-slate-200/80 dark:border-slate-800">
                 <div>
                   <div className="text-xs font-bold text-slate-900 dark:text-white">Two-Step Verification</div>
-                  <div className="text-[11px] text-slate-400">Require 6-digit PIN on registration</div>
+                  <div className="text-[11px] text-slate-400">Require PIN when signing in</div>
                 </div>
                 <input
                   type="checkbox"
