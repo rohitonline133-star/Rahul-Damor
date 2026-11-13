@@ -316,16 +316,12 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
       'image/gif',
       'video/mp4',
       'video/webm',
-      'audio/webm',
-      'audio/mpeg',
-      'audio/wav',
-      'audio/ogg',
       'application/pdf',
       'text/plain',
     ]);
     const normalizedMimeType = file.type.trim().toLowerCase();
     if (!allowedMimeTypes.has(normalizedMimeType)) {
-      window.alert('This file type is not supported. Choose a JPEG, PNG, WebP, GIF, MP4, WebM, audio, PDF, or plain-text file.');
+      window.alert('This file type is not supported. Choose a JPEG, PNG, WebP, GIF, MP4, WebM, PDF, or plain-text file. Use the in-chat recorder to send voice notes.');
       e.target.value = '';
       return;
     }
@@ -346,6 +342,12 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
       const dataUrl = reader.result;
       const isImg = file.type.startsWith('image/');
       const isVid = file.type.startsWith('video/');
+      const isDocument = file.type === 'application/pdf' || file.type === 'text/plain';
+      if (!isImg && !isVid && !isDocument) {
+        window.alert('This file cannot be sent as an attachment. Use the in-chat recorder for voice notes.');
+        e.target.value = '';
+        return;
+      }
       const type = isImg ? 'image' : isVid ? 'video' : 'document';
 
       const sent = await sendMessage(
