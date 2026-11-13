@@ -3516,9 +3516,15 @@ app.post('/api/messages', (req, res) => {
     createdAt: now,
   };
 
+  const previousLastMessageTime = conv.lastMessageTime;
   db.messages.push(newMessage);
   conv.lastMessageTime = now;
-  saveDb(db);
+  if (!saveDb(db)) {
+    db.messages.pop();
+    conv.lastMessageTime = previousLastMessageTime;
+    res.status(500).json({ error: 'Could not save the message. Please try again.' });
+    return;
+  }
 
   const memberIds = conv.members
     .map((member: any) => member && member.userId)
