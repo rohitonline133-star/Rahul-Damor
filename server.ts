@@ -3105,6 +3105,16 @@ app.post('/api/conversations', (req, res) => {
       res.status(400).json({ error: 'One or more selected group members do not exist.' });
       return;
     }
+    const blockedRelationship = allMemberIds.some((id) => {
+      if (id === user.id) return false;
+      const target = db.users.find((candidate: any) => candidate?.id === id);
+      return (user.blockedUserIds || []).includes(id) || (target?.blockedUserIds || []).includes(user.id);
+    });
+    if (blockedRelationship) {
+      res.status(403).json({ error: 'A blocked relationship prevents adding one or more users to this group.' });
+      return;
+    }
+
     const members = allMemberIds.map((id) => ({
       userId: id,
       role: id === user.id ? 'admin' : 'member',
@@ -3354,7 +3364,12 @@ app.post('/api/group-invites/:code/join', (req, res) => {
     item?.type === 'group' && item.inviteEnabled === true && item.inviteCode === code);
   if (!group) { res.status(404).json({ error: 'Invite link is invalid or disabled.' }); return; }
   if (getGroupMembership(group, user.id)) { res.json({ success: true, conversationId: group.id, alreadyMember: true }); return; }
-  if ((user.blockedUserIds || []).some((id: string) => group.members.some((member: any) => member?.userId === id))) {
+  const blockedRelationship = group.members.some((member: any) => {
+    const existingMember = db.users.find((candidate: any) => candidate?.id === member?.userId);
+    return (user.blockedUserIds || []).includes(member?.userId) ||
+      (existingMember?.blockedUserIds || []).includes(user.id);
+  });
+  if (blockedRelationship) {
     res.status(403).json({ error: 'A blocked relationship prevents joining this group.' }); return;
   }
   const added = { userId: user.id, role: 'member', joinedAt: Date.now() };
@@ -3378,7 +3393,8 @@ app.post('/api/conversations/:id/pin', (req, res) => {
     res.status(404).json({ error: 'Conversation not found' });
     return;
   }
-  if (!conv.pinnedForUserIds) conv.pinnedForUserIds = [];
+  if (!Array.isArray(conv.pinnedForUserIds)) conv.pinnedForUserIds = [];
+  const previousPinnedForUserIds = conv.pinnedForUserIds.slice();
 
   const index = conv.pinnedForUserIds.indexOf(user.id);
   if (index > -1) {
@@ -3387,7 +3403,11 @@ app.post('/api/conversations/:id/pin', (req, res) => {
     conv.pinnedForUserIds.push(user.id);
   }
 
-  saveDb(db);
+  if (!saveDb(db)) {
+    conv.pinnedForUserIds = previousPinnedForUserIds;
+    res.status(500).json({ error: 'Could not save conversation pin settings. Please try again.' });
+    return;
+  }
   res.json({ pinned: conv.pinnedForUserIds.includes(user.id) });
 });
 
