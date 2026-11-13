@@ -3721,7 +3721,13 @@ app.get('/api/statuses', (req, res) => {
   const now = Date.now();
   const activeStatuses = db.statuses
     .filter((status) => status.expiresAt > now && canViewStatus(status, user))
-    .sort((a, b) => b.createdAt - a.createdAt);
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .map((status: any) => {
+      // Viewer identities are private to the status owner and authorized admins.
+      if (status.userId === user.id || user.role === 'admin') return status;
+      const { viewers, ...statusForViewer } = status;
+      return statusForViewer;
+    });
 
   res.json({ statuses: activeStatuses });
 });
