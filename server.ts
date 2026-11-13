@@ -4095,56 +4095,88 @@ app.post('/api/admin/reports/:id/action', (req, res) => {
 
 // -------------------------------------------------------------
 // SEARCH (Users, Groups, Messages, Communities, Posts, Channels)
-// -------------------------------------------------------------
 app.get('/api/search', (req, res) => {
   const user = authenticate(req);
-  const q = (req.query.q as string || '').toLowerCase().trim();
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
 
+  const rawQuery = typeof req.query.q === 'string' ? req.query.q : '';
+  const q = rawQuery.trim().toLowerCase().slice(0, 80);
   if (!q) {
     res.json({ users: [], chats: [], messages: [], communities: [], posts: [], channels: [] });
     return;
   }
 
-  const users = db.users
-    .filter((u) => u.displayName.toLowerCase().includes(q) || u.username.toLowerCase().includes(q))
-    .map((u) => {
-      const { passwordHash: _, salt: __, ...safe } = u;
-      return safe;
-    });
+  const blockedIds = new Set<string>(user.blockedUserIds || []);
+  const isBlockedEitherWay = (otherUserId: string) => {
+    const other = db.users.find((candidate: any) => candidate.id === otherUserId);
+    return blockedIds.has(otherUserId) || (other?.blockedUserIds || []).includes(user.id);
+  };
 
-  const chats = db.conversations.filter(
-    (c) =>
-      c.type === 'group' &&
-      c.name?.toLowerCase().includes(q) &&
-      (!user || c.members.some((m: any) => m.userId === user.id))
+  // Search results must never expose another account's private contact fields.
+  const users = db.users
+    .filter((candidate: any) =>
+      candidate.id !== user.id &&
+      !isBlockedEitherWay(candidate.id) &&
+      (candidate.displayName?.toLowerCase().includes(q) || candidate.username?.toLowerCase().includes(q))
+    )
+    .slice(0, 30)
+    .map((candidate: any) => sanitizeUserForViewer(candidate, user));
+
+  // Only search conversations and messages the authenticated user belongs to.
+  const memberConversationIds = new Set<string>(
+    db.conversations
+      .filter((conversation: any) =>
+        Array.isArray(conversation.members) &&
+        conversation.members.some((member: any) => member.userId === user.id)
+      )
+      .map((conversation: any) => conversation.id)
   );
+
+  const chats = db.conversations.filter((conversation: any) =>
+    conversation.type === 'group' &&
+    memberConversationIds.has(conversation.id) &&
+    conversation.name?.toLowerCase().includes(q)
+  ).slice(0, 30);
 
   const messages = db.messages
-    .filter((m) => m.text?.toLowerCase().includes(q))
+    .filter((message: any) =>
+      memberConversationIds.has(message.conversationId) &&
+      !isBlockedEitherWay(message.senderId) &&
+      message.text?.toLowerCase().includes(q)
+    )
+    .sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0))
     .slice(0, 30);
 
-  const communities = db.communities.filter(
-    (c) => c.name.toLowerCase().includes(q) || c.description.toLowerCase().includes(q)
-  );
+  const communities = db.communities
+    .filter((community: any) =>
+      community.name?.toLowerCase().includes(q) ||
+      community.description?.toLowerCase().includes(q)
+    )
+    .slice(0, 30);
 
-  const posts = (db.posts || []).filter(
-    (p) =>
-      p.content?.toLowerCase().includes(q) ||
-      (p.tags && p.tags.some((t: string) => t.toLowerCase().includes(q))) ||
-      p.authorName?.toLowerCase().includes(q)
-  );
+  const posts = (db.posts || [])
+    .filter((post: any) =>
+      !isBlockedEitherWay(post.authorId) &&
+      (post.content?.toLowerCase().includes(q) ||
+        (Array.isArray(post.tags) && post.tags.some((tag: string) => tag.toLowerCase().includes(q))) ||
+        post.authorName?.toLowerCase().includes(q))
+    )
+    .slice(0, 30);
 
-  const channels = (db.channels || []).filter(
-    (ch) =>
-      ch.name?.toLowerCase().includes(q) ||
-      ch.username?.toLowerCase().includes(q) ||
-      ch.description?.toLowerCase().includes(q)
-  );
+  const channels = (db.channels || [])
+    .filter((channel: any) =>
+      channel.name?.toLowerCase().includes(q) ||
+      channel.username?.toLowerCase().includes(q) ||
+      channel.description?.toLowerCase().includes(q)
+    )
+    .slice(0, 30);
 
   res.json({ users, chats, messages, communities, posts, channels });
 });
 
-// -------------------------------------------------------------
 // SOCIAL FEED / POSTS API
 // -------------------------------------------------------------
 app.get('/api/posts', (req, res) => {
