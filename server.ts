@@ -3343,6 +3343,32 @@ app.post('/api/messages', (req, res) => {
       res.status(413).json({ error: 'Attachment is malformed or exceeds the 18 MiB limit.' });
       return;
     }
+
+    // Enforce actual file signatures here as well: clients can call /api/messages
+    // directly and must not be able to bypass /api/upload validation.
+    const startsWith = (...signature: number[]) =>
+      signature.every((byte, index) => fileBytes[index] === byte);
+    const mime = attachment.mimeType.toLowerCase();
+    const signatureMatches = (() => {
+      switch (mime) {
+        case 'image/jpeg': return startsWith(0xff, 0xd8, 0xff);
+        case 'image/png': return startsWith(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a);
+        case 'image/webp': return fileBytes.length >= 12 &&
+          fileBytes.toString('ascii', 0, 4) === 'RIFF' && fileBytes.toString('ascii', 8, 12) === 'WEBP';
+        case 'image/gif': return ['GIF87a', 'GIF89a'].includes(fileBytes.toString('ascii', 0, 6));
+        case 'video/mp4': return fileBytes.length >= 12 && fileBytes.toString('ascii', 4, 8) === 'ftyp';
+        case 'video/webm': return startsWith(0x1a, 0x45, 0xdf, 0xa3);
+        case 'application/pdf': return fileBytes.toString('ascii', 0, 5) === '%PDF-';
+        case 'text/plain': return !fileBytes.includes(0) &&
+          Buffer.from(fileBytes.toString('utf8'), 'utf8').equals(fileBytes);
+        default: return false;
+      }
+    })();
+    if (!signatureMatches) {
+      res.status(400).json({ error: 'Attachment contents do not match the declared MIME type.' });
+      return;
+    }
+
     attachment.name = attachment.name.replace(/[\\/]/g, '_').replace(/[\\x00-\\x1f\\x7f]/g, '').trim().slice(0, 120) || 'attachment';
     attachment.mimeType = attachment.mimeType.toLowerCase();
   }
@@ -3359,6 +3385,25 @@ app.post('/api/messages', (req, res) => {
 
     if (!audioDataMatch || audioBytes < 1 || audioBytes > maxAudioBytes) {
       res.status(413).json({ error: 'Voice notes must be valid audio files no larger than 5 MB.' });
+      return;
+    }
+    const audioBuffer = Buffer.from(audioDataMatch[2], 'base64');
+    const audioMime = audioDataMatch[1].toLowerCase();
+    const audioSignatureMatches = (() => {
+      switch (audioMime) {
+        case 'audio/webm': return audioBuffer[0] === 0x1a && audioBuffer[1] === 0x45 &&
+          audioBuffer[2] === 0xdf && audioBuffer[3] === 0xa3;
+        case 'audio/mpeg': return audioBuffer.toString('ascii', 0, 3) === 'ID3' ||
+          (audioBuffer.length >= 2 && audioBuffer[0] === 0xff && (audioBuffer[1] & 0xe0) === 0xe0);
+        case 'audio/ogg': return audioBuffer.toString('ascii', 0, 4) === 'OggS';
+        case 'audio/wav': return audioBuffer.length >= 12 &&
+          audioBuffer.toString('ascii', 0, 4) === 'RIFF' && audioBuffer.toString('ascii', 8, 12) === 'WAVE';
+        case 'audio/mp4': return audioBuffer.length >= 12 && audioBuffer.toString('ascii', 4, 8) === 'ftyp';
+        default: return false;
+      }
+    })();
+    if (!audioSignatureMatches) {
+      res.status(400).json({ error: 'Voice note contents do not match the declared audio type.' });
       return;
     }
     if (!Number.isFinite(declaredDuration) || declaredDuration < 1 || declaredDuration > 300) {
