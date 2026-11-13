@@ -315,9 +315,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const payload = JSON.parse(e.data);
           if (typeof payload?.conversationId !== 'string' ||
               activeConvRef.current !== payload.conversationId ||
-              typeof payload?.userId !== 'string') return;
+              typeof payload?.userId !== 'string' ||
+              !Number.isSafeInteger(payload.readAt) || payload.readAt < 0) return;
           const fullyReadIds = new Set(
-            Array.isArray(payload.fullyReadMessageIds) ? payload.fullyReadMessageIds : []
+            Array.isArray(payload.fullyReadMessageIds)
+              ? payload.fullyReadMessageIds.filter((id: unknown): id is string => typeof id === 'string')
+              : []
           );
           setMessages((prev) =>
             prev.map((m) => {
@@ -326,7 +329,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
               }
               const readBy = Array.isArray(m.readBy) ? m.readBy : [];
               const alreadyRecorded = readBy.some((receipt) => receipt?.userId === payload.userId);
-              const nextReadBy = alreadyRecorded || typeof payload.userId !== 'string'
+              const nextReadBy = alreadyRecorded
                 ? readBy
                 : [...readBy, { userId: payload.userId, readAt: payload.readAt }];
               return {
