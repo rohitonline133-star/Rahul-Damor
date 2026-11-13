@@ -14,12 +14,12 @@ export const CommunitiesTab: React.FC<CommunitiesTabProps> = ({
 }) => {
   const { communities, joinCommunity, postAnnouncement, conversations } = useChat();
 
-  const [selectedCommunity, setSelectedCommunity] = useState<Community | null>(null);
+  const [selectedCommunityId, setSelectedCommunityId] = useState('');
   const [showAnnounceModal, setShowAnnounceModal] = useState(false);
   const [announceTitle, setAnnounceTitle] = useState('');
   const [announceContent, setAnnounceContent] = useState('');
 
-  const activeComm = selectedCommunity || communities[0] || null;
+  const activeComm = communities.find((community) => community.id === selectedCommunityId) || communities[0] || null;
   const isMember = Boolean(activeComm?.isMember);
   const isAdmin = Boolean(activeComm?.isAdmin);
 
@@ -43,7 +43,7 @@ export const CommunitiesTab: React.FC<CommunitiesTabProps> = ({
     <div className="flex-1 flex flex-col h-full overflow-y-auto bg-slate-50 dark:bg-slate-900 p-4 space-y-4">
       {/* Community Selector Header */}
       <div className="flex items-center justify-between">
-        <div>
+        <div className="min-w-0">
           <h2 className="text-base font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-2">
             <Globe className="w-5 h-5 text-emerald-500" />
             GB Communities
@@ -51,6 +51,18 @@ export const CommunitiesTab: React.FC<CommunitiesTabProps> = ({
           <p className="text-xs text-slate-500 dark:text-slate-400">
             Connect topics, announcement feeds, and sub-groups
           </p>
+          {communities.length > 1 && (
+            <select
+              aria-label="Select community"
+              value={activeComm?.id || ''}
+              onChange={(event) => setSelectedCommunityId(event.target.value)}
+              className="mt-2 max-w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-xs text-slate-700 dark:text-slate-200"
+            >
+              {communities.map((community) => (
+                <option key={community.id} value={community.id}>{community.name}</option>
+              ))}
+            </select>
+          )}
         </div>
 
         <button
