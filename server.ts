@@ -3652,7 +3652,8 @@ app.delete('/api/messages/:id', (req, res) => {
 
   const msg = db.messages[msgIdx];
   const deleteConversation = db.conversations.find((c) => c.id === msg.conversationId);
-  if (!deleteConversation || !deleteConversation.members.some((m: any) => m.userId === user.id)) {
+  if (!deleteConversation || !Array.isArray(deleteConversation.members) ||
+      !deleteConversation.members.some((member: any) => member && member.userId === user.id)) {
     res.status(403).json({ error: 'Not a member of this conversation' });
     return;
   }
