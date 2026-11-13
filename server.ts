@@ -3008,40 +3008,54 @@ app.post('/api/conversations', (req, res) => {
   const { type, targetUserId, name, icon, description, memberIds } = req.body;
 
   if (type === 'direct') {
-    if (!targetUserId) {
-      res.status(400).json({ error: 'targetUserId required for direct conversation.' });
+    if (typeof targetUserId !== 'string' || !targetUserId.trim() || targetUserId.length > 128) {
+      res.status(400).json({ error: 'A valid targetUserId is required for direct conversation.' });
       return;
     }
 
-    // Check existing
-    const existing = db.conversations.find(
-      (c) =>
-        c.type === 'direct' &&
-        c.members.length === 2 &&
-        c.members.some((m: any) => m.userId === user.id) &&
-        c.members.some((m: any) => m.userId === targetUserId)
-    );
+    const normalizedTargetUserId = targetUserId.trim();
+    if (normalizedTargetUserId === user.id) {
+      res.status(400).json({ error: 'You cannot create a direct conversation with yourself.' });
+      return;
+    }
+    if (!db.users.some((candidate) => candidate && candidate.id === normalizedTargetUserId)) {
+      res.status(404).json({ error: 'The selected user was not found.' });
+      return;
+    }
+
+    // Reuse only a well-formed direct conversation containing this exact pair.
+    const expectedMemberIds = new Set([user.id, normalizedTargetUserId]);
+    const existing = db.conversations.find((c) => {
+      if (!c || c.type !== 'direct' || !Array.isArray(c.members) || c.members.length !== 2) {
+        return false;
+      }
+      const memberIds = c.members.map((member: any) => member && member.userId);
+      return memberIds.every((id: any) => typeof id === 'string') &&
+        new Set(memberIds).size === 2 &&
+        memberIds.every((id: string) => expectedMemberIds.has(id));
+    });
 
     if (existing) {
       res.json({ conversation: existing });
       return;
     }
 
+    const now = Date.now();
     const newConv = {
       id: 'conv_' + crypto.randomUUID().slice(0, 10),
       type: 'direct',
       members: [
-        { userId: user.id, role: 'member', joinedAt: Date.now() },
-        { userId: targetUserId, role: 'member', joinedAt: Date.now() },
+        { userId: user.id, role: 'member', joinedAt: now },
+        { userId: normalizedTargetUserId, role: 'member', joinedAt: now },
       ],
       pinnedForUserIds: [],
-      createdAt: Date.now(),
-      lastMessageTime: Date.now(),
+      createdAt: now,
+      lastMessageTime: now,
     };
 
     db.conversations.push(newConv);
     saveDb(db);
-    broadcastToUsers([user.id, targetUserId], 'conversation_created', newConv);
+    broadcastToUsers([user.id, normalizedTargetUserId], 'conversation_created', newConv);
     res.json({ conversation: newConv });
     return;
   }
