@@ -4440,6 +4440,34 @@ app.get('/api/search', (req, res) => {
   res.json({ users, chats, messages, communities, posts, channels });
 });
 
+// Validate social/channel media references before storing or broadcasting them.
+function validateSocialMedia(mediaUrl: any, mediaType: any): { valid: boolean; mediaType?: 'image' | 'video' } {
+  if (mediaUrl === undefined || mediaUrl === null || mediaUrl === '') return { valid: mediaType === undefined || mediaType === null || mediaType === 'image' || mediaType === 'video' };
+  if (typeof mediaUrl !== 'string' || mediaUrl.length > 24 * 1024 * 1024) return { valid: false };
+  if (mediaType !== undefined && mediaType !== 'image' && mediaType !== 'video') return { valid: false };
+  if (mediaUrl.startsWith('data:')) {
+    const match = mediaUrl.match(/^data:(image\\/(?:jpeg|png|webp|gif)|video\\/(?:mp4|webm));base64,([A-Za-z0-9+/]+={0,2})$/i);
+    if (!match) return { valid: false };
+    const mimeType = match[1].toLowerCase();
+    const inferredType = mimeType.startsWith('image/') ? 'image' : 'video';
+    const bytes = Buffer.from(match[2], 'base64');
+    if (bytes.length < 1 || bytes.length > 18 * 1024 * 1024 || bytes.toString('base64') !== match[2]) return { valid: false };
+    if (mediaType && mediaType !== inferredType) return { valid: false };
+    return { valid: true, mediaType: inferredType };
+  }
+  try {
+    const parsed = new URL(mediaUrl);
+    if (parsed.protocol !== 'https:' || parsed.username || parsed.password) return { valid: false };
+    return { valid: true, mediaType: mediaType || 'image' };
+  } catch { return { valid: false }; }
+}
+function validateSocialPoll(poll: any): boolean {
+  if (poll === undefined || poll === null) return true;
+  return typeof poll === 'object' && !Array.isArray(poll) && typeof poll.question === 'string' &&
+    poll.question.trim().length > 0 && poll.question.length <= 240 && Array.isArray(poll.options) &&
+    poll.options.length >= 2 && poll.options.length <= 6 &&
+    poll.options.every((option: any) => typeof option === 'string' && option.trim().length > 0 && option.length <= 120);
+}
 // SOCIAL FEED / POSTS API
 // -------------------------------------------------------------
 app.get('/api/posts', (req, res) => {
@@ -4471,8 +4499,14 @@ app.post('/api/posts', (req, res) => {
     return;
   }
 
-  const { content, mediaUrl, mediaType, tags, poll } = req.body;
-  if (!content && !mediaUrl && !poll) {
+  const { content, mediaUrl, mediaType, tags, poll } = req.body || {};
+  const media = validateSocialMedia(mediaUrl, mediaType);
+  if ((content !== undefined && (typeof content !== 'string' || content.length > 5000)) || !media.valid || !validateSocialPoll(poll) ||
+      (tags !== undefined && (!Array.isArray(tags) || tags.length > 20 || !tags.every((tag: any) => typeof tag === 'string' && tag.trim().length > 0 && tag.length <= 40)))) {
+    res.status(400).json({ error: 'Invalid post content, media, tags, or poll' });
+    return;
+  }
+  if (!(typeof content === 'string' && content.trim()) && !mediaUrl && !poll) {
     res.status(400).json({ error: 'Post content or media required' });
     return;
   }
@@ -4486,8 +4520,8 @@ app.post('/api/posts', (req, res) => {
     authorVerified: !!user.isVerified,
     content: (content || '').trim(),
     mediaUrl: mediaUrl || undefined,
-    mediaType: mediaType || (mediaUrl ? 'image' : undefined),
-    tags: Array.isArray(tags) ? tags : [],
+    mediaType: media.mediaType,
+    tags: Array.isArray(tags) ? tags.map((tag: string) => tag.trim()) : [],
     poll: poll && poll.question ? {
       question: poll.question,
       options: poll.options.map((opt: string, i: number) => ({
@@ -4509,9 +4543,12 @@ app.post('/api/posts', (req, res) => {
   user.postsCount = (user.postsCount || 0) + 1;
   saveDb(db);
 
-  db.users.forEach((u) => {
-    sendSSE(u.id, 'post_created', { post: newPost });
-  });
+  // Post media may be inline. Do not push it to accounts blocked in either direction.
+  const eligibleViewerIds = db.users
+    .filter((viewer) => viewer.id === user.id ||
+      (!(user.blockedUserIds || []).includes(viewer.id) && !(viewer.blockedUserIds || []).includes(user.id)))
+    .map((viewer) => viewer.id);
+  broadcastToUsers(eligibleViewerIds, 'post_created', { post: newPost });
 
   res.status(201).json({ post: newPost });
 });
@@ -4827,8 +4864,13 @@ app.post('/api/channels/:id/posts', (req, res) => {
     return;
   }
 
-  const { text, mediaUrl, mediaType, poll } = req.body;
-  if (!text && !mediaUrl && !poll) {
+  const { text, mediaUrl, mediaType, poll } = req.body || {};
+  const media = validateSocialMedia(mediaUrl, mediaType);
+  if ((text !== undefined && (typeof text !== 'string' || text.length > 5000)) || !media.valid || !validateSocialPoll(poll)) {
+    res.status(400).json({ error: 'Invalid channel post content, media, or poll' });
+    return;
+  }
+  if (!(typeof text === 'string' && text.trim()) && !mediaUrl && !poll) {
     res.status(400).json({ error: 'Post content required' });
     return;
   }
@@ -4840,7 +4882,7 @@ app.post('/api/channels/:id/posts', (req, res) => {
     authorName: user.displayName,
     text: (text || '').trim(),
     mediaUrl: mediaUrl || undefined,
-    mediaType: mediaType || (mediaUrl ? 'image' : undefined),
+    mediaType: media.mediaType,
     poll: poll && poll.question ? {
       question: poll.question,
       options: poll.options.map((opt: string, i: number) => ({ id: 'cp_opt_' + i, text: opt, votes: [] })),
@@ -4861,8 +4903,10 @@ app.post('/api/channels/:id/posts', (req, res) => {
   saveDb(db);
 
   const publicPost = sanitizeChannelPostForViewer(post, user.id);
-  channel.subscriberIds.forEach((subId: string) => {
-    if (subId !== user.id) {
+  (Array.isArray(channel.subscriberIds) ? channel.subscriberIds : []).forEach((subId: string) => {
+    const subscriber = db.users.find((candidate) => candidate.id === subId);
+    const blockedEitherWay = (user.blockedUserIds || []).includes(subId) || (subscriber?.blockedUserIds || []).includes(user.id);
+    if (subId !== user.id && !blockedEitherWay) {
       sendSSE(subId, 'channel_post', {
         channelId: channel.id,
         post: sanitizeChannelPostForViewer(post, subId),
