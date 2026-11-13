@@ -4320,6 +4320,8 @@ app.get('/api/search', (req, res) => {
       const { subscriberIds, moderatorIds, ...publicChannel } = channel;
       return {
         ...publicChannel,
+        posts: (Array.isArray(publicChannel.posts) ? publicChannel.posts : [])
+          .map((post: any) => sanitizeChannelPostForViewer(post, user.id)),
         subscribersCount: Array.isArray(subscriberIds) ? subscriberIds.length : 0,
         isSubscribed: Array.isArray(subscriberIds) && subscriberIds.includes(user.id),
         isModerator: Array.isArray(moderatorIds) && moderatorIds.includes(user.id),
