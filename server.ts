@@ -3162,6 +3162,15 @@ app.post('/api/conversations', (req, res) => {
       return;
     }
 
+    if (linkedCommunity) {
+      const communityMemberIds = new Set(Array.isArray(linkedCommunity.memberIds) ? linkedCommunity.memberIds : []);
+      const outsideCommunity = allMemberIds.find((id) => !communityMemberIds.has(id));
+      if (outsideCommunity) {
+        res.status(403).json({ error: 'Every member of a community-linked group must first join that community.' });
+        return;
+      }
+    }
+
     const members = allMemberIds.map((id) => ({
       userId: id,
       role: id === user.id ? 'admin' : 'member',
@@ -3284,6 +3293,15 @@ app.post('/api/conversations/:id/members', (req, res) => {
     res.status(400).json({ error: 'Provide between 1 and 100 valid member IDs.' }); return;
   }
   const uniqueIds = [...new Set(userIds.map((id: string) => id.trim()))];
+  if (group.communityId) {
+    const linkedCommunity = (Array.isArray(db.communities) ? db.communities : [])
+      .find((community: any) => community?.id === group.communityId);
+    const communityMemberIds = new Set(Array.isArray(linkedCommunity?.memberIds) ? linkedCommunity.memberIds : []);
+    if (!linkedCommunity || uniqueIds.some((id) => !communityMemberIds.has(id))) {
+      res.status(403).json({ error: 'Users must join the linked community before they can be added to this group.' });
+      return;
+    }
+  }
   if (uniqueIds.some((id) => !db.users.some((candidate: any) => candidate?.id === id))) {
     res.status(404).json({ error: 'One or more users were not found.' }); return;
   }
@@ -3423,6 +3441,14 @@ app.post('/api/group-invites/:code/join', (req, res) => {
   const group = db.conversations.find((item: any) =>
     item?.type === 'group' && item.inviteEnabled === true && item.inviteCode === code);
   if (!group) { res.status(404).json({ error: 'Invite link is invalid or disabled.' }); return; }
+  if (group.communityId) {
+    const linkedCommunity = (Array.isArray(db.communities) ? db.communities : [])
+      .find((community: any) => community?.id === group.communityId);
+    if (!Array.isArray(linkedCommunity?.memberIds) || !linkedCommunity.memberIds.includes(user.id)) {
+      res.status(403).json({ error: 'Join the linked community before joining this group.' });
+      return;
+    }
+  }
   if (getGroupMembership(group, user.id)) { res.json({ success: true, conversationId: group.id, alreadyMember: true }); return; }
   const blockedRelationship = group.members.some((member: any) => {
     const existingMember = db.users.find((candidate: any) => candidate?.id === member?.userId);
@@ -4381,16 +4407,20 @@ app.get('/api/communities', (req, res) => {
     return;
   }
 
-  // Keep membership and administrator identifiers private in discovery results.
-  const communities = db.communities.map((community: any) => {
-    const { memberIds, adminIds, groupIds, ...publicCommunity } = community;
-    return {
-      ...publicCommunity,
-      memberCount: Array.isArray(memberIds) ? memberIds.length : 0,
-      isMember: Array.isArray(memberIds) && memberIds.includes(user.id),
-      isAdmin: Array.isArray(adminIds) && adminIds.includes(user.id),
-    };
-  });
+  // Keep internal membership and administrator ID lists private in discovery results.
+  const communities = (Array.isArray(db.communities) ? db.communities : [])
+    .filter((community: any) => community && typeof community.id === 'string')
+    .map((community: any) => {
+      const memberIds = Array.isArray(community.memberIds) ? community.memberIds : [];
+      const adminIds = Array.isArray(community.adminIds) ? community.adminIds : [];
+      const { memberIds: _memberIds, adminIds: _adminIds, groupIds: _groupIds, ...publicCommunity } = community;
+      return {
+        ...publicCommunity,
+        memberCount: memberIds.length,
+        isMember: memberIds.includes(user.id),
+        isAdmin: adminIds.includes(user.id),
+      };
+    });
   res.json({ communities });
 });
 
@@ -4401,49 +4431,56 @@ app.post('/api/communities', (req, res) => {
     return;
   }
 
-  const { name, description, icon } = req.body;
-  if (!name) {
-    res.status(400).json({ error: 'Community name is required' });
+  const body = req.body || {};
+  const name = typeof body.name === 'string' ? body.name.trim() : '';
+  const description = body.description === undefined ? '' : body.description;
+  const icon = body.icon;
+  if (!name || name.length > 80) {
+    res.status(400).json({ error: 'Community name must be between 1 and 80 characters.' });
+    return;
+  }
+  if (typeof description !== 'string' || description.length > 500) {
+    res.status(400).json({ error: 'Community description must be 500 characters or fewer.' });
+    return;
+  }
+  if (icon !== undefined && (typeof icon !== 'string' || icon.length > 2048)) {
+    res.status(400).json({ error: 'Community icon must be a valid string.' });
     return;
   }
 
   const now = Date.now();
   const newComm = {
     id: 'comm_' + crypto.randomUUID().slice(0, 10),
-    name: name.trim(),
-    description: description?.trim() || '',
-    icon:
-      icon ||
-      'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=150&auto=format&fit=crop&q=80',
+    name,
+    description: description.trim(),
+    icon: icon || 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=150&auto=format&fit=crop&q=80',
     creatorId: user.id,
     adminIds: [user.id],
     memberIds: [user.id],
     groupIds: [],
-    announcements: [
-      {
-        id: 'ann_' + crypto.randomUUID().slice(0, 6),
-        authorId: user.id,
-        authorName: user.displayName,
-        title: 'Community Created 🎉',
-        content: `Welcome to ${name.trim()} on GB Official!`,
-        createdAt: now,
-      },
-    ],
+    announcements: [{
+      id: 'ann_' + crypto.randomUUID().slice(0, 6),
+      authorId: user.id,
+      authorName: user.displayName,
+      title: 'Community Created 🎉',
+      content: `Welcome to ${name} on GB Official!`,
+      createdAt: now,
+    }],
     createdAt: now,
   };
 
+  if (!Array.isArray(db.communities)) db.communities = [];
   db.communities.push(newComm);
-  saveDb(db);
+  if (!saveDb(db)) {
+    db.communities = db.communities.filter((community: any) => community?.id !== newComm.id);
+    res.status(500).json({ error: 'Could not save the community. Please try again.' });
+    return;
+  }
+
   const { memberIds, adminIds, groupIds, ...publicCommunity } = newComm;
-  const communityForCreator = {
-    ...publicCommunity,
-    memberCount: memberIds.length,
-    isMember: true,
-    isAdmin: true,
-  };
-  // Only current members receive community events; never expose internal ID lists.
+  const communityForCreator = { ...publicCommunity, memberCount: memberIds.length, isMember: true, isAdmin: true };
   broadcastToUsers(memberIds, 'community_created', communityForCreator);
-  res.json({ community: communityForCreator });
+  res.status(201).json({ community: communityForCreator });
 });
 
 app.post('/api/communities/:id/join', (req, res) => {
@@ -4453,24 +4490,37 @@ app.post('/api/communities/:id/join', (req, res) => {
     return;
   }
 
-  const comm = db.communities.find((c) => c.id === req.params.id);
+  const comm = (Array.isArray(db.communities) ? db.communities : [])
+    .find((community: any) => community?.id === req.params.id);
   if (!comm) {
     res.status(404).json({ error: 'Community not found' });
     return;
   }
 
-  if (!comm.memberIds.includes(user.id)) {
+  if (!Array.isArray(comm.memberIds)) comm.memberIds = [];
+  if (!Array.isArray(comm.adminIds)) comm.adminIds = [];
+  const wasMember = comm.memberIds.includes(user.id);
+  if (!wasMember) {
     comm.memberIds.push(user.id);
-    saveDb(db);
+    if (!saveDb(db)) {
+      comm.memberIds = comm.memberIds.filter((id: string) => id !== user.id);
+      res.status(500).json({ error: 'Could not join the community. Please try again.' });
+      return;
+    }
+    broadcastToUsers(comm.memberIds.filter((id: string) => id !== user.id), 'community_member_joined', {
+      communityId: comm.id,
+      userId: user.id,
+      memberCount: comm.memberIds.length,
+    });
   }
 
   const { memberIds, adminIds, groupIds, ...publicCommunity } = comm;
   res.json({
     community: {
       ...publicCommunity,
-      memberCount: Array.isArray(memberIds) ? memberIds.length : 0,
+      memberCount: memberIds.length,
       isMember: true,
-      isAdmin: Array.isArray(adminIds) && adminIds.includes(user.id),
+      isAdmin: adminIds.includes(user.id),
     },
   });
 });
@@ -4482,54 +4532,53 @@ app.post('/api/communities/:id/announcements', (req, res) => {
     return;
   }
 
-  const comm = db.communities.find((c) => c.id === req.params.id);
+  const comm = (Array.isArray(db.communities) ? db.communities : [])
+    .find((community: any) => community?.id === req.params.id);
   if (!comm) {
     res.status(404).json({ error: 'Community not found' });
     return;
   }
 
-  if (!comm.adminIds.includes(user.id)) {
-    res.status(403).json({ error: 'Only admins can post community announcements' });
+  const memberIds: string[] = Array.isArray(comm.memberIds) ? comm.memberIds : [];
+  const adminIds: string[] = Array.isArray(comm.adminIds) ? comm.adminIds : [];
+  if (!memberIds.includes(user.id) || !adminIds.includes(user.id)) {
+    res.status(403).json({ error: 'Only community members with admin permission can post announcements.' });
     return;
   }
 
   const body = req.body || {};
   const titleInput = body.title;
   const contentInput = body.content;
-  if ((titleInput !== undefined && typeof titleInput !== 'string') ||
-      typeof contentInput !== 'string') {
-    res.status(400).json({ error: 'Announcement title and content must be text' });
+  if ((titleInput !== undefined && typeof titleInput !== 'string') || typeof contentInput !== 'string') {
+    res.status(400).json({ error: 'Announcement title and content must be text.' });
     return;
   }
 
   const cleanTitle = (titleInput || '').trim() || 'Announcement';
   const cleanContent = contentInput.trim();
   if (!cleanContent || cleanTitle.length > 120 || cleanContent.length > 5000) {
-    res.status(400).json({ error: 'Announcement title must be at most 120 characters and content must be 1–5000 characters' });
-    return;
-  }
-
-  comm.announcements = Array.isArray(comm.announcements) ? comm.announcements : [];
-  comm.memberIds = Array.isArray(comm.memberIds) ? comm.memberIds : [];
-  if (!comm.memberIds.includes(user.id)) {
-    res.status(403).json({ error: 'Community membership is required to post announcements' });
+    res.status(400).json({ error: 'Announcement title must be at most 120 characters and content must be 1–5000 characters.' });
     return;
   }
 
   const ann = {
-    id: 'ann_' + crypto.randomUUID().slice(0, 6),
+    id: 'ann_' + crypto.randomUUID().slice(0, 10),
     authorId: user.id,
     authorName: user.displayName,
     title: cleanTitle,
     content: cleanContent,
     createdAt: Date.now(),
   };
+  const previousAnnouncements = Array.isArray(comm.announcements) ? comm.announcements.slice() : [];
+  comm.announcements = [ann, ...previousAnnouncements];
+  if (!saveDb(db)) {
+    comm.announcements = previousAnnouncements;
+    res.status(500).json({ error: 'Could not save the announcement. Please try again.' });
+    return;
+  }
 
-  comm.announcements.unshift(ann);
-  saveDb(db);
-  broadcastToUsers(comm.memberIds, 'community_announcement', { communityId: comm.id, announcement: ann });
-
-  res.json({ announcement: ann });
+  broadcastToUsers(memberIds, 'community_announcement', { communityId: comm.id, announcement: ann });
+  res.status(201).json({ announcement: ann });
 });
 
 // -------------------------------------------------------------
