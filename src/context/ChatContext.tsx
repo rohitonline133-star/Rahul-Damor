@@ -25,7 +25,7 @@ interface ChatContextType {
   sendMessage: (text: string, type?: MessageType, attachment?: MessageAttachment, replyToId?: string) => Promise<boolean>;
   reactToMessage: (messageId: string, emoji: string) => Promise<void>;
   editMessage: (messageId: string, text: string) => Promise<void>;
-  deleteMessage: (messageId: string) => Promise<void>;
+  deleteMessage: (messageId: string) => Promise<boolean>;
   pinConversation: (convId: string) => Promise<void>;
   createDirectChat: (targetUserId: string) => Promise<string | null>;
   createGroupChat: (name: string, memberIds: string[], description?: string, icon?: string, communityId?: string) => Promise<string | null>;
