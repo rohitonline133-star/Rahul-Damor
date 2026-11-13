@@ -4446,7 +4446,7 @@ function validateSocialMedia(mediaUrl: any, mediaType: any): { valid: boolean; m
   if (typeof mediaUrl !== 'string' || mediaUrl.length > 24 * 1024 * 1024) return { valid: false };
   if (mediaType !== undefined && mediaType !== 'image' && mediaType !== 'video') return { valid: false };
   if (mediaUrl.startsWith('data:')) {
-    const match = mediaUrl.match(/^data:(image\\/(?:jpeg|png|webp|gif)|video\\/(?:mp4|webm));base64,([A-Za-z0-9+/]+={0,2})$/i);
+    const match = mediaUrl.match(/^data:(image\/(?:jpeg|png|webp|gif)|video\/(?:mp4|webm));base64,([A-Za-z0-9+/]+={0,2})$/i);
     if (!match) return { valid: false };
     const mimeType = match[1].toLowerCase();
     const inferredType = mimeType.startsWith('image/') ? 'image' : 'video';
