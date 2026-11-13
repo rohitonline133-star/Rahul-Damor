@@ -3295,6 +3295,10 @@ app.post('/api/conversations/:id/admins/:userId', (req, res) => {
   if (nextRole !== 'admin' && nextRole !== 'member') {
     res.status(400).json({ error: 'Role must be admin or member.' }); return;
   }
+  if (previousRole === 'admin' && nextRole === 'member' &&
+      group.members.filter((member: any) => member && (member.role === 'admin' || member.role === 'owner')).length <= 1) {
+    res.status(409).json({ error: 'Promote another admin before demoting the last admin.' }); return;
+  }
   target.role = nextRole;
   if (!saveDb(db)) {
     target.role = previousRole;
