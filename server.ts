@@ -3766,6 +3766,13 @@ app.delete('/api/statuses/:id', (req, res) => {
 // COMMUNITIES
 // -------------------------------------------------------------
 app.get('/api/communities', (req, res) => {
+  const user = authenticate(req);
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  // Community discovery is available to signed-in users only.
   res.json({ communities: db.communities });
 });
 
@@ -4423,6 +4430,13 @@ app.delete('/api/posts/:id', (req, res) => {
 // CHANNELS API
 // -------------------------------------------------------------
 app.get('/api/channels', (req, res) => {
+  const user = authenticate(req);
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  // Channel discovery is available to signed-in users only.
   res.json({ channels: db.channels || [] });
 });
 
