@@ -226,9 +226,9 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
   const quickEmojis = ['👍', '❤️', '😂', '😮', '😢', '🙏', '🔥'];
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#efeae2] dark:bg-[#0b141a] overflow-hidden relative">
+    <div className="gb-custom-chat-theme flex-1 flex flex-col h-full bg-[#efeae2] dark:bg-[#0b141a] overflow-hidden relative">
       {/* Top Chat Bar */}
-      <header className="px-3 py-2.5 flex items-center justify-between bg-[#005c4b] dark:bg-[#1f2c34] text-white shadow-md z-20 shrink-0">
+      <header className="gb-chat-header px-3 py-2.5 flex items-center justify-between bg-[#005c4b] dark:bg-[#1f2c34] text-white shadow-md z-20 shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           <button
             onClick={onBack}
@@ -352,7 +352,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
             >
               {/* Message Bubble */}
               <div
-                className={`max-w-[82%] sm:max-w-[70%] rounded-2xl px-3.5 py-2 text-sm shadow-sm relative transition ${
+                className={`gb-message-bubble ${isMe ? "gb-message-out" : "gb-message-in"} max-w-[82%] sm:max-w-[70%] rounded-2xl px-3.5 py-2 text-sm shadow-sm relative transition ${
                   isMe
                     ? 'bg-[#d9fdd3] dark:bg-[#005c4b] text-[#111b21] dark:text-[#e9edef] rounded-tr-none'
                     : 'bg-white dark:bg-[#202c33] text-[#111b21] dark:text-[#e9edef] rounded-tl-none border border-black/5 dark:border-white/5'
@@ -782,7 +782,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
       <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileUpload} />
 
       {/* Bottom Message Composer Bar */}
-      <footer className="p-2.5 bg-transparent shrink-0">
+      <footer className="gb-chat-composer p-2.5 bg-transparent shrink-0">
         {isRecording ? (
           /* Voice Recording Mode */
           <div className="flex items-center justify-between px-3 py-2 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 shadow">
@@ -813,7 +813,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
           /* Normal Composer Input */
           <div className="flex items-center gap-2">
             {/* Input Pill Container */}
-            <div className="flex-1 flex items-center bg-white dark:bg-[#2a3942] rounded-3xl px-3 py-1.5 shadow-md border border-slate-200/50 dark:border-none">
+            <div className="gb-composer-pill flex-1 flex items-center bg-white dark:bg-[#2a3942] rounded-3xl px-3 py-1.5 shadow-md border border-slate-200/50 dark:border-none">
               {/* Emoji Button */}
               <button
                 type="button"
