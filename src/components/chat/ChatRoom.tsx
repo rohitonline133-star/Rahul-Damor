@@ -56,6 +56,8 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
   const { initiateCall } = useCall();
 
   const [inputText, setInputText] = useState('');
+  const [showGbKeyboard, setShowGbKeyboard] = useState(false);
+  const [keyboardShift, setKeyboardShift] = useState(false);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [editingMsg, setEditingMsg] = useState<Message | null>(null);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
@@ -224,6 +226,8 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
   };
 
   const quickEmojis = ['👍', '❤️', '😂', '😮', '😢', '🙏', '🔥'];
+  const gbKeyboardRows = ['1234567890', 'qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
+  const insertKeyboardKey = (key: string) => setInputText((value) => value + (keyboardShift ? key.toUpperCase() : key));
 
   return (
     <div className="gb-custom-chat-theme flex-1 flex flex-col h-full bg-[#efeae2] dark:bg-[#0b141a] overflow-hidden relative">
@@ -828,7 +832,8 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
               <input
                 type="text"
                 value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
+                readOnly
+                onFocus={() => setShowGbKeyboard(true)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
@@ -870,6 +875,38 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
                 <Mic className="w-5 h-5" />
               </button>
             )}
+          </div>
+        )}
+
+        {/* GB Official custom on-screen keyboard */}
+        {showGbKeyboard && !isRecording && (
+          <div className="gb-virtual-keyboard mt-2 p-2 rounded-xl border border-[#651126] shadow-2xl" aria-label="GB Official keyboard">
+            <div className="flex items-center justify-between px-1 pb-2 text-[#f8dce4] text-[10px] font-bold tracking-wider">
+              <span>GB OFFICIAL KEYBOARD</span>
+              <button type="button" onClick={() => setShowGbKeyboard(false)} className="px-2 py-1 rounded-lg bg-[#8d1531] text-white">Hide</button>
+            </div>
+            <div className="flex justify-around gap-1 pb-2">
+              {['▦', '☻', 'GIF', '▤', '⚙', '•••', '🎙'].map((key, i) => (
+                <button key={i} type="button" onClick={() => key === '☻' ? setShowEmojiPicker(true) : undefined} className="gb-key gb-key-tool">{key}</button>
+              ))}
+            </div>
+            {gbKeyboardRows.map((row, rowIndex) => (
+              <div key={rowIndex} className="flex justify-center gap-1 mb-1.5">
+                {row.split('').map((key) => (
+                  <button key={key} type="button" onClick={() => insertKeyboardKey(key)} className="gb-key flex-1">{keyboardShift ? key.toUpperCase() : key}</button>
+                ))}
+              </div>
+            ))}
+            <div className="flex gap-1 mb-1.5">
+              <button type="button" onClick={() => setKeyboardShift((v) => !v)} className="gb-key gb-key-special w-12">⇧</button>
+              <button type="button" onClick={() => setInputText((v) => v.slice(0, -1))} className="gb-key gb-key-special flex-1">⌫</button>
+            </div>
+            <div className="flex gap-1">
+              <button type="button" onClick={() => setInputText((v) => v + ' ')} className="gb-key gb-key-special w-12">🌐</button>
+              <button type="button" onClick={() => setInputText((v) => v + ' ')} className="gb-key flex-1">English (US)</button>
+              <button type="button" onClick={() => setInputText((v) => v + '.') } className="gb-key w-10">.</button>
+              <button type="button" onClick={handleSend} className="gb-key gb-key-special w-12">↵</button>
+            </div>
           </div>
         )}
 
