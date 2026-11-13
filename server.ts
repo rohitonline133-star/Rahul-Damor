@@ -4152,6 +4152,48 @@ app.post('/api/upload', (req, res) => {
     res.status(400).json({ error: 'File is empty, malformed, or exceeds the 18 MiB upload limit' });
     return;
   }
+
+  // Never trust the browser-supplied MIME type alone. Check file signatures
+  // before echoing a data URL back to clients.
+  const startsWith = (...signature: number[]) =>
+    signature.every((byte, index) => bytes[index] === byte);
+  const isMimeMatch = (() => {
+    switch (mimeType.toLowerCase()) {
+      case 'image/jpeg':
+        return startsWith(0xff, 0xd8, 0xff);
+      case 'image/png':
+        return startsWith(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a);
+      case 'image/webp':
+        return bytes.length >= 12 && bytes.toString('ascii', 0, 4) === 'RIFF' &&
+          bytes.toString('ascii', 8, 12) === 'WEBP';
+      case 'image/gif':
+        return ['GIF87a', 'GIF89a'].includes(bytes.toString('ascii', 0, 6));
+      case 'video/mp4':
+        return bytes.length >= 12 && bytes.toString('ascii', 4, 8) === 'ftyp';
+      case 'video/webm':
+      case 'audio/webm':
+        return startsWith(0x1a, 0x45, 0xdf, 0xa3);
+      case 'audio/mpeg':
+        return bytes.toString('ascii', 0, 3) === 'ID3' ||
+          (bytes.length >= 2 && bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0);
+      case 'audio/wav':
+        return bytes.length >= 12 && bytes.toString('ascii', 0, 4) === 'RIFF' &&
+          bytes.toString('ascii', 8, 12) === 'WAVE';
+      case 'audio/ogg':
+        return bytes.toString('ascii', 0, 4) === 'OggS';
+      case 'application/pdf':
+        return bytes.toString('ascii', 0, 5) === '%PDF-';
+      case 'text/plain':
+        return !bytes.includes(0) && Buffer.from(bytes.toString('utf8'), 'utf8').equals(bytes);
+      default:
+        return false;
+    }
+  })();
+  if (!isMimeMatch) {
+    res.status(400).json({ error: 'File contents do not match the declared MIME type' });
+    return;
+  }
+
   if (size !== undefined && (!Number.isSafeInteger(size) || size !== bytes.length)) {
     res.status(400).json({ error: 'Declared file size does not match uploaded data' });
     return;
