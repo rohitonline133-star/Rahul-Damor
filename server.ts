@@ -4574,6 +4574,18 @@ app.delete('/api/posts/:id', (req, res) => {
 // -------------------------------------------------------------
 // CHANNELS API
 // -------------------------------------------------------------
+const sanitizeChannelPostForViewer = (post: any, viewerId: string) => ({
+  ...post,
+  reactions: (Array.isArray(post.reactions) ? post.reactions : []).map((reaction: any) => {
+    const reactionUsers = Array.isArray(reaction.users) ? reaction.users : [];
+    return {
+      emoji: reaction.emoji,
+      count: Number.isSafeInteger(reaction.count) ? reaction.count : reactionUsers.length,
+      isReacted: reactionUsers.includes(viewerId),
+    };
+  }),
+});
+
 app.get('/api/channels', (req, res) => {
   const user = authenticate(req);
   if (!user) {
@@ -4586,6 +4598,8 @@ app.get('/api/channels', (req, res) => {
     const { subscriberIds, moderatorIds, ...publicChannel } = channel;
     return {
       ...publicChannel,
+      posts: (Array.isArray(publicChannel.posts) ? publicChannel.posts : [])
+        .map((post: any) => sanitizeChannelPostForViewer(post, user.id)),
       subscribersCount: Array.isArray(subscriberIds) ? subscriberIds.length : 0,
       isSubscribed: Array.isArray(subscriberIds) && subscriberIds.includes(user.id),
       isModerator: Array.isArray(moderatorIds) && moderatorIds.includes(user.id),
@@ -4726,13 +4740,17 @@ app.post('/api/channels/:id/posts', (req, res) => {
   channel.posts.unshift(post);
   saveDb(db);
 
+  const publicPost = sanitizeChannelPostForViewer(post, user.id);
   channel.subscriberIds.forEach((subId: string) => {
     if (subId !== user.id) {
-      sendSSE(subId, 'channel_post', { channelId: channel.id, post });
+      sendSSE(subId, 'channel_post', {
+        channelId: channel.id,
+        post: sanitizeChannelPostForViewer(post, subId),
+      });
     }
   });
 
-  res.status(201).json({ post });
+  res.status(201).json({ post: publicPost });
 });
 
 app.post('/api/channels/:id/posts/:postId/react', (req, res) => {
@@ -4742,7 +4760,12 @@ app.post('/api/channels/:id/posts/:postId/react', (req, res) => {
     return;
   }
 
-  const { emoji } = req.body;
+  const { emoji } = req.body || {};
+  const allowedEmojis = new Set(['🔥', '❤️', '👏', '😂', '😮', '😢', '🙏', '👍']);
+  if (typeof emoji !== 'string' || !allowedEmojis.has(emoji)) {
+    res.status(400).json({ error: 'Unsupported reaction' });
+    return;
+  }
   const channel = (db.channels || []).find((c) => c.id === req.params.id);
   if (!channel) {
     res.status(404).json({ error: 'Channel not found' });
@@ -4772,7 +4795,9 @@ app.post('/api/channels/:id/posts/:postId/react', (req, res) => {
   }
 
   saveDb(db);
-  res.json({ reactions: post.reactions });
+  res.json({
+    reactions: sanitizeChannelPostForViewer(post, user.id).reactions,
+  });
 });
 
 // -------------------------------------------------------------
