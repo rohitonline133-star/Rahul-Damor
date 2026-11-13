@@ -2861,10 +2861,48 @@ app.post('/api/users/profile', (req, res) => {
     return;
   }
   const { displayName, bio, avatar, privacySettings } = req.body;
-  if (displayName) user.displayName = displayName.trim();
+
+  if (displayName !== undefined &&
+      (typeof displayName !== 'string' || displayName.trim().length < 1 || displayName.trim().length > 80)) {
+    res.status(400).json({ error: 'Display name must be between 1 and 80 characters' });
+    return;
+  }
+  if (bio !== undefined && (typeof bio !== 'string' || bio.length > 500)) {
+    res.status(400).json({ error: 'Bio must be 500 characters or fewer' });
+    return;
+  }
+  if (avatar !== undefined &&
+      (typeof avatar !== 'string' || avatar.length > 2_000_000 ||
+       (avatar !== '' && !/^(https:\/\/|data:image\/(png|jpeg|webp|gif);base64,)/i.test(avatar)))) {
+    res.status(400).json({ error: 'Avatar must be a valid HTTPS URL or supported image data URL' });
+    return;
+  }
+
+  if (privacySettings !== undefined) {
+    if (!privacySettings || typeof privacySettings !== 'object' || Array.isArray(privacySettings)) {
+      res.status(400).json({ error: 'Privacy settings must be an object' });
+      return;
+    }
+
+    const allowedPrivacyKeys = new Set(['lastSeen', 'profilePhoto', 'statusPrivacy', 'readReceipts', 'isPrivate']);
+    const hasUnknownKey = Object.keys(privacySettings).some((key) => !allowedPrivacyKeys.has(key));
+    const validVisibility = (value: unknown) => ['everyone', 'contacts', 'nobody'].includes(value as string);
+    if (hasUnknownKey ||
+        (privacySettings.lastSeen !== undefined && !validVisibility(privacySettings.lastSeen)) ||
+        (privacySettings.profilePhoto !== undefined && !validVisibility(privacySettings.profilePhoto)) ||
+        (privacySettings.statusPrivacy !== undefined &&
+          !['everyone', 'contacts', 'selected'].includes(privacySettings.statusPrivacy)) ||
+        (privacySettings.readReceipts !== undefined && typeof privacySettings.readReceipts !== 'boolean') ||
+        (privacySettings.isPrivate !== undefined && typeof privacySettings.isPrivate !== 'boolean')) {
+      res.status(400).json({ error: 'One or more privacy settings are invalid' });
+      return;
+    }
+  }
+
+  if (displayName !== undefined) user.displayName = displayName.trim();
   if (bio !== undefined) user.bio = bio.trim();
-  if (avatar) user.avatar = avatar;
-  if (privacySettings) user.privacySettings = { ...user.privacySettings, ...privacySettings };
+  if (avatar !== undefined) user.avatar = avatar;
+  if (privacySettings !== undefined) user.privacySettings = { ...user.privacySettings, ...privacySettings };
 
   saveDb(db);
   const safeUser = sanitizeUserForViewer(user, user);
@@ -3713,9 +3751,13 @@ app.delete('/api/statuses/:id', (req, res) => {
     return;
   }
 
+  // Notify only viewers who were permitted to see this status before deletion.
+  const allowedViewerIds = db.users
+    .filter((viewer) => canViewStatus(status, viewer))
+    .map((viewer) => viewer.id);
   db.statuses.splice(idx, 1);
   saveDb(db);
-  broadcastToUsers('all', 'status_deleted', { statusId: req.params.id });
+  broadcastToUsers(allowedViewerIds, 'status_deleted', { statusId: req.params.id });
 
   res.json({ success: true });
 });
