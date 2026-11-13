@@ -1317,9 +1317,17 @@ app.post('/api/events/ticket', (req, res) => {
     return;
   }
 
+  const now = Date.now();
+  // Remove expired tickets while issuing new ones so abandoned connections
+  // cannot leave an unbounded number of stale ticket records in memory.
+  for (const [existingTicket, record] of sseTickets) {
+    if (record.expiresAt <= now) sseTickets.delete(existingTicket);
+  }
+
   const ticket = crypto.randomBytes(32).toString('hex');
-  sseTickets.set(ticket, { userId: user.id, expiresAt: Date.now() + 30_000 });
-  res.json({ ticket, expiresAt: Date.now() + 30_000 });
+  const expiresAt = now + 30_000;
+  sseTickets.set(ticket, { userId: user.id, expiresAt });
+  res.json({ ticket, expiresAt });
 });
 
 app.get('/api/events', (req, res) => {
