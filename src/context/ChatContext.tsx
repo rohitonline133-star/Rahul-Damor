@@ -314,9 +314,22 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           const payload = JSON.parse(e.data);
           if (typeof payload?.conversationId !== 'string' ||
-              activeConvRef.current !== payload.conversationId ||
               typeof payload?.userId !== 'string' ||
               !Number.isSafeInteger(payload.readAt) || payload.readAt < 0) return;
+
+          // A read receipt is broadcast to every member device. Clear this user's
+          // unread badge even when the conversation is not open on this device.
+          if (payload.userId === currentUser.id) {
+            setConversations((prev) =>
+              prev.map((conversation) =>
+                conversation.id === payload.conversationId
+                  ? { ...conversation, unreadCount: 0 }
+                  : conversation
+              )
+            );
+          }
+
+          if (activeConvRef.current !== payload.conversationId) return;
           const fullyReadIds = new Set(
             Array.isArray(payload.fullyReadMessageIds)
               ? payload.fullyReadMessageIds.filter((id: unknown): id is string => typeof id === 'string')
