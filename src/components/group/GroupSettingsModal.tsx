@@ -9,10 +9,11 @@ interface GroupSettingsModalProps {
   token: string;
   onClose: () => void;
   onUpdated: () => Promise<void>;
+  onLeft: () => void;
 }
 
 export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
-  conversation, currentUserId, token, onClose, onUpdated,
+  conversation, currentUserId, token, onClose, onUpdated, onLeft,
 }) => {
   const { allUsers } = useAuth();
   const currentMembership = conversation.members.find((member) => member.userId === currentUserId);
@@ -82,7 +83,7 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
 
   const leaveGroup = () => run(async () => {
     await request(`/api/conversations/${encodeURIComponent(conversation.id)}/leave`, 'POST');
-    onClose(); await onUpdated();
+    onLeft(); onClose();
   });
 
   const inviteUrl = inviteCode ? `${window.location.origin}/join-group/${encodeURIComponent(inviteCode)}` : '';
@@ -130,7 +131,7 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
               return <div key={member.userId} className="flex items-center gap-2">
                 <img src={person?.avatar || ''} alt="" className="w-9 h-9 rounded-full object-cover bg-slate-100 dark:bg-slate-800" />
                 <div className="min-w-0 flex-1"><div className="text-xs font-semibold truncate">{person?.displayName || member.userId}{self ? ' (You)' : ''}</div><div className="text-[10px] text-slate-500">@{person?.username || 'member'} · {member.role}</div></div>
-                {isAdmin && !self && true && <div className="flex items-center gap-1">
+                {isAdmin && !self && <div className="flex items-center gap-1">
                   <button disabled={busy} onClick={() => changeRole(member.userId, member.role === 'admin' ? 'member' : 'admin')} className="text-[10px] px-2 py-1 rounded-lg border">{member.role === 'admin' ? 'Make member' : 'Make admin'}</button>
                   <button disabled={busy} onClick={() => removeMember(member.userId)} aria-label="Remove member" className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>}
