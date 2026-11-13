@@ -7247,35 +7247,27 @@ function runAuthVerificationSuite(filterId?: number) {
     }
   }
 
-  // 8. Login (phone & password)
+  // 8. Password verification (isolated fixture; never mutate a real account)
   if (!filterId || filterId === 8) {
     try {
-      const jordan = db.users.find((u) => u.id === 'user_jordan');
-      let isMatch = false;
-      if (jordan) {
-        const h1 = hashPassword('GbOfficial2026!', jordan.salt);
-        const h2 = hashPassword('GbPass2026!', jordan.salt);
-        if (h1 === jordan.passwordHash || h2 === jordan.passwordHash) {
-          isMatch = true;
-        } else {
-          jordan.passwordHash = hashPassword('GbOfficial2026!', jordan.salt);
-          saveDb(db);
-          isMatch = true;
-        }
-      }
-      if (isMatch && jordan?.phone) {
+      const fixturePassword = 'IsolatedTestPassword2026!';
+      const fixtureSalt = crypto.randomBytes(16).toString('hex');
+      const fixtureHash = hashPassword(fixturePassword, fixtureSalt);
+      const validPassword = verifyPassword(fixturePassword, fixtureSalt, fixtureHash).valid;
+      const wrongPasswordRejected = !verifyPassword('WrongTestPassword2026!', fixtureSalt, fixtureHash).valid;
+      if (validPassword && wrongPasswordRejected) {
         tests.push({
           id: 8,
-          name: 'Login (phone & password)',
+          name: 'Password verification',
           category: 'Auth & Registration',
           status: 'PASS',
-          details: `Verified login for ${jordan.phone} (@${jordan.username}) using PBKDF2 salt and password verification.`,
+          details: 'Verified correct-password acceptance and incorrect-password rejection using an isolated in-memory fixture; no account data was changed.',
         });
       } else {
-        tests.push({ id: 8, name: 'Login (phone & password)', category: 'Auth & Registration', status: 'FAIL', details: 'Password matching failed.' });
+        tests.push({ id: 8, name: 'Password verification', category: 'Auth & Registration', status: 'FAIL', details: 'Password verification fixture failed.' });
       }
     } catch (err: any) {
-      tests.push({ id: 8, name: 'Login (phone & password)', category: 'Auth & Registration', status: 'FAIL', details: err.message });
+      tests.push({ id: 8, name: 'Password verification', category: 'Auth & Registration', status: 'FAIL', details: err.message });
     }
   }
 
