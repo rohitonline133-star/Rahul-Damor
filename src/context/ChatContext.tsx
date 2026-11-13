@@ -404,19 +404,19 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const deleteMessage = async (messageId: string) => {
-    if (!token) return;
+  const deleteMessage = async (messageId: string): Promise<boolean> => {
+    if (!token || !messageId) return false;
     try {
-      const res = await fetch(`/api/messages/${messageId}`, {
+      const res = await fetch(`/api/messages/${encodeURIComponent(messageId)}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) {
-        setMessages((prev) => prev.filter((m) => m.id !== messageId));
-        refreshConversations();
-      }
+      if (!res.ok) return false;
+      setMessages((prev) => prev.filter((m) => m.id !== messageId));
+      refreshConversations();
+      return true;
     } catch {
-      // ignore
+      return false;
     }
   };
 
