@@ -4478,6 +4478,14 @@ function validateSocialPoll(poll: any): boolean {
 }
 // SOCIAL FEED / POSTS API
 // -------------------------------------------------------------
+const canInteractWithPost = (post: any, viewer: any) => {
+  if (!post || typeof post.authorId !== 'string' || !viewer?.id) return false;
+  const author = db.users.find((candidate) => candidate.id === post.authorId);
+  if (!author) return false;
+  return !(Array.isArray(viewer.blockedUserIds) && viewer.blockedUserIds.includes(author.id)) &&
+    !(Array.isArray(author.blockedUserIds) && author.blockedUserIds.includes(viewer.id));
+};
+
 app.get('/api/posts', (req, res) => {
   const user = authenticate(req);
   if (!user) {
@@ -4574,6 +4582,11 @@ app.post('/api/posts/:id/like', (req, res) => {
     return;
   }
 
+  if (!canInteractWithPost(post, user)) {
+    res.status(403).json({ error: 'You cannot interact with this post' });
+    return;
+  }
+
   post.likes = post.likes || [];
   const idx = post.likes.indexOf(user.id);
   let liked = false;
@@ -4611,15 +4624,20 @@ app.post('/api/posts/:id/comment', (req, res) => {
     return;
   }
 
-  const { text } = req.body;
-  if (!text || !text.trim()) {
-    res.status(400).json({ error: 'Comment text is required' });
+  const { text } = req.body || {};
+  if (typeof text !== 'string' || !text.trim() || text.length > 2000) {
+    res.status(400).json({ error: 'Comment text must contain 1–2000 characters' });
     return;
   }
 
   const post = (db.posts || []).find((p) => p.id === req.params.id);
   if (!post) {
     res.status(404).json({ error: 'Post not found' });
+    return;
+  }
+
+  if (!canInteractWithPost(post, user)) {
+    res.status(403).json({ error: 'You cannot interact with this post' });
     return;
   }
 
@@ -4670,6 +4688,11 @@ app.post('/api/posts/:id/save', (req, res) => {
     return;
   }
 
+  if (!canInteractWithPost(post, user)) {
+    res.status(403).json({ error: 'You cannot interact with this post' });
+    return;
+  }
+
   post.savedByUserIds = post.savedByUserIds || [];
   const idx = post.savedByUserIds.indexOf(user.id);
   let saved = false;
@@ -4691,21 +4714,32 @@ app.post('/api/posts/:id/poll-vote', (req, res) => {
     return;
   }
 
-  const { optionId } = req.body;
+  const { optionId } = req.body || {};
   const post = (db.posts || []).find((p) => p.id === req.params.id);
   if (!post || !post.poll) {
     res.status(404).json({ error: 'Poll not found' });
     return;
   }
-
-  post.poll.options.forEach((opt: any) => {
-    opt.votes = opt.votes.filter((uid: string) => uid !== user.id);
-  });
-
-  const targetOpt = post.poll.options.find((opt: any) => opt.id === optionId);
-  if (targetOpt) {
-    targetOpt.votes.push(user.id);
+  if (!canInteractWithPost(post, user)) {
+    res.status(403).json({ error: 'You cannot interact with this post' });
+    return;
   }
+  if (typeof optionId !== 'string' || optionId.length > 64) {
+    res.status(400).json({ error: 'A valid poll option is required' });
+    return;
+  }
+  const targetOpt = Array.isArray(post.poll.options)
+    ? post.poll.options.find((opt: any) => opt.id === optionId)
+    : undefined;
+  if (!targetOpt || !Array.isArray(targetOpt.votes)) {
+    res.status(400).json({ error: 'Poll option not found' });
+    return;
+  }
+
+  (post.poll.options as any[]).forEach((opt: any) => {
+    if (Array.isArray(opt.votes)) opt.votes = opt.votes.filter((uid: string) => uid !== user.id);
+  });
+  targetOpt.votes.push(user.id);
 
   post.poll.totalVotes = post.poll.options.reduce((acc: number, o: any) => acc + o.votes.length, 0);
   saveDb(db);
