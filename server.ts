@@ -3733,14 +3733,16 @@ app.post('/api/statuses', (req, res) => {
     return;
   }
 
-  const { type = 'text', content, caption, backgroundColor, privacy = 'everyone' } = req.body;
-  if (!content) {
-    res.status(400).json({ error: 'Content is required for status' });
-    return;
-  }
-  if (!['text', 'image', 'video'].includes(type) || !['everyone', 'contacts'].includes(privacy) ||
-      typeof content !== 'string' || content.length > 10_000) {
-    res.status(400).json({ error: 'Invalid status type, privacy setting, or content length' });
+  const { type = 'text', content, caption, backgroundColor, privacy = 'everyone' } = req.body || {};
+  const media = type === 'image' || type === 'video'
+    ? validateSocialMedia(content, type)
+    : { valid: true as const };
+  if (typeof content !== 'string' || content.length < 1 || content.length > 10_000 ||
+      !['text', 'image', 'video'].includes(type) || !['everyone', 'contacts'].includes(privacy) ||
+      !media.valid || (type === 'text' && content.startsWith('data:')) ||
+      (caption !== undefined && (typeof caption !== 'string' || caption.length > 500)) ||
+      (backgroundColor !== undefined && (typeof backgroundColor !== 'string' || backgroundColor.length > 120))) {
+    res.status(400).json({ error: 'Invalid status type, privacy, content, caption, or media' });
     return;
   }
 
@@ -3752,8 +3754,8 @@ app.post('/api/statuses', (req, res) => {
     userAvatar: user.avatar,
     type,
     content,
-    caption: caption?.trim(),
-    backgroundColor: backgroundColor || 'linear-gradient(135deg, #059669 0%, #0d9488 100%)',
+    caption: typeof caption === 'string' ? caption.trim() : undefined,
+    backgroundColor: typeof backgroundColor === 'string' && backgroundColor.trim() ? backgroundColor.trim() : 'linear-gradient(135deg, #059669 0%, #0d9488 100%)',
     viewers: [],
     createdAt: now,
     expiresAt: now + 24 * 3600 * 1000,
@@ -3809,7 +3811,7 @@ app.post('/api/statuses/:id/view', (req, res) => {
     }
   }
 
-  res.json({ success: true, viewers: status.viewers });
+  res.json({ success: true, ...(status.userId === user.id || user.role === 'admin' ? { viewers: status.viewers } : {}) });
 });
 
 app.delete('/api/statuses/:id', (req, res) => {
