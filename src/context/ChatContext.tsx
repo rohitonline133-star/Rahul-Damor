@@ -222,7 +222,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (activeConvRef.current === convId) {
             setMessages((prev) => {
               if (prev.some((m) => m.id === msg.id)) return prev;
-              return [...prev, msg];
+              return [...prev, msg].sort((a, b) => {
+                const aTime = Number.isFinite(a.createdAt) ? a.createdAt : 0;
+                const bTime = Number.isFinite(b.createdAt) ? b.createdAt : 0;
+                return aTime - bTime;
+              });
             });
             // Mark read if it's currently open
             if (msg.senderId !== currentUser.id) {
@@ -421,7 +425,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (activeConvRef.current === targetConversationId) {
         setMessages((prev) => {
           if (prev.some((message) => message.id === sentMessage.id)) return prev;
-          return [...prev, sentMessage];
+          return [...prev, sentMessage].sort((a, b) => {
+            const aTime = Number.isFinite(a.createdAt) ? a.createdAt : 0;
+            const bTime = Number.isFinite(b.createdAt) ? b.createdAt : 0;
+            return aTime - bTime;
+          });
         });
       }
       refreshConversations();
