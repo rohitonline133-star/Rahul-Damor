@@ -3296,8 +3296,8 @@ app.post('/api/messages', (req, res) => {
 
   const { conversationId, text = '', type = 'text', attachment, replyToId } = req.body || {};
   if (typeof conversationId !== 'string' || !conversationId.trim() ||
-      (typeof text !== 'string') || (!text.trim() && !attachment)) {
-    res.status(400).json({ error: 'Conversation ID and valid message content are required.' });
+      typeof text !== 'string' || text.length > 10000 || (!text.trim() && !attachment)) {
+    res.status(400).json({ error: 'Conversation ID and valid message content (up to 10,000 characters) are required.' });
     return;
   }
 
@@ -3602,7 +3602,11 @@ app.post('/api/messages/:id/edit', (req, res) => {
     return;
   }
 
-  const { text } = req.body;
+  const { text } = req.body || {};
+  if (typeof text !== 'string' || !text.trim() || text.length > 10000) {
+    res.status(400).json({ error: 'Message text must contain 1 to 10,000 characters.' });
+    return;
+  }
   const msg = db.messages.find((m) => m.id === req.params.id);
   if (!msg) {
     res.status(404).json({ error: 'Message not found' });
@@ -3677,9 +3681,14 @@ app.post('/api/messages/read', (req, res) => {
     return;
   }
 
-  const { conversationId } = req.body;
+  const { conversationId } = req.body || {};
+  if (typeof conversationId !== 'string' || !conversationId.trim() || conversationId.length > 128) {
+    res.status(400).json({ error: 'A valid conversation ID is required.' });
+    return;
+  }
   const readConversation = db.conversations.find((c) => c.id === conversationId);
-  if (!readConversation || !readConversation.members.some((m: any) => m.userId === user.id)) {
+  if (!readConversation || !Array.isArray(readConversation.members) ||
+      !readConversation.members.some((m: any) => m.userId === user.id)) {
     res.status(403).json({ error: 'Not a member of this conversation' });
     return;
   }
