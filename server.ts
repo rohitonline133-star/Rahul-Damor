@@ -2866,8 +2866,14 @@ app.post('/api/users/profile', (req, res) => {
   if (privacySettings) user.privacySettings = { ...user.privacySettings, ...privacySettings };
 
   saveDb(db);
-  const { passwordHash: _, salt: __, ...safeUser } = user;
-  broadcastToUsers('all', 'user_updated', safeUser);
+  const safeUser = sanitizeUserForViewer(user, user);
+  db.users.forEach((viewer: any) => {
+    if (viewer.id === user.id ||
+        (!(user.blockedUserIds || []).includes(viewer.id) &&
+         !(viewer.blockedUserIds || []).includes(user.id))) {
+      sendSSE(viewer.id, 'user_updated', sanitizeUserForViewer(user, viewer));
+    }
+  });
   res.json({ user: safeUser });
 });
 
