@@ -718,7 +718,11 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
                   <button
                     onClick={() => {
                       if (window.confirm('Delete this message for everyone?')) {
-                        void deleteMessage(msg.id);
+                        void deleteMessage(msg.id).then((deleted) => {
+                          if (!deleted) {
+                            window.alert('Message could not be deleted. Please check your connection and try again.');
+                          }
+                        });
                       }
                     }}
                     className="p-1 rounded-lg hover:bg-red-100 dark:hover:bg-red-950/40 text-red-500 transition"
