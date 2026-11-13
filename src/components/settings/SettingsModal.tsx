@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   X,
   ChevronLeft,
@@ -83,7 +83,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onOpenBroadcasts,
   onOpenCommunities,
 }) => {
-  const { currentUser, updateProfile, token } = useAuth();
+  const { currentUser, updateProfile, token, toggleTwoFactor } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
   const [currentSection, setCurrentSection] = useState<SettingSection>('root');
@@ -99,6 +99,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   // Account / 2FA State
   const [twoFactor, setTwoFactor] = useState(false);
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    fetch('/api/auth/two-factor', { headers: { Authorization: `Bearer ${token}` } })
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error('Could not load security settings')))
+      .then((data) => { if (!cancelled) setTwoFactor(Boolean(data.enabled)); })
+      .catch(() => { if (!cancelled) setTwoFactor(false); });
+    return () => { cancelled = true; };
+  }, [token]);
   const [appLock, setAppLock] = useState(false);
   const [newPhone, setNewPhone] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
@@ -168,20 +178,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   const handleToggle2FA = async (enabled: boolean) => {
-    if (!token) return;
-    try {
-      const res = await fetch('/api/account/two-factor', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ enabled, pin: enabled ? '123456' : undefined }),
-      });
-      if (res.ok) {
-        setTwoFactor(enabled);
-      }
-    } catch {}
+    const pin = enabled ? window.prompt('Choose a new 6-digit verification PIN:') : undefined;
+    if (enabled && (!pin || !/^\\d{6}$/.test(pin))) return;
+    const currentPassword = twoFactor ? window.prompt('Enter your current password to change two-step verification:') : undefined;
+    if (twoFactor && !currentPassword) return;
+    const result = await toggleTwoFactor(enabled, pin || undefined, currentPassword || undefined);
+    if (result.success) setTwoFactor(enabled);
+    else window.alert(result.error || 'Could not update two-step verification.');
   };
 
   const handleRequestPhoneChange = async () => {
@@ -608,9 +611,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 />
               </div>
 
-              <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 text-xs text-emerald-800 dark:text-emerald-300">
-                <span className="font-bold block mb-1">End-to-End Encryption Protocol</span>
-                Your personal chats, voice calls, and media are end-to-end encrypted with Signal-compatible double ratchet protocols. Not even GB Official servers can read your communications.
+              <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 text-xs text-amber-900 dark:text-amber-200">
+                <span className="font-bold block mb-1">Encryption status</span>
+                End-to-end encryption is not yet available. Messages and media may be processed by the GB Official server, so do not treat this chat as a private encrypted channel yet.
               </div>
             </div>
           )}
