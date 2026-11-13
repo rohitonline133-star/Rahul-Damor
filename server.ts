@@ -2950,12 +2950,17 @@ app.get('/api/conversations', (req, res) => {
     return;
   }
 
-  const userConversations = db.conversations
-    .filter((conv) => conv.members.some((m: any) => m.userId === user.id))
-    .map((conv) => {
-      // populate member details
-      const memberDetails = conv.members.map((m: any) => {
-        const u = db.users.find((usr) => usr.id === m.userId);
+  const safeMessages = Array.isArray(db.messages) ? db.messages.filter((message: any) => message && typeof message === 'object') : [];
+  const userConversations = (Array.isArray(db.conversations) ? db.conversations : [])
+    .filter((conv: any) => conv && Array.isArray(conv.members) &&
+      conv.members.some((member: any) => member && member.userId === user.id))
+    .map((conv: any) => {
+      // Ignore malformed membership records before populating member details.
+      const validMembers = conv.members.filter((member: any) =>
+        member && typeof member.userId === 'string' && member.userId.length > 0
+      );
+      const memberDetails = validMembers.map((m: any) => {
+        const u = db.users.find((usr) => usr && usr.id === m.userId);
         if (u) {
           return { ...sanitizeUserForViewer(u, user), role: m.role, isMuted: m.isMuted };
         }
@@ -2963,9 +2968,9 @@ app.get('/api/conversations', (req, res) => {
       });
 
       // last message
-      const convMessages = db.messages
-        .filter((m) => m.conversationId === conv.id)
-        .sort((a, b) => b.createdAt - a.createdAt);
+      const convMessages = safeMessages
+        .filter((m: any) => m.conversationId === conv.id)
+        .sort((a: any, b: any) => (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0));
       const lastMessage = convMessages[0] || null;
 
       // unread count for current user
@@ -3492,7 +3497,8 @@ app.post('/api/messages/:id/react', (req, res) => {
   }
 
   const reactionConversation = db.conversations.find((c) => c.id === msg.conversationId);
-  if (!reactionConversation || !reactionConversation.members.some((m: any) => m.userId === user.id)) {
+  if (!reactionConversation || !Array.isArray(reactionConversation.members) ||
+      !reactionConversation.members.some((member: any) => member && member.userId === user.id)) {
     res.status(403).json({ error: 'Not a member of this conversation' });
     return;
   }
@@ -3518,9 +3524,11 @@ app.post('/api/messages/:id/react', (req, res) => {
 
   saveDb(db);
   const conv = db.conversations.find((c) => c.id === msg.conversationId);
-  if (conv) {
-    const memberIds = conv.members.map((m: any) => m.userId);
-    broadcastToUsers(memberIds, 'message_reaction', {
+  if (conv && Array.isArray(conv.members)) {
+    const memberIds = conv.members
+      .map((member: any) => member && member.userId)
+      .filter((memberId: any) => typeof memberId === 'string' && memberId.length > 0);
+    if (memberIds.length > 0) broadcastToUsers(memberIds, 'message_reaction', {
       messageId: msg.id,
       conversationId: msg.conversationId,
       reactions: msg.reactions,
@@ -3549,7 +3557,8 @@ app.post('/api/messages/:id/poll-vote', (req, res) => {
   }
 
   const pollConversation = db.conversations.find((c) => c.id === msg.conversationId);
-  if (!pollConversation || !pollConversation.members.some((m: any) => m.userId === user.id)) {
+  if (!pollConversation || !Array.isArray(pollConversation.members) ||
+      !pollConversation.members.some((member: any) => member && member.userId === user.id)) {
     res.status(403).json({ error: 'Not a member of this conversation' });
     return;
   }
@@ -3596,9 +3605,11 @@ app.post('/api/messages/:id/poll-vote', (req, res) => {
   saveDb(db);
 
   const conv = db.conversations.find((c) => c.id === msg.conversationId);
-  if (conv) {
-    const memberIds = conv.members.map((m: any) => m.userId);
-    broadcastToUsers(memberIds, 'poll_vote', {
+  if (conv && Array.isArray(conv.members)) {
+    const memberIds = conv.members
+      .map((member: any) => member && member.userId)
+      .filter((memberId: any) => typeof memberId === 'string' && memberId.length > 0);
+    if (memberIds.length > 0) broadcastToUsers(memberIds, 'poll_vote', {
       messageId: msg.id,
       conversationId: msg.conversationId,
       poll: pollData,
@@ -3627,7 +3638,8 @@ app.post('/api/messages/:id/edit', (req, res) => {
   }
 
   const editConversation = db.conversations.find((c) => c.id === msg.conversationId);
-  if (!editConversation || !editConversation.members.some((m: any) => m.userId === user.id)) {
+  if (!editConversation || !Array.isArray(editConversation.members) ||
+      !editConversation.members.some((member: any) => member && member.userId === user.id)) {
     res.status(403).json({ error: 'Not a member of this conversation' });
     return;
   }
@@ -3642,9 +3654,13 @@ app.post('/api/messages/:id/edit', (req, res) => {
   saveDb(db);
 
   const conv = db.conversations.find((c) => c.id === msg.conversationId);
-  if (conv) {
-    const memberIds = conv.members.map((m: any) => m.userId);
-    broadcastToUsers(memberIds, 'message_edited', { message: msg });
+  if (conv && Array.isArray(conv.members)) {
+    const memberIds = conv.members
+      .map((member: any) => member && member.userId)
+      .filter((memberId: any) => typeof memberId === 'string' && memberId.length > 0);
+    if (memberIds.length > 0) {
+      broadcastToUsers(memberIds, 'message_edited', { message: msg });
+    }
   }
 
   res.json({ message: msg });
@@ -5618,9 +5634,11 @@ app.post('/api/location/share', (req, res) => {
 
   saveDb(db);
 
-  if (conv) {
-    conv.members.forEach((m: any) => {
-      sendSSE(m.userId, 'message_created', { message: newMsg });
+  if (conv && Array.isArray(conv.members)) {
+    conv.members.forEach((member: any) => {
+      if (typeof member?.userId === 'string' && member.userId.length > 0) {
+        sendSSE(member.userId, 'message_created', { message: newMsg });
+      }
     });
   }
 
@@ -5673,9 +5691,11 @@ app.post('/api/location/stop', (req, res) => {
 
   if (conversationId) {
     const conv = db.conversations.find((c) => c.id === conversationId);
-    if (conv) {
-      conv.members.forEach((m: any) => {
-        sendSSE(m.userId, 'location_stopped', { conversationId, userId: user.id });
+    if (conv && Array.isArray(conv.members)) {
+      conv.members.forEach((member: any) => {
+        if (typeof member?.userId === 'string' && member.userId.length > 0) {
+          sendSSE(member.userId, 'location_stopped', { conversationId, userId: user.id });
+        }
       });
     }
   }
