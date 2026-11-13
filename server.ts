@@ -3275,7 +3275,8 @@ app.get('/api/conversations/:id/messages', (req, res) => {
   }
 
   const conv = db.conversations.find((c) => c.id === req.params.id);
-  if (!conv || !conv.members.some((m: any) => m.userId === user.id)) {
+  if (!conv || !Array.isArray(conv.members) ||
+      !conv.members.some((member: any) => member && member.userId === user.id)) {
     res.status(403).json({ error: 'Not a member of this conversation' });
     return;
   }
@@ -3667,9 +3668,13 @@ app.delete('/api/messages/:id', (req, res) => {
   saveDb(db);
 
   const conv = db.conversations.find((c) => c.id === convId);
-  if (conv) {
-    const memberIds = conv.members.map((m: any) => m.userId);
-    broadcastToUsers(memberIds, 'message_deleted', { messageId: req.params.id, conversationId: convId });
+  if (conv && Array.isArray(conv.members)) {
+    const memberIds = conv.members
+      .map((member: any) => member && member.userId)
+      .filter((memberId: any) => typeof memberId === 'string' && memberId.length > 0);
+    if (memberIds.length > 0) {
+      broadcastToUsers(memberIds, 'message_deleted', { messageId: req.params.id, conversationId: convId });
+    }
   }
 
   res.json({ success: true });
