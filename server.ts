@@ -2372,7 +2372,7 @@ app.post('/api/auth/two-factor', (req, res) => {
 });
 
 // 17. Change Phone Number (Step 1: Request OTP)
-app.post('/api/auth/change-phone/request', (req, res) => {
+app.post('/api/auth/change-phone/request', async (req, res) => {
   const user = authenticate(req);
   if (!user) {
     res.status(401).json({ error: 'Unauthorized' });
