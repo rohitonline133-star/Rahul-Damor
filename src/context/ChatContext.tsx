@@ -86,16 +86,24 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [token]);
 
   const refreshStatuses = useCallback(async () => {
+    if (!token) {
+      setStatuses([]);
+      return;
+    }
     try {
-      const res = await fetch('/api/statuses');
+      const res = await fetch('/api/statuses', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (res.ok) {
         const data = await res.json();
         setStatuses(data.statuses || []);
+      } else if (res.status === 401) {
+        setStatuses([]);
       }
     } catch {
       // ignore
     }
-  }, []);
+  }, [token]);
 
   const refreshCommunities = useCallback(async () => {
     try {
