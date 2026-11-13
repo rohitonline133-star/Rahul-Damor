@@ -3281,9 +3281,16 @@ app.get('/api/conversations/:id/messages', (req, res) => {
     return;
   }
 
-  const messages = db.messages
-    .filter((m) => m.conversationId === req.params.id)
-    .sort((a, b) => a.createdAt - b.createdAt);
+  // Treat malformed persisted message collections and entries as unavailable,
+  // rather than allowing a read request to crash on null or invalid records.
+  const storedMessages = Array.isArray(db.messages) ? db.messages : [];
+  const messages = storedMessages
+    .filter((message: any) => message && message.conversationId === req.params.id)
+    .sort((a: any, b: any) => {
+      const aTime = Number.isFinite(a.createdAt) ? a.createdAt : 0;
+      const bTime = Number.isFinite(b.createdAt) ? b.createdAt : 0;
+      return aTime - bTime;
+    });
 
   res.json({ messages });
 });
@@ -3310,7 +3317,8 @@ app.post('/api/messages', (req, res) => {
 
   // Check membership before inspecting or processing potentially large media payloads.
   const conv = db.conversations.find((c) => c.id === conversationId);
-  if (!conv || !Array.isArray(conv.members) || !conv.members.some((m: any) => m.userId === user.id)) {
+  if (!conv || !Array.isArray(conv.members) ||
+      !conv.members.some((member: any) => member && member.userId === user.id)) {
     res.status(403).json({ error: 'Not a member of this conversation.' });
     return;
   }
