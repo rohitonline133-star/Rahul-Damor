@@ -106,16 +106,24 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [token]);
 
   const refreshCommunities = useCallback(async () => {
+    if (!token) {
+      setCommunities([]);
+      return;
+    }
     try {
-      const res = await fetch('/api/communities');
+      const res = await fetch('/api/communities', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (res.ok) {
         const data = await res.json();
         setCommunities(data.communities || []);
+      } else if (res.status === 401) {
+        setCommunities([]);
       }
     } catch {
       // ignore
     }
-  }, []);
+  }, [token]);
 
   // Fetch messages when active conversation changes
   useEffect(() => {
