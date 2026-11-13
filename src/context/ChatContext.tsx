@@ -495,9 +495,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const markConversationRead = async (convId: string) => {
-    if (!token) return;
+    if (!token || typeof convId !== 'string' || !convId.trim() || convId.length > 128) return;
     try {
-      await fetch('/api/messages/read', {
+      const res = await fetch('/api/messages/read', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -505,11 +505,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         },
         body: JSON.stringify({ conversationId: convId }),
       });
+      if (!res.ok) return;
       setConversations((prev) =>
         prev.map((c) => (c.id === convId ? { ...c, unreadCount: 0 } : c))
       );
     } catch {
-      // ignore
+      // Keep the unread count until the server confirms the read receipt.
     }
   };
 
