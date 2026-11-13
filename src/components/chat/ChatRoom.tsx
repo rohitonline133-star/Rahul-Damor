@@ -1156,19 +1156,6 @@ const ChatRoomLegacy: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpen
     </div>
   );
 };
-,'i')
-      .test(attachment.url);
-  }
-
-  try {
-    const mediaUrl = new URL(attachment.url);
-    return mediaUrl.protocol === 'https:' &&
-      !mediaUrl.username && !mediaUrl.password;
-  } catch {
-    return false;
-  }
-};
-
 export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpenReport }) => {
   const {
     activeConversation,
