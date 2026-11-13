@@ -3645,7 +3645,7 @@ app.post('/api/messages', (req, res) => {
     ]);
     const expectedPrefix = type === 'image' ? 'image/' : type === 'video' ? 'video/' : '';
     const attachmentUrl = typeof attachment?.url === 'string' ? attachment.url : '';
-    const dataMatch = attachmentUrl.match(/^data:([a-z0-9.+-]+\\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/]+={0,2})$/i);
+    const dataMatch = attachmentUrl.match(/^data:([a-z0-9.+-]+\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/]+={0,2})$/i);
     if (!attachment || typeof attachment !== 'object' ||
         typeof attachment.name !== 'string' || attachment.name.length > 180 ||
         typeof attachment.mimeType !== 'string' || !allowedAttachmentMimes.has(attachment.mimeType.toLowerCase()) ||
