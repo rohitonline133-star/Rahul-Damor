@@ -4444,12 +4444,21 @@ app.get('/api/search', (req, res) => {
 // -------------------------------------------------------------
 app.get('/api/posts', (req, res) => {
   const user = authenticate(req);
-  let posts = [...(db.posts || [])];
-
-  if (user) {
-    const blocked = user.blockedUserIds || [];
-    posts = posts.filter((p) => !blocked.includes(p.authorId));
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
   }
+
+  // Posts can contain inline media data URLs. Never expose those payloads
+  // through an anonymous feed, and respect blocks in both directions.
+  const blockedByViewer = new Set(Array.isArray(user.blockedUserIds) ? user.blockedUserIds : []);
+  let posts = [...(db.posts || [])].filter((post) => {
+    if (!post || typeof post.authorId !== 'string') return false;
+    if (blockedByViewer.has(post.authorId)) return false;
+    const author = db.users.find((candidate) => candidate.id === post.authorId);
+    const blockedViewer = Array.isArray(author?.blockedUserIds) && author.blockedUserIds.includes(user.id);
+    return !blockedViewer;
+  });
 
   posts.sort((a, b) => b.createdAt - a.createdAt);
   res.json({ posts });
