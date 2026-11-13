@@ -2975,7 +2975,8 @@ app.get('/api/conversations', (req, res) => {
 
       // unread count for current user
       const unreadCount = convMessages.filter(
-        (m) => m.senderId !== user.id && !m.readBy?.some((r: any) => r.userId === user.id)
+        (m: any) => m.senderId !== user.id &&
+          !(Array.isArray(m.readBy) && m.readBy.some((receipt: any) => receipt && receipt.userId === user.id))
       ).length;
 
       return {
