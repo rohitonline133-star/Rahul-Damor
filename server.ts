@@ -3813,6 +3813,8 @@ app.get('/api/communities', (req, res) => {
     return {
       ...publicCommunity,
       memberCount: Array.isArray(memberIds) ? memberIds.length : 0,
+      isMember: Array.isArray(memberIds) && memberIds.includes(user.id),
+      isAdmin: Array.isArray(adminIds) && adminIds.includes(user.id),
     };
   });
   res.json({ communities });
@@ -3858,8 +3860,16 @@ app.post('/api/communities', (req, res) => {
 
   db.communities.push(newComm);
   saveDb(db);
-  broadcastToUsers('all', 'community_created', newComm);
-  res.json({ community: newComm });
+  const { memberIds, adminIds, groupIds, ...publicCommunity } = newComm;
+  const communityForCreator = {
+    ...publicCommunity,
+    memberCount: memberIds.length,
+    isMember: true,
+    isAdmin: true,
+  };
+  // Only current members receive community events; never expose internal ID lists.
+  broadcastToUsers(memberIds, 'community_created', communityForCreator);
+  res.json({ community: communityForCreator });
 });
 
 app.post('/api/communities/:id/join', (req, res) => {
@@ -3880,7 +3890,15 @@ app.post('/api/communities/:id/join', (req, res) => {
     saveDb(db);
   }
 
-  res.json({ community: comm });
+  const { memberIds, adminIds, groupIds, ...publicCommunity } = comm;
+  res.json({
+    community: {
+      ...publicCommunity,
+      memberCount: Array.isArray(memberIds) ? memberIds.length : 0,
+      isMember: true,
+      isAdmin: Array.isArray(adminIds) && adminIds.includes(user.id),
+    },
+  });
 });
 
 app.post('/api/communities/:id/announcements', (req, res) => {
@@ -4554,6 +4572,8 @@ app.get('/api/channels', (req, res) => {
     return {
       ...publicChannel,
       subscribersCount: Array.isArray(subscriberIds) ? subscriberIds.length : 0,
+      isSubscribed: Array.isArray(subscriberIds) && subscriberIds.includes(user.id),
+      isModerator: Array.isArray(moderatorIds) && moderatorIds.includes(user.id),
     };
   });
   res.json({ channels });
@@ -4599,7 +4619,15 @@ app.post('/api/channels', (req, res) => {
   db.channels.push(newChannel);
   saveDb(db);
 
-  res.status(201).json({ channel: newChannel });
+  const { subscriberIds, moderatorIds, ...publicChannel } = newChannel;
+  res.status(201).json({
+    channel: {
+      ...publicChannel,
+      subscribersCount: subscriberIds.length,
+      isSubscribed: true,
+      isModerator: false,
+    },
+  });
 });
 
 app.post('/api/channels/:id/subscribe', (req, res) => {
