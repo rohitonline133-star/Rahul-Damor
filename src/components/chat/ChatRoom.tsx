@@ -56,7 +56,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
   const { initiateCall } = useCall();
 
   const [inputText, setInputText] = useState('');
-  const [showGbKeyboard, setShowGbKeyboard] = useState(false);
+  const [showGbKeyboard, setShowGbKeyboard] = useState(true);
   const [keyboardShift, setKeyboardShift] = useState(false);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [editingMsg, setEditingMsg] = useState<Message | null>(null);
