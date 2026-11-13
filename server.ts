@@ -4758,6 +4758,12 @@ app.get('/api/channels', (req, res) => {
     return {
       ...publicChannel,
       posts: (Array.isArray(publicChannel.posts) ? publicChannel.posts : [])
+        .filter((post: any) => {
+          if (!post || typeof post.authorId !== 'string') return false;
+          const author = db.users.find((candidate) => candidate.id === post.authorId);
+          return !(user.blockedUserIds || []).includes(post.authorId) &&
+            !(author?.blockedUserIds || []).includes(user.id);
+        })
         .map((post: any) => sanitizeChannelPostForViewer(post, user.id)),
       subscribersCount: Array.isArray(subscriberIds) ? subscriberIds.length : 0,
       isSubscribed: Array.isArray(subscriberIds) && subscriberIds.includes(user.id),
