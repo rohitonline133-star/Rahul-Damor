@@ -255,12 +255,24 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       eventSource.addEventListener('messages_read', (e) => {
         try {
           const payload = JSON.parse(e.data);
+          const fullyReadIds = new Set(
+            Array.isArray(payload.fullyReadMessageIds) ? payload.fullyReadMessageIds : []
+          );
           setMessages((prev) =>
             prev.map((m) => {
-              if (m.conversationId === payload.conversationId && m.senderId === currentUser.id) {
-                return { ...m, status: 'read' };
+              if (m.conversationId !== payload.conversationId || m.senderId !== currentUser.id) {
+                return m;
               }
-              return m;
+              const readBy = Array.isArray(m.readBy) ? m.readBy : [];
+              const alreadyRecorded = readBy.some((receipt) => receipt?.userId === payload.userId);
+              const nextReadBy = alreadyRecorded || typeof payload.userId !== 'string'
+                ? readBy
+                : [...readBy, { userId: payload.userId, readAt: payload.readAt }];
+              return {
+                ...m,
+                readBy: nextReadBy,
+                status: fullyReadIds.has(m.id) ? 'read' : 'delivered',
+              };
             })
           );
         } catch {
