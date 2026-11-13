@@ -268,6 +268,26 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
     if (!file) return;
 
     setShowAttachMenu(false);
+    const allowedMimeTypes = new Set([
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+      'image/gif',
+      'video/mp4',
+      'video/webm',
+      'audio/webm',
+      'audio/mpeg',
+      'audio/wav',
+      'audio/ogg',
+      'application/pdf',
+      'text/plain',
+    ]);
+    const normalizedMimeType = file.type.trim().toLowerCase();
+    if (!allowedMimeTypes.has(normalizedMimeType)) {
+      window.alert('This file type is not supported. Choose a JPEG, PNG, WebP, GIF, MP4, WebM, audio, PDF, or plain-text file.');
+      e.target.value = '';
+      return;
+    }
     if (file.size < 1 || file.size > 18 * 1024 * 1024) {
       window.alert('Attachments must be between 1 byte and 18 MB. Please choose a smaller file.');
       e.target.value = '';
