@@ -28,7 +28,7 @@ interface ChatContextType {
   deleteMessage: (messageId: string) => Promise<void>;
   pinConversation: (convId: string) => Promise<void>;
   createDirectChat: (targetUserId: string) => Promise<string | null>;
-  createGroupChat: (name: string, memberIds: string[], description?: string, icon?: string) => Promise<string | null>;
+  createGroupChat: (name: string, memberIds: string[], description?: string, icon?: string, communityId?: string) => Promise<string | null>;
   markConversationRead: (convId: string) => Promise<void>;
   refreshConversations: () => Promise<void>;
   seedDevConversations: () => Promise<boolean>;
@@ -556,7 +556,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     name: string,
     memberIds: string[],
     description?: string,
-    icon?: string
+    icon?: string,
+    communityId?: string
   ): Promise<string | null> => {
     if (!token) return null;
     try {
@@ -572,6 +573,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
           memberIds,
           description,
           icon,
+          ...(communityId ? { communityId } : {}),
         }),
       });
       if (res.ok) {
