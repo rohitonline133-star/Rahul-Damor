@@ -2259,7 +2259,7 @@ app.post('/api/auth/recover/send-otp', async (req, res) => {
       const sid = process.env.TWILIO_ACCOUNT_SID, secret = process.env.TWILIO_AUTH_TOKEN, from = process.env.TWILIO_PHONE_NUMBER;
       if (!user.phone) { res.status(202).json({ success: true, message: 'If the account exists, a recovery code will be sent to its registered contact.' }); return; }
       const authHeader = Buffer.from(`${sid}:${secret}`).toString('base64');
-      const body = new URLSearchParams({ To: user.phone, From: from, Body: `Your GB Official recovery code is ${code}. It expires in 10 minutes.` });
+      const body = new URLSearchParams({ To: user.phone, From: from as string, Body: `Your GB Official recovery code is ${code}. It expires in 10 minutes.` });
       const delivery = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, { method: 'POST', headers: { Authorization: `Basic ${authHeader}`, 'Content-Type': 'application/x-www-form-urlencoded' }, body });
       if (!delivery.ok) throw new Error('SMS provider rejected the recovery message.');
     }
@@ -3151,9 +3151,12 @@ function isGroupAdmin(conversation: any, userId: string): boolean {
 }
 
 function notifyGroupMembers(conversation: any, eventType: string, payload: any) {
-  const ids = [...new Set((Array.isArray(conversation?.members) ? conversation.members : [])
-    .map((member: any) => member?.userId)
-    .filter((id: any): id is string => typeof id === 'string' && id.length > 0))];
+  const memberRecords: any[] = Array.isArray(conversation?.members) ? conversation.members : [];
+  const memberIds: string[] = memberRecords.reduce((ids: string[], member: any) => {
+    if (typeof member?.userId === 'string' && member.userId.length > 0) ids.push(member.userId);
+    return ids;
+  }, []);
+  const ids = Array.from(new Set<string>(memberIds));
   if (ids.length) broadcastToUsers(ids, eventType, payload);
 }
 
@@ -4096,18 +4099,14 @@ app.post('/api/messages/read', (req, res) => {
 
       // Normalize membership before aggregating group receipts. Duplicate or
       // malformed member records must not distort the delivered/read calculation.
-      const recipientIds = [...new Set(
-        readConversation.members
-          .map((member: any) => member && member.userId)
-          .filter((memberId: any): memberId is string =>
-            typeof memberId === 'string' && memberId.length > 0 && memberId !== m.senderId
-          )
-      )];
-      const readers = new Set(
-        m.readBy
-          .map((receipt: any) => receipt && receipt.userId)
-          .filter((readerId: any): readerId is string => typeof readerId === 'string' && readerId.length > 0)
-      );
+      const recipientIds: string[] = (readConversation.members as any[]).reduce((ids: string[], member: any) => {
+        if (typeof member?.userId === 'string' && member.userId.length > 0 && member.userId !== m.senderId) ids.push(member.userId);
+        return ids;
+      }, []);
+      const readers = new Set<string>((m.readBy as any[]).reduce((ids: string[], receipt: any) => {
+        if (typeof receipt?.userId === 'string' && receipt.userId.length > 0) ids.push(receipt.userId);
+        return ids;
+      }, []));
       const hasRecipientRead = recipientIds.some((memberId: string) => readers.has(memberId));
       const allRecipientsRead = recipientIds.length > 0 &&
         recipientIds.every((memberId: string) => readers.has(memberId));
