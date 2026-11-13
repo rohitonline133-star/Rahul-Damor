@@ -238,8 +238,14 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
 
         const audioBlob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
         const duration = Math.max(1, Math.round((Date.now() - recordingStartedAtRef.current) / 1000));
-        if (audioBlob.size > 5 * 1024 * 1024 || duration > 300) {
-          window.alert('Voice notes are limited to 5 MB and 5 minutes. Please record a shorter message.');
+        const supportedAudioTypes = new Set(['audio/webm', 'audio/mp4', 'audio/mpeg', 'audio/ogg', 'audio/wav']);
+        const normalizedAudioType = audioBlob.type.split(';')[0].trim().toLowerCase();
+        if (!supportedAudioTypes.has(normalizedAudioType)) {
+          window.alert('This device created an unsupported voice-note format. Please try recording again with a supported browser.');
+          return;
+        }
+        if (audioBlob.size < 1 || audioBlob.size > 5 * 1024 * 1024 || duration > 300) {
+          window.alert('Voice notes must be between 1 byte and 5 MB and no longer than 5 minutes.');
           return;
         }
 
@@ -248,14 +254,17 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({ onBack, onOpenProfile, onOpe
           window.alert('The voice note could not be prepared. Please try recording again.');
         };
         reader.onloadend = async () => {
-          if (typeof reader.result !== 'string') return;
+          if (reader.error || typeof reader.result !== 'string') {
+            window.alert('The voice note could not be converted. Please try recording again.');
+            return;
+          }
           const sent = await sendMessage(
             '',
             'audio',
             {
               name: `Voice note (${duration}s)`,
               size: audioBlob.size,
-              mimeType: audioBlob.type || 'audio/webm',
+              mimeType: normalizedAudioType,
               url: reader.result,
               duration,
             },
