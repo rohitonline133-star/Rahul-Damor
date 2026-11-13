@@ -3406,8 +3406,10 @@ app.post('/api/conversations/:id/pin', (req, res) => {
 
 // Development Seed Conversations API (as requested in Section 8)
 app.post('/api/dev/seed-conversations', (req, res) => {
+  if (process.env.NODE_ENV === 'production') { res.status(404).json({ error: 'Not found' }); return; }
   const user = authenticate(req);
-  const targetUserId = (req.body && req.body.userId) || user?.id || 'user_jordan';
+  if (!user || user.role !== 'admin') { res.status(403).json({ error: 'Administrator access required.' }); return; }
+  const targetUserId = (req.body && req.body.userId) || user.id;
   const targetUser = db.users.find((u) => u.id === targetUserId);
   if (!targetUser) {
     res.status(404).json({ error: 'User not found' });
@@ -7958,9 +7960,9 @@ function runAutomatedTestSuite() {
     if (voiceCall) {
       testResults.push({
         id: 18,
-        name: 'Voice Call (WebRTC Signaling & ICE Candidates)',
-        status: 'PASS',
-        details: `Audio call session: ${voiceCall.callerName} -> ${voiceCall.receiverName} (${voiceCall.durationSeconds}s duration).`,
+        name: 'Voice Call (WebRTC media connection)',
+        status: 'NOT TESTED',
+        details: 'A call history record exists, but the app does not yet establish a verified RTCPeerConnection offer/answer/ICE media session.',
       });
     } else {
       testResults.push({ id: 18, name: 'Voice Call', status: 'FAIL', details: 'Voice call record missing' });
@@ -7975,9 +7977,9 @@ function runAutomatedTestSuite() {
     if (videoCall) {
       testResults.push({
         id: 19,
-        name: 'Video Call (Dual-Stream HD Camera Signaling)',
-        status: 'PASS',
-        details: `HD video session: ${videoCall.callerName} -> ${videoCall.receiverName} (${videoCall.durationSeconds}s duration).`,
+        name: 'Video Call (WebRTC media connection)',
+        status: 'NOT TESTED',
+        details: 'A call history record exists, but remote video/audio transport is not implemented or verified with RTCPeerConnection.',
       });
     } else {
       testResults.push({ id: 19, name: 'Video Call', status: 'FAIL', details: 'Video call record missing' });
@@ -8212,14 +8214,14 @@ function runAutomatedTestSuite() {
     failed: failCount,
     notConfigured: notConfiguredCount,
     notTested: notTestedCount,
-    overallStatus: failCount === 0 ? 'ALL_CORE_TESTS_PASS' : 'TESTS_FAILED',
+    overallStatus: failCount > 0 ? 'TESTS_FAILED' : notTestedCount > 0 ? 'PARTIAL_NOT_VERIFIED' : 'ALL_CORE_TESTS_PASS',
     summary: {
       total: testResults.length,
       passed: passCount,
       failed: failCount,
       notConfigured: notConfiguredCount,
       notTested: notTestedCount,
-      overallStatus: failCount === 0 ? 'ALL_CORE_TESTS_PASS' : 'TESTS_FAILED',
+      overallStatus: failCount > 0 ? 'TESTS_FAILED' : notTestedCount > 0 ? 'PARTIAL_NOT_VERIFIED' : 'ALL_CORE_TESTS_PASS',
     },
     tests: testResults,
   };
