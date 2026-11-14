@@ -2614,15 +2614,84 @@ app.post('/api/auth/delete-account', (req, res) => {
     }
   });
 
-  // Remove from database
-  db.users = db.users.filter((u) => u.id !== userId);
-  db.messages = db.messages.filter((m) => m.senderId !== userId);
-  db.statuses = db.statuses.filter((s) => s.userId !== userId);
-  (db.posts || []).forEach((p, idx) => {
-    if (p.authorId === userId) db.posts.splice(idx, 1);
+  // Remove or detach every user-owned relationship before deleting the account.
+  const removedDirectConversationIds = new Set<string>();
+  db.conversations = (db.conversations || []).filter((conversation: any) => {
+    const isMember = Array.isArray(conversation.members) &&
+      conversation.members.some((member: any) => member?.userId === userId);
+    if (!isMember) return true;
+    if (conversation.type !== 'group') {
+      removedDirectConversationIds.add(conversation.id);
+      return false;
+    }
+    conversation.members = conversation.members.filter((member: any) => member?.userId !== userId);
+    conversation.pinnedForUserIds = (conversation.pinnedForUserIds || []).filter((id: string) => id !== userId);
+    if (conversation.creatorId === userId) {
+      const successor = conversation.members.find((member: any) => member.role === 'admin') || conversation.members[0];
+      if (successor) {
+        successor.role = 'owner';
+        conversation.creatorId = successor.userId;
+      }
+    }
+    return conversation.members.length > 0;
   });
+  db.messages = (db.messages || []).filter((message: any) =>
+    message.senderId !== userId && !removedDirectConversationIds.has(message.conversationId)
+  );
+  db.statuses = (db.statuses || []).filter((status: any) => status.userId !== userId);
+  db.posts = (db.posts || []).filter((post: any) => post.authorId !== userId);
+  db.followers = (db.followers || []).filter((edge: any) =>
+    edge.followerId !== userId && edge.followingId !== userId
+  );
+  db.follow_requests = (db.follow_requests || []).filter((edge: any) =>
+    edge.fromUserId !== userId && edge.toUserId !== userId &&
+    edge.requesterId !== userId && edge.targetId !== userId
+  );
+  db.communities = (db.communities || []).filter((community: any) => {
+    community.memberIds = (community.memberIds || []).filter((id: string) => id !== userId);
+    community.adminIds = (community.adminIds || []).filter((id: string) => id !== userId);
+    community.groupIds = (community.groupIds || []).filter((id: string) =>
+      db.conversations.some((conversation: any) => conversation.id === id)
+    );
+    community.announcements = (community.announcements || []).filter((announcement: any) => announcement.authorId !== userId);
+    if (community.creatorId === userId) {
+      const successor = community.adminIds[0] || community.memberIds[0];
+      if (successor) {
+        community.creatorId = successor;
+        if (!community.adminIds.includes(successor)) community.adminIds.push(successor);
+      }
+    }
+    return community.memberIds.length > 0;
+  });
+  db.notifications = (db.notifications || []).filter((notification: any) => notification.userId !== userId);
+  db.reports = (db.reports || []).filter((report: any) => report.reporterId !== userId && report.userId !== userId);
+  db.blocked_users = (db.blocked_users || []).filter((entry: any) =>
+    entry.blockerId !== userId && entry.blockedId !== userId
+  );
+  db.muted_users = (db.muted_users || []).filter((entry: any) =>
+    entry.userId !== userId && entry.mutedUserId !== userId
+  );
+  db.location_shares = (db.location_shares || []).filter((share: any) => share.userId !== userId);
+  db.shop_cart = db.shop_cart || {};
+  delete db.shop_cart[userId];
+  db.shop_orders = (db.shop_orders || []).filter((order: any) => order.userId !== userId);
+  db.payment_methods = (db.payment_methods || []).filter((method: any) => method.userId !== userId);
+  db.transactions = (db.transactions || []).filter((transaction: any) => transaction.userId !== userId);
+  db.devices = (db.devices || []).filter((device: any) => device.userId !== userId);
+  db.custom_lists = (db.custom_lists || []).filter((list: any) => list.userId !== userId);
+  db.broadcast_lists = (db.broadcast_lists || []).filter((list: any) => list.userId !== userId);
+  db.security_notifications = (db.security_notifications || []).filter((entry: any) => entry.userId !== userId);
+  db.two_factor_auth = db.two_factor_auth || {};
+  delete db.two_factor_auth[userId];
+  db.oauth_accounts = (db.oauth_accounts || []).filter((account: any) => account.userId !== userId);
+  db.password_resets = (db.password_resets || []).filter((entry: any) => entry.userId !== userId);
+  db.sessions = (db.sessions || []).filter((session: any) => session.userId !== userId);
+  db.users = db.users.filter((candidate: any) => candidate.id !== userId);
 
-  saveDb(db);
+  if (!saveDb(db)) {
+    res.status(500).json({ error: 'Account deletion could not be saved. Please contact support before retrying.' });
+    return;
+  }
   logSecurityEvent(userId, 'ACCOUNT_DELETED', 'warning', `Account permanently deleted for user ${userId}.`, req);
   res.json({ success: true, message: 'Account permanently deleted from GB Official.' });
 });
@@ -2659,13 +2728,22 @@ app.post('/api/auth/oauth/google', async (req, res) => {
     }
 
     const payload = await verifyRes.json();
+    if (payload.aud !== googleClientId || payload.email_verified !== true) {
+      logSecurityEvent(null, 'OAUTH_GOOGLE_FAIL', 'failure', 'Google token audience or verified-email check failed', req);
+      res.status(401).json({ error: 'Google account verification failed. Use a verified account configured for this app.' });
+      return;
+    }
     const googleId = payload.sub || payload.id;
-    const email = payload.email?.toLowerCase();
+    const email = typeof payload.email === 'string' ? payload.email.toLowerCase() : '';
+    if (!googleId || !email) {
+      res.status(401).json({ error: 'Google did not return a verified account identity.' });
+      return;
+    }
     const name = payload.name || payload.given_name || 'Google User';
     const avatar = payload.picture;
 
-    // Find or create user
-    let user = db.users.find((u) => u.email.toLowerCase() === email);
+    // Find or create user only after validating the app audience and verified email.
+    let user = db.users.find((u) => typeof u.email === 'string' && u.email.toLowerCase() === email);
     if (!user) {
       const username = 'g_' + (email ? email.split('@')[0] : crypto.randomUUID().slice(0, 6));
       const salt = crypto.randomBytes(16).toString('hex');
