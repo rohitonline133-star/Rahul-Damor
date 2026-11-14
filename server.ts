@@ -8,6 +8,24 @@ import { createServer as createViteServer } from 'vite';
 const app = express();
 const PORT = 3000;
 
+// Production must never silently fall back to the local JSON file store.
+// A PostgreSQL adapter is not yet wired into the request handlers; fail closed
+// until the transactional database migration is completed.
+if (process.env.NODE_ENV === 'production') {
+  throw new Error(
+    'GB Official production startup is disabled: PostgreSQL persistence and transactional migrations must be implemented before deployment.'
+  );
+}
+
+app.disable('x-powered-by');
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Permissions-Policy', 'camera=(self), microphone=(self), geolocation=(self)');
+  next();
+});
+
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
