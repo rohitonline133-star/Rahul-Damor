@@ -5114,10 +5114,10 @@ app.post('/api/admin/reports/:id/action', (req, res) => {
     }
   }
   if (action === 'suspend_user') {
-    const targetUserId = report.targetType === 'user' ? report.targetId : report.userId;
-    const targetUser = db.users.find((candidate: any) => candidate.id === targetUserId);
+    const targetUserId = report.targetType === 'user' ? report.targetId : null;
+    const targetUser = targetUserId ? db.users.find((candidate: any) => candidate.id === targetUserId) : null;
     if (!targetUser || targetUser.id === user.id) {
-      res.status(400).json({ error: 'A valid, different target user is required for suspension.' });
+      res.status(400).json({ error: 'Only a report explicitly targeting a different user can suspend an account.' });
       return;
     }
     targetUser.isBanned = true;
