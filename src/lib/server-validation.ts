@@ -5,7 +5,7 @@ export function isSupportedOtpPurpose(value: unknown): value is OtpPurpose {
 }
 
 export function isValidOtpCode(value: unknown): value is string {
-  return typeof value === 'string' && /^\\d{6}$/.test(value.trim());
+  return typeof value === 'string' && /^[0-9]{6}$/.test(value.trim());
 }
 
 export function canAddGroupMembers(isAdmin: boolean, addMembersPermission: unknown): boolean {
