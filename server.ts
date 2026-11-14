@@ -1377,7 +1377,11 @@ function createSessionRecord(userId: string, req?: express.Request, deviceName?:
   if (!db.sessions) db.sessions = [];
   db.sessions.unshift(session);
   activeSessions.set(token, userId);
-  saveDb(db);
+  if (!saveDb(db)) {
+    db.sessions = db.sessions.filter((entry: any) => entry.id !== session.id);
+    activeSessions.delete(token);
+    throw new Error('Could not persist the authenticated session.');
+  }
 
   return { token, session };
 }
@@ -1843,10 +1847,9 @@ app.post('/api/auth/phone/verify-otp', (req, res) => {
   if (existingUser) {
     if (purpose === 'login' || purpose === 'authenticate') {
       // Authenticate directly
-      const { token, session } = createSessionRecord(existingUser.id, req);
       existingUser.online = true;
       existingUser.lastSeen = Date.now();
-      saveDb(db);
+      const { token, session } = createSessionRecord(existingUser.id, req);
       logSecurityEvent(existingUser.id, 'LOGIN_PHONE_SUCCESS', 'success', `Logged in via verified phone ${normalized}`, req);
 
       const { passwordHash: _, salt: __, ...safeUser } = existingUser;
@@ -2056,7 +2059,6 @@ app.post('/api/auth/phone/complete-registration', (req, res) => {
 
   // Create active session
   const { token, session } = createSessionRecord(newUser.id, req);
-  saveDb(db);
 
   logSecurityEvent(newUser.id, 'REGISTRATION_SUCCESS', 'success', `Account created for ${newUser.username} (${normalized})`, req);
 
@@ -2143,7 +2145,6 @@ app.post('/api/auth/login', (req, res) => {
   user.lastSeen = Date.now();
 
   const { token, session } = createSessionRecord(user.id, req);
-  saveDb(db);
 
   logSecurityEvent(user.id, 'LOGIN_SUCCESS', 'success', `Logged in via password (${user.username})`, req);
 
@@ -2829,7 +2830,6 @@ app.post('/api/auth/oauth/google', async (req, res) => {
     }
 
     const { token, session } = createSessionRecord(user.id, req, 'Google OAuth Session');
-    saveDb(db);
     logSecurityEvent(user.id, 'OAUTH_GOOGLE_SUCCESS', 'success', `Authenticated via Google (${email})`, req);
 
     const { passwordHash: _, salt: __, ...safeUser } = user;
@@ -2942,12 +2942,6 @@ app.post('/api/auth/oauth/facebook', async (req, res) => {
     }
 
     const { token, session } = createSessionRecord(user.id, req, 'Facebook OAuth Session');
-    if (!saveDb(db)) {
-      db.sessions = (db.sessions || []).filter((entry: any) => entry.token !== token);
-      activeSessions.delete(token);
-      res.status(500).json({ error: 'Could not persist Facebook sign-in. Please try again.' });
-      return;
-    }
     logSecurityEvent(user.id, 'OAUTH_FACEBOOK_SUCCESS', 'success', `Authenticated via Facebook (${name})`, req);
 
     const { passwordHash: _, salt: __, ...safeUser } = user;
@@ -3050,12 +3044,6 @@ app.post('/api/auth/oauth/instagram', async (req, res) => {
       });
     }
     const { token, session } = createSessionRecord(user.id, req, 'Instagram OAuth Session');
-    if (!saveDb(db)) {
-      db.sessions = (db.sessions || []).filter((entry: any) => entry.token !== token);
-      activeSessions.delete(token);
-      res.status(500).json({ error: 'Could not persist Instagram sign-in. Please try again.' });
-      return;
-    }
     logSecurityEvent(user.id, 'OAUTH_INSTAGRAM_SUCCESS', 'success', `Authenticated via Instagram (@${username})`, req);
     const { passwordHash: _, salt: __, ...safeUser } = user;
     res.json({ token, user: safeUser, session });
