@@ -4854,7 +4854,11 @@ app.post('/api/calls/initiate', (req, res) => {
   };
 
   db.calls.unshift(callRecord);
-  saveDb(db);
+  if (!saveDb(db)) {
+    db.calls.shift();
+    res.status(500).json({ error: 'Could not save the call request. Please try again.' });
+    return;
+  }
 
   broadcastToUsers([receiver.id], 'incoming_call', callRecord);
   res.json({ call: callRecord });
@@ -4906,13 +4910,26 @@ app.post('/api/calls/:id/respond', (req, res) => {
     return;
   }
 
+  const previousCallState = {
+    status: call.status,
+    endedAt: call.endedAt,
+    durationSeconds: call.durationSeconds,
+  };
   call.status = status;
   if (status === 'completed' || status === 'declined' || status === 'missed') {
     call.endedAt = Date.now();
     call.durationSeconds = durationSeconds ?? Math.max(0, Math.round((call.endedAt - call.startedAt) / 1000));
   }
 
-  saveDb(db);
+  if (!saveDb(db)) {
+    call.status = previousCallState.status;
+    if (previousCallState.endedAt === undefined) delete call.endedAt;
+    else call.endedAt = previousCallState.endedAt;
+    if (previousCallState.durationSeconds === undefined) delete call.durationSeconds;
+    else call.durationSeconds = previousCallState.durationSeconds;
+    res.status(500).json({ error: 'Could not save the call status. Please try again.' });
+    return;
+  }
 
   const targets = [call.callerId, call.receiverId];
   broadcastToUsers(targets, 'call_status_updated', call);
