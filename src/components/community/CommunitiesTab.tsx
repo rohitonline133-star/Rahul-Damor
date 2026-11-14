@@ -69,18 +69,26 @@ export const CommunitiesTab: React.FC<CommunitiesTabProps> = ({
 
   const handleJoinCommunity = async () => {
     if (!activeComm) return;
-    await joinCommunity(activeComm.id);
+    const joined = await joinCommunity(activeComm.id);
+    if (!joined) {
+      setGroupsError('Could not join this community. Please try again.');
+      return;
+    }
     await refreshCommunities();
     await loadCommunityGroups(activeComm.id);
   };
 
   const handlePostAnnouncement = async () => {
     if (!activeComm || !announceContent.trim()) return;
-    await postAnnouncement(
+    const posted = await postAnnouncement(
       activeComm.id,
       announceTitle.trim() || 'Announcement',
       announceContent.trim()
     );
+    if (!posted) {
+      setGroupsError('Announcement could not be published. Check your permissions and try again.');
+      return;
+    }
     setAnnounceTitle('');
     setAnnounceContent('');
     setShowAnnounceModal(false);
