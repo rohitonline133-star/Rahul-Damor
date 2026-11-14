@@ -116,6 +116,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [phoneMsg, setPhoneMsg] = useState<string | null>(null);
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [accountActionError, setAccountActionError] = useState<string | null>(null);
 
   // Privacy State
   const [lastSeen, setLastSeen] = useState<'everyone' | 'contacts' | 'nobody'>('everyone');
@@ -218,23 +219,44 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const handleExportData = async () => {
     if (!token) return;
     setIsExporting(true);
+    setAccountActionError(null);
     try {
-      const res = await fetch('/api/account/export-data', {
+      const res = await fetch('/api/account/export', {
+        method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) {
-        const blob = await res.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `GB_Official_Export_${currentUser?.username || 'user'}.json`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      }
-    } catch {}
-    setIsExporting(false);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.archive) throw new Error(data.error || 'Could not export account data.');
+      const blob = new Blob([JSON.stringify(data.archive, null, 2)], { type: 'application/json' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `GB_Official_Export_${currentUser?.username || 'user'}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      setAccountActionError(error instanceof Error ? error.message : 'Could not export account data.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!token || !window.confirm('Permanently delete your GB Official account and associated data? This cannot be undone.')) return;
+    setAccountActionError(null);
+    try {
+      const response = await fetch('/api/auth/delete-account', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.success) throw new Error(data.error || 'Account deletion failed.');
+      onLogout();
+    } catch (error) {
+      setAccountActionError(error instanceof Error ? error.message : 'Account deletion failed.');
+    }
   };
 
   const handleRunBackup = () => {
@@ -474,12 +496,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   Deleting your account will delete your message history, delete you from all GB groups, and erase device backups.
                 </p>
+                {accountActionError && <p role="alert" className="text-xs text-red-600 dark:text-red-400">{accountActionError}</p>}
                 <button
-                  onClick={() => {
-                    if (window.confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
-                      onLogout();
-                    }
-                  }}
+                  onClick={handleDeleteAccount}
                   className="px-4 py-1.5 rounded-xl bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition"
                 >
                   Delete Account
