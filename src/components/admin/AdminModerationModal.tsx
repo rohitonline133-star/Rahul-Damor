@@ -22,12 +22,13 @@ export const AdminModerationModal: React.FC<AdminModerationModalProps> = ({ onCl
   const [activeTab, setActiveTab] = useState<'users' | 'reports'>('users');
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const fetchReports = async () => {
     if (!token) return;
     setLoading(true);
     try {
-      const res = await fetch('/api/reports', {
+      const res = await fetch('/api/admin/reports', {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -47,53 +48,53 @@ export const AdminModerationModal: React.FC<AdminModerationModalProps> = ({ onCl
 
   const handleToggleBan = async (userId: string, currentBanned: boolean) => {
     if (!token) return;
+    setActionError(null);
     try {
-      await fetch(`/api/users/${userId}/admin`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ isBanned: !currentBanned }),
+      const response = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: currentBanned ? 'unban' : 'ban' }),
       });
-      refreshUsers();
-    } catch {
-      // ignore
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Could not update user ban status.');
+      await refreshUsers();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Could not update user ban status.');
     }
   };
 
   const handleToggleVerify = async (userId: string, currentVerified: boolean) => {
     if (!token) return;
+    setActionError(null);
     try {
-      await fetch(`/api/users/${userId}/admin`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ isVerified: !currentVerified }),
+      const response = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: currentVerified ? 'unverify' : 'verify' }),
       });
-      refreshUsers();
-    } catch {
-      // ignore
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Could not update verification status.');
+      await refreshUsers();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Could not update verification status.');
     }
   };
 
   const handleResolveReport = async (reportId: string, action: string) => {
     if (!token) return;
+    setActionError(null);
     try {
-      await fetch(`/api/reports/${reportId}/resolve`, {
+      const response = await fetch(`/api/admin/reports/${encodeURIComponent(reportId)}/action`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ action }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: action === 'ban_user' ? 'suspend_user' : action }),
       });
-      fetchReports();
-      refreshUsers();
-    } catch {
-      // ignore
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Could not process this report.');
+      await fetchReports();
+      await refreshUsers();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Could not process this report.');
     }
   };
 
@@ -148,6 +149,7 @@ export const AdminModerationModal: React.FC<AdminModerationModalProps> = ({ onCl
 
         {/* Body */}
         <div className="p-5 flex-1 overflow-y-auto space-y-3">
+          {actionError && <div role="alert" className="rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 px-3 py-2 text-xs text-red-700 dark:text-red-300">{actionError}</div>}
           {activeTab === 'users' && (
             <div className="space-y-2">
               {allUsers.map((user) => (
