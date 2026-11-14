@@ -6242,7 +6242,7 @@ app.get('/api/subscriptions', (req, res) => {
   res.json({ subscription: currentSub, availablePlans });
 });
 
-app.post('/api/subscriptions/upgrade', (req, res) => {
+app.post('/api/subscriptions/upgrade', async (req, res) => {
   const user = authenticate(req);
   if (!user) {
     res.status(401).json({ error: 'Unauthorized' });
