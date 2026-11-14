@@ -47,6 +47,13 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [checkoutSuccess, setCheckoutSuccess] = useState<any | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [shippingAddress, setShippingAddress] = useState({
+    fullName: currentUser?.displayName || '',
+    address: '',
+    city: '',
+    postalCode: '',
+    country: 'India',
+  });
 
   // Load products
   const loadProducts = async () => {
@@ -74,7 +81,14 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
       });
       if (res.ok) {
         const data = await res.json();
-        setCart(data.cart || { items: [], total: 0 });
+        const items = Array.isArray(data.items) ? data.items.map((item: any) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          title: item.product?.name || item.product?.title || 'Product',
+          price: Number(item.product?.price || 0),
+          image: item.product?.image || '',
+        })) : [];
+        setCart({ items, total: Number(data.subtotal || 0) });
       }
     } catch {
       // ignore
@@ -111,7 +125,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
       });
       if (res.ok) {
         const data = await res.json();
-        setSubscriptions(data.subscriptions || []);
+        setSubscriptions(data.subscription && data.subscription.plan !== 'free' ? [data.subscription] : []);
       }
     } catch {
       // ignore
@@ -144,8 +158,10 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
         }),
       });
       if (res.ok) {
-        const data = await res.json();
-        setCart(data.cart);
+        await loadCart();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setCheckoutError(data.error || 'Could not update your cart.');
       }
     } catch {
       // ignore
@@ -155,25 +171,23 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
   // Update item quantity
   const handleUpdateQuantity = async (productId: string, quantity: number) => {
     if (!token) return;
+    if (quantity < 1) {
+      await handleRemoveFromCart(productId);
+      return;
+    }
     try {
       const res = await fetch('/api/shop/cart', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          action: 'update',
-          productId,
-          quantity,
-        }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ productId, quantity }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        setCart(data.cart);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Could not update quantity.');
       }
-    } catch {
-      // ignore
+      await loadCart();
+    } catch (error) {
+      setCheckoutError(error instanceof Error ? error.message : 'Could not update quantity.');
     }
   };
 
@@ -181,23 +195,17 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
   const handleRemoveFromCart = async (productId: string) => {
     if (!token) return;
     try {
-      const res = await fetch('/api/shop/cart', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          action: 'remove',
-          productId,
-        }),
+      const res = await fetch(`/api/shop/cart/${encodeURIComponent(productId)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) {
-        const data = await res.json();
-        setCart(data.cart);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Could not remove item.');
       }
-    } catch {
-      // ignore
+      await loadCart();
+    } catch (error) {
+      setCheckoutError(error instanceof Error ? error.message : 'Could not remove item.');
     }
   };
 
@@ -216,17 +224,17 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          items: cart.items,
-          totalAmount: cart.total,
+          items: cart.items.map((item) => ({ productId: item.productId, quantity: item.quantity })),
+          shippingAddress,
           paymentMethod,
         }),
       });
 
       const data = await res.json();
-      if (res.ok && data.success) {
+      if (res.ok && data.order) {
         setCheckoutSuccess(data.order);
-        setCart({ items: [], total: 0 });
-        loadOrders();
+        await loadOrders();
+        setCheckoutError(data.gatewayNotice || 'Order created. Payment is still pending; no payment has been collected.');
       } else {
         setCheckoutError(data.error || 'Checkout could not be processed');
       }
@@ -380,10 +388,10 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
                   <CheckCircle2 className="w-7 h-7" />
                 </div>
                 <h4 className="font-bold text-base text-emerald-900 dark:text-emerald-100">
-                  Order Successfully Placed!
+                  Order Created — Payment Pending
                 </h4>
                 <p className="text-xs text-emerald-700 dark:text-emerald-300 max-w-sm mx-auto">
-                  Order ID #{checkoutSuccess.id}. Your digital items and permissions have been instantly unlocked on your GB Official account.
+                  Order ID #{checkoutSuccess.id}. This order is awaiting verified payment. No payment has been collected and paid features have not been unlocked.
                 </p>
                 <div className="pt-2 flex justify-center gap-2">
                   <button
@@ -485,45 +493,32 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
                   </span>
                 </div>
 
-                {/* Payment Provider & Method Configuration State */}
-                <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#111b21] space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <CreditCard className="w-4 h-4 text-emerald-500" />
-                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                        Payment Method
-                      </span>
-                    </div>
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold flex items-center gap-1">
-                      <ShieldCheck className="w-3 h-3" /> Sandbox Mode Active
-                    </span>
-                  </div>
+                {/* Shipping details required by the order API */}
+                <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#111b21] space-y-2">
+                  <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">Shipping details</h4>
+                  {([
+                    ['fullName', 'Full name'],
+                    ['address', 'Address'],
+                    ['city', 'City'],
+                    ['postalCode', 'Postal code'],
+                    ['country', 'Country'],
+                  ] as const).map(([field, label]) => (
+                    <label key={field} className="block text-[11px] text-slate-500">
+                      {label}
+                      <input
+                        value={shippingAddress[field]}
+                        onChange={(event) => setShippingAddress((current) => ({ ...current, [field]: event.target.value }))}
+                        maxLength={200}
+                        required
+                        autoComplete={field === 'fullName' ? 'name' : field === 'address' ? 'street-address' : field === 'city' ? 'address-level2' : field === 'postalCode' ? 'postal-code' : 'country-name'}
+                        className="mt-1 w-full rounded-xl px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs"
+                      />
+                    </label>
+                  ))}
+                </div>
 
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { id: 'card', label: 'Credit Card', icon: '💳' },
-                      { id: 'upi', label: 'UPI / Wallet', icon: '📱' },
-                      { id: 'wallet', label: 'GB Balance', icon: '⚡' },
-                    ].map((m) => (
-                      <button
-                        key={m.id}
-                        type="button"
-                        onClick={() => setPaymentMethod(m.id as any)}
-                        className={`p-2.5 rounded-xl text-xs font-semibold border flex flex-col items-center gap-1 transition ${
-                          paymentMethod === m.id
-                            ? 'border-[#00a884] bg-emerald-50/50 dark:bg-emerald-950/30 text-[#00a884] dark:text-[#25d366]'
-                            : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
-                        }`}
-                      >
-                        <span className="text-sm">{m.icon}</span>
-                        <span>{m.label}</span>
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
-                    External payment provider notice: If Stripe/Razorpay keys are not supplied in .env, payments process securely in instant sandbox test mode with verified server receipts.
-                  </div>
+                <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 text-xs text-amber-800 dark:text-amber-300">
+                  Live card, UPI and wallet payments are not configured. You can create an order in pending-payment status; this will not charge you or unlock paid services.
                 </div>
 
                 {checkoutError && (
@@ -536,11 +531,11 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
                 {/* Submit Checkout Button */}
                 <button
                   onClick={handleCheckout}
-                  disabled={isCheckingOut}
+                  disabled={isCheckingOut || !shippingAddress.fullName.trim() || !shippingAddress.address.trim() || !shippingAddress.city.trim() || !shippingAddress.postalCode.trim() || !shippingAddress.country.trim()}
                   className="w-full py-3 rounded-2xl bg-[#00a884] hover:bg-[#008f6f] text-white text-xs font-bold shadow-lg shadow-emerald-500/20 transition flex items-center justify-center gap-2"
                 >
                   <Zap className="w-4 h-4" />
-                  {isCheckingOut ? 'Processing Payment...' : `Pay $${cart.total.toFixed(2)} & Complete Order`}
+                  {isCheckingOut ? 'Creating Order...' : `Create Pending Order — ${cart.total.toFixed(2)}`}
                 </button>
               </div>
             )}
@@ -615,23 +610,9 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
                 <span className="text-2xl font-black font-mono">$4.99</span>
                 <span className="text-xs text-emerald-200">/ month</span>
               </div>
-              <button
-                onClick={async () => {
-                  if (!token) return;
-                  await fetch('/api/subscriptions', {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      Authorization: `Bearer ${token}`,
-                    },
-                    body: JSON.stringify({ tier: 'vip_monthly', plan: 'Monthly VIP' }),
-                  });
-                  loadSubscriptions();
-                }}
-                className="w-full py-2.5 rounded-xl bg-white text-emerald-900 font-bold text-xs shadow hover:bg-emerald-50 transition"
-              >
-                Activate VIP Pass
-              </button>
+              <div className="w-full py-2.5 rounded-xl bg-white/15 border border-white/20 text-white/90 text-xs text-center font-semibold">
+                Paid plans will become available after a verified payment provider is configured. No free activation or simulated charge is available.
+              </div>
             </div>
 
             {/* Active Subscriptions */}
