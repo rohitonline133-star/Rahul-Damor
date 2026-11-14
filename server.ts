@@ -1550,7 +1550,11 @@ function isValidE164(phone: string): boolean {
 
 // 2. Request Real Phone OTP
 app.post('/api/auth/phone/send-otp', async (req, res) => {
-  const { phone, purpose = 'register' } = req.body;
+  const { phone, purpose = 'register' } = req.body || {};
+  if (!['register', 'login', 'authenticate'].includes(purpose)) {
+    res.status(400).json({ error: 'Unsupported OTP purpose.' });
+    return;
+  }
   if (!phone || typeof phone !== 'string') {
     res.status(400).json({ error: 'Valid international phone number is required.' });
     return;
@@ -1627,6 +1631,9 @@ app.post('/api/auth/phone/send-otp', async (req, res) => {
   const expiresAt = now + 10 * 60 * 1000; // OTP valid for exactly 10 minutes
   const cooldownUntil = now + 45 * 1000;  // 45s resend cooldown
 
+  // Preserve existing OTP state so a failed database write or SMS dispatch cannot
+  // leave an unusable code active or invalidate a previously delivered code.
+  const previousPhoneVerifications = db.phone_verifications.map((record: any) => ({ ...record }));
   // Invalidate any previous unverified OTPs for this phone number
   db.phone_verifications.forEach((pv) => {
     if (pv.phone === normalized && !pv.verified) {
@@ -1656,7 +1663,11 @@ app.post('/api/auth/phone/send-otp', async (req, res) => {
   };
 
   db.phone_verifications.push(verificationRecord);
-  saveDb(db);
+  if (!saveDb(db)) {
+    db.phone_verifications = previousPhoneVerifications;
+    res.status(500).json({ success: false, error: 'Could not securely save the verification request. Please try again.' });
+    return;
+  }
   recordFailedAttempt(`otp_phone_${normalized}`);
 
   // Dispatch real SMS via Twilio Messages API
@@ -1684,6 +1695,9 @@ app.post('/api/auth/phone/send-otp', async (req, res) => {
 
     if (!twilioRes.ok) {
       const errData = await twilioRes.json().catch(() => ({}));
+      verificationRecord.expiresAt = Date.now() - 1000;
+      verificationRecord.used = true;
+      saveDb(db);
       logSecurityEvent(null, 'TWILIO_DISPATCH_FAILED', 'failure', `Twilio dispatch rejected: ${errData.message || twilioRes.statusText}`, req);
       res.status(502).json({
         success: false,
@@ -1694,6 +1708,9 @@ app.post('/api/auth/phone/send-otp', async (req, res) => {
 
     logSecurityEvent(null, 'SMS_DISPATCHED_CARRIER', 'success', `SMS dispatched via Twilio to ${normalized}`, req);
   } catch (err: any) {
+    verificationRecord.expiresAt = Date.now() - 1000;
+    verificationRecord.used = true;
+    saveDb(db);
     logSecurityEvent(null, 'TWILIO_NETWORK_ERROR', 'failure', `Twilio network failure: ${err.message}`, req);
     res.status(502).json({
       success: false,
@@ -1715,7 +1732,11 @@ app.post('/api/auth/phone/send-otp', async (req, res) => {
 
 // 3. Verify Phone OTP Server-Side
 app.post('/api/auth/phone/verify-otp', (req, res) => {
-  const { phone, code, purpose = 'register' } = req.body;
+  const { phone, code, purpose = 'register' } = req.body || {};
+  if (!['register', 'login', 'authenticate'].includes(purpose)) {
+    res.status(400).json({ error: 'Unsupported OTP purpose.' });
+    return;
+  }
   if (!phone || !code) {
     res.status(400).json({ error: 'Phone number and 6-digit verification code are required.' });
     return;
@@ -1734,7 +1755,7 @@ app.post('/api/auth/phone/verify-otp', (req, res) => {
 
   // Find latest record for this phone
   const record = db.phone_verifications
-    .filter((pv) => pv.phone === normalized)
+    .filter((pv) => pv.phone === normalized && pv.purpose === purpose)
     .sort((a, b) => b.createdAt - a.createdAt)[0];
 
   if (!record) {
@@ -1803,7 +1824,13 @@ app.post('/api/auth/phone/verify-otp', (req, res) => {
   record.used = true;
   const verificationToken = 'gb_pvtok_' + crypto.randomBytes(24).toString('hex');
   record.verificationToken = verificationToken;
-  saveDb(db);
+  if (!saveDb(db)) {
+    record.verified = false;
+    record.used = false;
+    delete record.verificationToken;
+    res.status(500).json({ error: 'Could not save phone verification. Please try again.' });
+    return;
+  }
 
   logSecurityEvent(null, 'OTP_VERIFIED', 'success', `Phone ${normalized} verified successfully.`, req);
 
@@ -1843,6 +1870,12 @@ app.post('/api/auth/phone/verify-otp', (req, res) => {
       });
       return;
     }
+  }
+
+  // A login OTP must never be accepted as a registration flow for an unknown number.
+  if (purpose === 'login' || purpose === 'authenticate') {
+    res.status(404).json({ success: false, verified: false, error: 'No account exists for this phone number. Register first.' });
+    return;
   }
 
   // New user -> proceed to Profile Setup
