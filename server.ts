@@ -175,6 +175,8 @@ interface DbSchema {
   password_resets: any[];
 }
 
+let db: DbSchema;
+
 function createEmptyDb(): DbSchema {
   return {
     users: [],
