@@ -6189,6 +6189,9 @@ app.get('/api/subscriptions', (req, res) => {
     ],
   };
 
+  const configuredProAmount = Number(process.env.RAZORPAY_PRO_AMOUNT_PAISE);
+  const configuredBusinessAmount = Number(process.env.RAZORPAY_BUSINESS_AMOUNT_PAISE);
+  const subscriptionCurrency = getRazorpayConfig()?.currency || (process.env.RAZORPAY_CURRENCY || 'INR').toUpperCase();
   const availablePlans = [
     {
       id: 'free',
@@ -6205,8 +6208,8 @@ app.get('/api/subscriptions', (req, res) => {
     {
       id: 'pro',
       name: 'GB Pro',
-      price: 4.99,
-      currency: 'USD',
+      price: Number.isSafeInteger(configuredProAmount) && configuredProAmount >= 100 ? configuredProAmount / 100 : null,
+      currency: subscriptionCurrency,
       billing: 'per month',
       badge: 'Popular',
       features: [
@@ -6221,8 +6224,8 @@ app.get('/api/subscriptions', (req, res) => {
     {
       id: 'business',
       name: 'GB Business',
-      price: 14.99,
-      currency: 'USD',
+      price: Number.isSafeInteger(configuredBusinessAmount) && configuredBusinessAmount >= 100 ? configuredBusinessAmount / 100 : null,
+      currency: subscriptionCurrency,
       billing: 'per month',
       badge: 'Enterprise',
       features: [
@@ -6252,11 +6255,58 @@ app.post('/api/subscriptions/upgrade', (req, res) => {
     return;
   }
   if (plan !== 'free') {
-    res.status(503).json({
-      error: 'Paid subscriptions are unavailable until a verified payment provider is configured.',
-      code: 'PAYMENT_PROVIDER_NOT_CONFIGURED',
-    });
-    return;
+    const config = getRazorpayConfig();
+    const configuredAmount = plan === 'pro'
+      ? Number(process.env.RAZORPAY_PRO_AMOUNT_PAISE)
+      : Number(process.env.RAZORPAY_BUSINESS_AMOUNT_PAISE);
+    if (!config || !Number.isSafeInteger(configuredAmount) || configuredAmount < 100) {
+      res.status(503).json({
+        error: 'Razorpay keys and a valid INR subscription price must be configured by the app operator before paid plans can be purchased.',
+        code: 'RAZORPAY_SUBSCRIPTION_NOT_CONFIGURED',
+      });
+      return;
+    }
+    const receipt = 'sub_' + crypto.randomUUID().replace(/-/g, '');
+    try {
+      const gatewayOrder = await createRazorpayOrder(configuredAmount, config.currency, receipt, config);
+      const transaction = {
+        id: 'tx_' + crypto.randomUUID().replace(/-/g, ''),
+        userId: user.id,
+        type: 'subscription_purchase',
+        plan,
+        gateway: 'razorpay',
+        gatewayOrderId: gatewayOrder.id,
+        amount: configuredAmount / 100,
+        amountMinor: configuredAmount,
+        currency: gatewayOrder.currency,
+        status: 'pending',
+        description: 'GB Official ' + (plan === 'pro' ? 'Pro' : 'Business') + ' subscription',
+        createdAt: Date.now(),
+      };
+      db.transactions = db.transactions || [];
+      db.transactions.unshift(transaction);
+      if (!saveDb(db)) {
+        db.transactions = db.transactions.filter((item: any) => item.id !== transaction.id);
+        res.status(500).json({ error: 'Could not save the subscription payment record.' });
+        return;
+      }
+      res.status(201).json({
+        transactionId: transaction.id,
+        razorpay: {
+          keyId: config.keyId,
+          orderId: gatewayOrder.id,
+          amount: gatewayOrder.amount,
+          currency: gatewayOrder.currency,
+          name: 'GB Official',
+          description: 'GB Official ' + (plan === 'pro' ? 'Pro' : 'Business') + ' subscription',
+        },
+      });
+      return;
+    } catch (error) {
+      console.error('Razorpay subscription order creation failed:', error instanceof Error ? error.message : 'unknown error');
+      res.status(502).json({ error: 'Razorpay could not start subscription checkout. No payment was collected.' });
+      return;
+    }
   }
 
   const price = 0;
