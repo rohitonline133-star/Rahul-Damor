@@ -18,6 +18,12 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
+declare global {
+  interface Window {
+    Razorpay?: new (options: any) => { open: () => void };
+  }
+}
+
 interface ShopModalProps {
   onClose: () => void;
 }
@@ -209,7 +215,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
     }
   };
 
-  // Checkout
+  // Checkout uses Razorpay Checkout; paid status is granted only by the server verifier.
   const handleCheckout = async () => {
     if (!token || cart.items.length === 0) return;
     setIsCheckingOut(true);
@@ -229,15 +235,65 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
           paymentMethod,
         }),
       });
-
-      const data = await res.json();
-      if (res.ok && data.order) {
-        setCheckoutSuccess(data.order);
-        await loadOrders();
-        setCheckoutError(data.gatewayNotice || 'Order created. Payment is still pending; no payment has been collected.');
-      } else {
-        setCheckoutError(data.error || 'Checkout could not be processed');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.order || !data.razorpay) {
+        setCheckoutError(data.error || 'Secure checkout could not be started.');
+        return;
       }
+
+      if (!window.Razorpay) {
+        const loaded = await new Promise<boolean>((resolve) => {
+          const script = document.createElement('script');
+          script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+          script.async = true;
+          script.onload = () => resolve(!!window.Razorpay);
+          script.onerror = () => resolve(false);
+          document.body.appendChild(script);
+        });
+        if (!loaded) {
+          setCheckoutError('Razorpay Checkout could not load. Your order is still unpaid; please retry.');
+          return;
+        }
+      }
+
+      const checkout = new window.Razorpay!({
+        key: data.razorpay.keyId,
+        amount: data.razorpay.amount,
+        currency: data.razorpay.currency,
+        name: data.razorpay.name,
+        description: data.razorpay.description,
+        order_id: data.razorpay.orderId,
+        theme: { color: '#00a884' },
+        prefill: { name: currentUser?.displayName || '' },
+        handler: async (paymentResponse: any) => {
+          try {
+            const verifyResponse = await fetch('/api/payments/razorpay/verify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+              body: JSON.stringify(paymentResponse),
+            });
+            const verifyData = await verifyResponse.json().catch(() => ({}));
+            if (!verifyResponse.ok || !verifyData.success) {
+              setCheckoutError(verifyData.error || 'Payment verification is pending. Do not retry payment yet.');
+              await loadOrders();
+              return;
+            }
+            setCheckoutSuccess({ ...data.order, status: 'confirmed', paymentStatus: 'paid' });
+            setCheckoutError(null);
+            await Promise.all([loadOrders(), loadCart()]);
+          } catch {
+            setCheckoutError('Payment was submitted but verification could not finish. Your order remains locked until server verification succeeds.');
+            await loadOrders();
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            setCheckoutError('Checkout closed. Your order remains unpaid; you can retry from the cart.');
+            void loadOrders();
+          },
+        },
+      });
+      checkout.open();
     } catch (err: any) {
       setCheckoutError(err.message || 'Checkout failed');
     } finally {
@@ -345,7 +401,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
                           {p.category === 'badges' ? '✓' : p.category === 'themes' ? '🎨' : '📦'}
                         </div>
                         <span className="font-mono font-bold text-sm text-[#00a884] dark:text-[#25d366]">
-                          ${p.price.toFixed(2)}
+                          ₹${p.price.toFixed(2)}
                         </span>
                       </div>
                       <h4 className="font-bold text-xs text-slate-900 dark:text-white group-hover:text-emerald-600 transition">
@@ -388,10 +444,10 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
                   <CheckCircle2 className="w-7 h-7" />
                 </div>
                 <h4 className="font-bold text-base text-emerald-900 dark:text-emerald-100">
-                  Order Created — Payment Pending
+                  {checkoutSuccess.paymentStatus === 'paid' ? 'Payment Successful' : 'Order Created — Payment Pending'}
                 </h4>
                 <p className="text-xs text-emerald-700 dark:text-emerald-300 max-w-sm mx-auto">
-                  Order ID #{checkoutSuccess.id}. This order is awaiting verified payment. No payment has been collected and paid features have not been unlocked.
+                  Order ID #{checkoutSuccess.id}. {checkoutSuccess.paymentStatus === 'paid' ? 'Razorpay payment was verified. Your order is confirmed.' : 'This order is awaiting verified payment. Paid features remain locked.'}
                 </p>
                 <div className="pt-2 flex justify-center gap-2">
                   <button
@@ -441,7 +497,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
                           {item.title}
                         </h5>
                         <div className="text-[11px] text-slate-500">
-                          ${item.price.toFixed(2)} each
+                          ₹${item.price.toFixed(2)} each
                         </div>
                       </div>
 
@@ -469,7 +525,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
                         </div>
 
                         <span className="w-16 text-right font-mono font-bold text-xs text-slate-900 dark:text-white">
-                          ${((item.price || 0) * (item.quantity || 1)).toFixed(2)}
+                          ₹${((item.price || 0) * (item.quantity || 1)).toFixed(2)}
                         </span>
 
                         <button
@@ -489,7 +545,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
                     Grand Total
                   </span>
                   <span className="font-mono text-base font-bold text-[#00a884] dark:text-[#25d366]">
-                    ${cart.total.toFixed(2)}
+                    ₹${cart.total.toFixed(2)}
                   </span>
                 </div>
 
@@ -518,7 +574,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
                 </div>
 
                 <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 text-xs text-amber-800 dark:text-amber-300">
-                  Live card, UPI and wallet payments are not configured. You can create an order in pending-payment status; this will not charge you or unlock paid services.
+                  Secure checkout is provided by Razorpay. Your order and paid features are confirmed only after the server verifies successful payment.
                 </div>
 
                 {checkoutError && (
@@ -535,7 +591,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
                   className="w-full py-3 rounded-2xl bg-[#00a884] hover:bg-[#008f6f] text-white text-xs font-bold shadow-lg shadow-emerald-500/20 transition flex items-center justify-center gap-2"
                 >
                   <Zap className="w-4 h-4" />
-                  {isCheckingOut ? 'Creating Order...' : `Create Pending Order — ${cart.total.toFixed(2)}`}
+                  {isCheckingOut ? 'Opening Secure Checkout...' : `Pay Securely — ₹${cart.total.toFixed(2)}`}
                 </button>
               </div>
             )}
@@ -581,7 +637,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
                   <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800/80 flex items-center justify-between text-xs font-bold">
                     <span className="text-slate-500">Paid via {order.paymentMethod || 'Card'}</span>
                     <span className="font-mono text-[#00a884] dark:text-[#25d366]">
-                      ${(order.totalAmount || 0).toFixed(2)}
+                      ₹${(order.total || order.totalAmount || 0).toFixed(2)}
                     </span>
                   </div>
                 </div>
