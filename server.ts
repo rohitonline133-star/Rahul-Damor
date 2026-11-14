@@ -4520,6 +4520,60 @@ app.get('/api/communities', (req, res) => {
   res.json({ communities });
 });
 
+app.get('/api/communities/:id/groups', (req, res) => {
+  const user = authenticate(req);
+  if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+  const community = (db.communities || []).find((item: any) => item?.id === req.params.id);
+  if (!community) { res.status(404).json({ error: 'Community not found.' }); return; }
+  const groups = (db.conversations || [])
+    .filter((conversation: any) =>
+      conversation?.type === 'group' &&
+      conversation.communityId === community.id &&
+      (community.groupIds || []).includes(conversation.id)
+    )
+    .map((conversation: any) => ({
+      id: conversation.id,
+      name: conversation.name || 'Community group',
+      icon: conversation.icon || '',
+      description: conversation.description || '',
+      memberCount: Array.isArray(conversation.members) ? conversation.members.length : 0,
+      isMember: getGroupMembership(conversation, user.id) !== null,
+    }));
+  res.json({ groups });
+});
+
+app.post('/api/communities/:id/groups/:groupId/join', (req, res) => {
+  const user = authenticate(req);
+  if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+  const community = (db.communities || []).find((item: any) => item?.id === req.params.id);
+  if (!community) { res.status(404).json({ error: 'Community not found.' }); return; }
+  if (!(community.memberIds || []).includes(user.id)) {
+    res.status(403).json({ error: 'Join the community before joining one of its groups.' });
+    return;
+  }
+  const group = (db.conversations || []).find((item: any) =>
+    item?.id === req.params.groupId &&
+    item.type === 'group' &&
+    item.communityId === community.id &&
+    (community.groupIds || []).includes(item.id)
+  );
+  if (!group) { res.status(404).json({ error: 'This group is not linked to the selected community.' }); return; }
+  if (!Array.isArray(group.members)) group.members = [];
+  if (getGroupMembership(group, user.id)) {
+    res.json({ success: true, alreadyMember: true, groupId: group.id });
+    return;
+  }
+  const previousMembers = [...group.members];
+  group.members.push({ userId: user.id, role: 'member', joinedAt: Date.now() });
+  if (!saveDb(db)) {
+    group.members = previousMembers;
+    res.status(500).json({ error: 'Could not join the group. Please try again.' });
+    return;
+  }
+  notifyGroupMembers(group, 'group_member_joined', { groupId: group.id, userId: user.id });
+  res.status(200).json({ success: true, groupId: group.id });
+});
+
 app.post('/api/communities', (req, res) => {
   const user = authenticate(req);
   if (!user) {
