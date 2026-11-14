@@ -2,6 +2,7 @@ import express from 'express';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
+import { isSupportedOtpPurpose, isValidOtpCode, canAddGroupMembers, isCommunityGroupLinkValid, isValidShippingAddress } from './src/lib/server-validation';
 import { createServer as createViteServer } from 'vite';
 
 const app = express();
@@ -1551,7 +1552,7 @@ function isValidE164(phone: string): boolean {
 // 2. Request Real Phone OTP
 app.post('/api/auth/phone/send-otp', async (req, res) => {
   const { phone, purpose = 'register' } = req.body || {};
-  if (!['register', 'login', 'authenticate'].includes(purpose)) {
+  if (!isSupportedOtpPurpose(purpose)) {
     res.status(400).json({ error: 'Unsupported OTP purpose.' });
     return;
   }
@@ -3403,7 +3404,7 @@ app.post('/api/conversations/:id/members', (req, res) => {
   if (!group || group.type !== 'group') { res.status(404).json({ error: 'Group not found' }); return; }
   const actorMembership = getGroupMembership(group, user.id);
   if (!actorMembership) { res.status(403).json({ error: 'You are not a group member' }); return; }
-  if (!isGroupAdmin(group, user.id) && group.permissions?.addMembers !== true) {
+  if (!canAddGroupMembers(isGroupAdmin(group, user.id), group.permissions?.addMembers)) {
     res.status(403).json({ error: 'Only admins can add members' }); return;
   }
   const { userIds } = req.body || {};
@@ -4569,8 +4570,7 @@ app.get('/api/communities/:id/groups', (req, res) => {
   const groups = (db.conversations || [])
     .filter((conversation: any) =>
       conversation?.type === 'group' &&
-      conversation.communityId === community.id &&
-      (community.groupIds || []).includes(conversation.id)
+      isCommunityGroupLinkValid(community.id, conversation.communityId, community.groupIds, conversation.id)
     )
     .map((conversation: any) => ({
       id: conversation.id,
@@ -6739,9 +6739,7 @@ app.post('/api/shop/orders', (req, res) => {
     res.status(400).json({ error: 'Provide between 1 and 50 order items.' });
     return;
   }
-  if (!shippingAddress || typeof shippingAddress !== 'object' ||
-      ['fullName', 'address', 'city', 'postalCode', 'country'].some((key) =>
-        typeof shippingAddress[key] !== 'string' || !shippingAddress[key].trim() || shippingAddress[key].length > 200)) {
+  if (!isValidShippingAddress(shippingAddress)) {
     res.status(400).json({ error: 'A complete, valid shipping address is required.' });
     return;
   }
