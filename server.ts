@@ -4896,6 +4896,48 @@ app.post('/api/reports', (req, res) => {
   res.json({ success: true, report });
 });
 
+app.post('/api/admin/users/:id/action', (req, res) => {
+  const actor = authenticate(req);
+  if (!actor || actor.role !== 'admin') {
+    res.status(403).json({ error: 'Administrator privileges required.' });
+    return;
+  }
+  const target = db.users.find((candidate: any) => candidate.id === req.params.id);
+  if (!target) {
+    res.status(404).json({ error: 'User not found.' });
+    return;
+  }
+  if (target.id === actor.id) {
+    res.status(400).json({ error: 'You cannot change your own administrative status.' });
+    return;
+  }
+  const { action } = req.body || {};
+  if (!['ban', 'unban', 'verify', 'unverify'].includes(action)) {
+    res.status(400).json({ error: 'Unsupported user moderation action.' });
+    return;
+  }
+  if (action === 'ban') {
+    target.isBanned = true;
+    (db.sessions || []).forEach((session: any) => {
+      if (session.userId === target.id) {
+        session.isRevoked = true;
+        activeSessions.delete(session.token);
+      }
+    });
+  } else if (action === 'unban') {
+    target.isBanned = false;
+  } else if (action === 'verify') {
+    target.isVerified = true;
+  } else {
+    target.isVerified = false;
+  }
+  if (!saveDb(db)) {
+    res.status(500).json({ error: 'Could not persist moderation action.' });
+    return;
+  }
+  res.json({ success: true, user: sanitizeUserForViewer(target, actor) });
+});
+
 app.get('/api/admin/reports', (req, res) => {
   const user = authenticate(req);
   if (!user || (user.role !== 'admin' && user.role !== 'moderator')) {
@@ -4913,7 +4955,11 @@ app.post('/api/admin/reports/:id/action', (req, res) => {
     return;
   }
 
-  const { action, note } = req.body; // 'resolve' | 'dismiss' | 'delete_content' | 'suspend_user'
+  const { action, note } = req.body || {};
+  if (!['resolve', 'dismiss', 'delete_content', 'suspend_user'].includes(action)) {
+    res.status(400).json({ error: 'Unsupported report action.' });
+    return;
+  }
   const report = db.reports.find((r) => r.id === req.params.id);
   if (!report) {
     res.status(404).json({ error: 'Report not found' });
@@ -4928,10 +4974,33 @@ app.post('/api/admin/reports/:id/action', (req, res) => {
       db.messages = db.messages.filter((m) => m.id !== report.targetId);
     } else if (report.targetType === 'status') {
       db.statuses = db.statuses.filter((s) => s.id !== report.targetId);
+    } else if (report.targetType === 'post') {
+      db.posts = db.posts.filter((post: any) => post.id !== report.targetId);
+    } else {
+      res.status(400).json({ error: 'This report target cannot be deleted through moderation.' });
+      return;
     }
   }
+  if (action === 'suspend_user') {
+    const targetUserId = report.targetType === 'user' ? report.targetId : report.userId;
+    const targetUser = db.users.find((candidate: any) => candidate.id === targetUserId);
+    if (!targetUser || targetUser.id === user.id) {
+      res.status(400).json({ error: 'A valid, different target user is required for suspension.' });
+      return;
+    }
+    targetUser.isBanned = true;
+    (db.sessions || []).forEach((session: any) => {
+      if (session.userId === targetUser.id) {
+        session.isRevoked = true;
+        activeSessions.delete(session.token);
+      }
+    });
+  }
 
-  saveDb(db);
+  if (!saveDb(db)) {
+    res.status(500).json({ error: 'Could not persist moderation action.' });
+    return;
+  }
   res.json({ report });
 });
 
