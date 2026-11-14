@@ -1734,7 +1734,7 @@ app.post('/api/auth/phone/send-otp', async (req, res) => {
 // 3. Verify Phone OTP Server-Side
 app.post('/api/auth/phone/verify-otp', (req, res) => {
   const { phone, code, purpose = 'register' } = req.body || {};
-  if (!['register', 'login', 'authenticate'].includes(purpose)) {
+  if (!isSupportedOtpPurpose(purpose)) {
     res.status(400).json({ error: 'Unsupported OTP purpose.' });
     return;
   }
