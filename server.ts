@@ -2843,10 +2843,11 @@ app.post('/api/auth/oauth/google', async (req, res) => {
 app.post('/api/auth/oauth/facebook', async (req, res) => {
   const { accessToken } = req.body;
   const fbAppId = process.env.FACEBOOK_APP_ID;
+  const fbAppSecret = process.env.FACEBOOK_APP_SECRET;
 
-  if (!fbAppId) {
+  if (!fbAppId || !fbAppSecret) {
     res.status(503).json({
-      error: 'Facebook OAuth is NOT CONFIGURED on this server. Set FACEBOOK_APP_ID in environment settings to enable real Facebook Login.',
+      error: 'Facebook OAuth is not configured. Set FACEBOOK_APP_ID and FACEBOOK_APP_SECRET in the server environment.',
       configured: false,
     });
     return;
@@ -2858,6 +2859,22 @@ app.post('/api/auth/oauth/facebook', async (req, res) => {
   }
 
   try {
+    const debugRes = await fetch(
+      `https://graph.facebook.com/debug_token?input_token=${encodeURIComponent(accessToken)}&access_token=${encodeURIComponent(`${fbAppId}|${fbAppSecret}`)}`
+    );
+    if (!debugRes.ok) {
+      logSecurityEvent(null, 'OAUTH_FACEBOOK_FAIL', 'failure', 'Facebook token introspection failed', req);
+      res.status(401).json({ error: 'Facebook token could not be verified for this application.' });
+      return;
+    }
+    const debugPayload = await debugRes.json();
+    const tokenData = debugPayload?.data;
+    if (!tokenData?.is_valid || tokenData.app_id !== fbAppId || typeof tokenData.user_id !== 'string') {
+      logSecurityEvent(null, 'OAUTH_FACEBOOK_FAIL', 'failure', 'Facebook token app binding or validity check failed', req);
+      res.status(401).json({ error: 'Facebook token is invalid or was issued to a different application.' });
+      return;
+    }
+
     const verifyRes = await fetch(
       `https://graph.facebook.com/me?fields=id,name,email,picture.type(large)&access_token=${encodeURIComponent(accessToken)}`
     );
@@ -2869,11 +2886,20 @@ app.post('/api/auth/oauth/facebook', async (req, res) => {
 
     const payload = await verifyRes.json();
     const fbId = payload.id;
-    const email = payload.email ? payload.email.toLowerCase() : `fb_${fbId}@facebook.user`;
+    if (typeof fbId !== 'string' || fbId !== tokenData.user_id) {
+      res.status(401).json({ error: 'Facebook account identity did not match the verified token.' });
+      return;
+    }
+    const emailCandidate = typeof payload.email === 'string' ? payload.email.toLowerCase() : '';
+    const email = emailCandidate && !db.users.some((existing: any) => existing.email?.toLowerCase() === emailCandidate)
+      ? emailCandidate
+      : `fb_${fbId}@facebook.user`;
     const name = payload.name || 'Facebook User';
     const avatar = payload.picture?.data?.url;
 
-    let user = db.users.find((u) => u.email.toLowerCase() === email);
+    let user = db.users.find((u) => (db.oauth_accounts || []).some((account: any) =>
+      account.provider === 'facebook' && account.providerId === fbId && account.userId === u.id
+    ));
     if (!user) {
       const username = 'fb_' + (payload.name ? payload.name.replace(/\s+/g, '_').toLowerCase() : fbId);
       const salt = crypto.randomBytes(16).toString('hex');
@@ -2916,7 +2942,12 @@ app.post('/api/auth/oauth/facebook', async (req, res) => {
     }
 
     const { token, session } = createSessionRecord(user.id, req, 'Facebook OAuth Session');
-    saveDb(db);
+    if (!saveDb(db)) {
+      db.sessions = (db.sessions || []).filter((entry: any) => entry.token !== token);
+      activeSessions.delete(token);
+      res.status(500).json({ error: 'Could not persist Facebook sign-in. Please try again.' });
+      return;
+    }
     logSecurityEvent(user.id, 'OAUTH_FACEBOOK_SUCCESS', 'success', `Authenticated via Facebook (${name})`, req);
 
     const { passwordHash: _, salt: __, ...safeUser } = user;
@@ -2929,9 +2960,10 @@ app.post('/api/auth/oauth/facebook', async (req, res) => {
 // 24. Real Instagram / Meta OAuth Endpoint
 app.post('/api/auth/oauth/instagram', async (req, res) => {
   const instagramAppId = process.env.INSTAGRAM_APP_ID || process.env.INSTAGRAM_CLIENT_ID;
-  if (!instagramAppId) {
+  const instagramAppSecret = process.env.INSTAGRAM_APP_SECRET;
+  if (!instagramAppId || !instagramAppSecret) {
     res.status(503).json({
-      error: 'Instagram / Meta OAuth is NOT CONFIGURED on this server. Set INSTAGRAM_APP_ID in environment settings to enable real Instagram Login.',
+      error: 'Instagram OAuth is not configured. Set INSTAGRAM_APP_ID and INSTAGRAM_APP_SECRET in the server environment.',
       configured: false,
     });
     return;
@@ -2942,6 +2974,21 @@ app.post('/api/auth/oauth/instagram', async (req, res) => {
     return;
   }
   try {
+    const debugRes = await fetch(
+      `https://graph.facebook.com/debug_token?input_token=${encodeURIComponent(accessToken)}&access_token=${encodeURIComponent(`${instagramAppId}|${instagramAppSecret}`)}`
+    );
+    if (!debugRes.ok) {
+      logSecurityEvent(null, 'OAUTH_INSTAGRAM_FAIL', 'failure', 'Instagram token introspection failed', req);
+      res.status(401).json({ error: 'Instagram token could not be verified for this application.' });
+      return;
+    }
+    const debugPayload = await debugRes.json();
+    const tokenData = debugPayload?.data;
+    if (!tokenData?.is_valid || tokenData.app_id !== instagramAppId || typeof tokenData.user_id !== 'string') {
+      logSecurityEvent(null, 'OAUTH_INSTAGRAM_FAIL', 'failure', 'Instagram token app binding or validity check failed', req);
+      res.status(401).json({ error: 'Instagram token is invalid or was issued to a different application.' });
+      return;
+    }
     const verifyRes = await fetch(
       `https://graph.instagram.com/me?fields=id,username&access_token=${encodeURIComponent(accessToken)}`
     );
@@ -2952,8 +2999,19 @@ app.post('/api/auth/oauth/instagram', async (req, res) => {
     }
     const payload = await verifyRes.json();
     const igId = payload.id;
-    const username = 'ig_' + (payload.username || igId);
-    let user = db.users.find((u) => u.username === username);
+    if (typeof igId !== 'string' || igId !== tokenData.user_id) {
+      res.status(401).json({ error: 'Instagram account identity did not match the verified token.' });
+      return;
+    }
+    const baseUsername = 'ig_' + String(payload.username || igId).toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 18);
+    let username = baseUsername;
+    if (!db.users.some((candidate: any) => candidate.username === username) &&
+        !(db.oauth_accounts || []).some((account: any) => account.provider === 'instagram' && account.providerId === igId)) {
+      username = `${baseUsername}_${igId.slice(-6)}`;
+    }
+    let user = db.users.find((candidate: any) => (db.oauth_accounts || []).some((account: any) =>
+      account.provider === 'instagram' && account.providerId === igId && account.userId === candidate.id
+    ));
     if (!user) {
       const salt = crypto.randomBytes(16).toString('hex');
       const passwordHash = hashPassword(crypto.randomBytes(24).toString('hex'), salt);
@@ -2981,8 +3039,23 @@ app.post('/api/auth/oauth/instagram', async (req, res) => {
       };
       db.users.push(user);
     }
+    if (!db.oauth_accounts) db.oauth_accounts = [];
+    if (!db.oauth_accounts.some((account: any) => account.provider === 'instagram' && account.providerId === igId)) {
+      db.oauth_accounts.push({
+        id: 'oa_' + crypto.randomUUID().slice(0, 8),
+        userId: user.id,
+        provider: 'instagram',
+        providerId: igId,
+        linkedAt: Date.now(),
+      });
+    }
     const { token, session } = createSessionRecord(user.id, req, 'Instagram OAuth Session');
-    saveDb(db);
+    if (!saveDb(db)) {
+      db.sessions = (db.sessions || []).filter((entry: any) => entry.token !== token);
+      activeSessions.delete(token);
+      res.status(500).json({ error: 'Could not persist Instagram sign-in. Please try again.' });
+      return;
+    }
     logSecurityEvent(user.id, 'OAUTH_INSTAGRAM_SUCCESS', 'success', `Authenticated via Instagram (@${username})`, req);
     const { passwordHash: _, salt: __, ...safeUser } = user;
     res.json({ token, user: safeUser, session });
