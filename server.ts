@@ -2605,6 +2605,7 @@ app.post('/api/auth/delete-account', (req, res) => {
   }
 
   const userId = user.id;
+  const deletionSnapshot = JSON.parse(JSON.stringify(db)) as DbSchema;
 
   // Revoke sessions
   (db.sessions || []).forEach((s) => {
@@ -2689,7 +2690,14 @@ app.post('/api/auth/delete-account', (req, res) => {
   db.users = db.users.filter((candidate: any) => candidate.id !== userId);
 
   if (!saveDb(db)) {
-    res.status(500).json({ error: 'Account deletion could not be saved. Please contact support before retrying.' });
+    db = deletionSnapshot;
+    activeSessions.clear();
+    for (const session of db.sessions || []) {
+      if (!session.isRevoked && session.expiresAt > Date.now()) {
+        activeSessions.set(session.token, session.userId);
+      }
+    }
+    res.status(500).json({ error: 'Account deletion could not be saved. No account data was removed; please retry.' });
     return;
   }
   logSecurityEvent(userId, 'ACCOUNT_DELETED', 'warning', `Account permanently deleted for user ${userId}.`, req);
