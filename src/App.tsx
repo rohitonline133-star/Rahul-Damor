@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ChatProvider, useChat } from './context/ChatContext';
@@ -37,7 +37,7 @@ import { UserStatus, Message } from './types';
 import { Sparkles, Shield, Lock, CircleDot, Plus } from 'lucide-react';
 
 const GbMainApp: React.FC = () => {
-  const { currentUser, logout, isLoading } = useAuth();
+  const { currentUser, logout, isLoading, token } = useAuth();
   const {
     activeTab,
     setActiveTab,
@@ -46,6 +46,7 @@ const GbMainApp: React.FC = () => {
     statuses,
     conversations,
     createDirectChat,
+    refreshConversations,
   } = useChat();
 
   // Modals state
@@ -70,6 +71,33 @@ const GbMainApp: React.FC = () => {
   const [viewingUserId, setViewingUserId] = useState<string | null>(null);
   const [reportingTarget, setReportingTarget] = useState<{ id: string; type: 'user' | 'message' } | null>(null);
 
+  useEffect(() => {
+    const match = window.location.pathname.match(/^\/join-group\/([A-Za-z0-9_-]{20,128})\/?$/);
+    if (!match || !token || !currentUser) return;
+    let cancelled = false;
+    const join = async () => {
+      try {
+        const response = await fetch(`/api/group-invites/${encodeURIComponent(match[1])}/join`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || 'This group invite is no longer available.');
+        if (cancelled) return;
+        await refreshConversations();
+        if (data.conversationId) {
+          setActiveTab('chats');
+          setActiveConversationId(data.conversationId);
+          window.history.replaceState({}, '', '/');
+        }
+      } catch (error) {
+        if (!cancelled) window.alert(error instanceof Error ? error.message : 'Could not join this group.');
+      }
+    };
+    void join();
+    return () => { cancelled = true; };
+  }, [token, currentUser?.id, refreshConversations, setActiveConversationId, setActiveTab]);
+
   const myStatus = statuses.find((s) => s.userId === currentUser?.id);
   const contactStatuses = statuses.filter((s) => s.userId !== currentUser?.id);
 
@@ -82,7 +110,7 @@ const GbMainApp: React.FC = () => {
             <span className="font-black text-2xl tracking-tighter">GB</span>
           </div>
           <h2 className="text-lg font-bold text-[#111b21] dark:text-[#e9edef]">GB Official</h2>
-          <p className="text-xs text-[#00a884] font-medium mt-1">End-to-end encrypted messaging</p>
+          <p className="text-xs text-[#00a884] font-medium mt-1">Private messaging</p>
         </div>
       ) : !currentUser ? (
         <AuthModal

@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Users2, Megaphone, Plus, ChevronRight, ShieldCheck, MessageSquare, Globe } from 'lucide-react';
 import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
-import { Community } from '../../types';
 
 interface CommunitiesTabProps {
   onOpenCreateCommunity: () => void;
@@ -13,29 +12,83 @@ export const CommunitiesTab: React.FC<CommunitiesTabProps> = ({
   onOpenCreateCommunity,
   onOpenGroup,
 }) => {
-  const { communities, joinCommunity, postAnnouncement, conversations } = useChat();
-  const { currentUser } = useAuth();
+  const { communities, joinCommunity, postAnnouncement, refreshCommunities } = useChat();
+  const { token } = useAuth();
+  const [communityGroups, setCommunityGroups] = useState<any[]>([]);
+  const [groupsLoading, setGroupsLoading] = useState(false);
+  const [groupsError, setGroupsError] = useState('');
 
-  const [selectedCommunity, setSelectedCommunity] = useState<Community | null>(null);
+  const [selectedCommunityId, setSelectedCommunityId] = useState('');
   const [showAnnounceModal, setShowAnnounceModal] = useState(false);
   const [announceTitle, setAnnounceTitle] = useState('');
   const [announceContent, setAnnounceContent] = useState('');
 
-  const activeComm = selectedCommunity || communities[0] || null;
-  const isMember = Boolean(activeComm && activeComm.memberIds.includes(currentUser?.id || ''));
-  const isAdmin = Boolean(activeComm && activeComm.adminIds.includes(currentUser?.id || ''));
+  const activeComm = communities.find((community) => community.id === selectedCommunityId) || communities[0] || null;
+  const isMember = Boolean(activeComm?.isMember);
+  const isAdmin = Boolean(activeComm?.isAdmin);
 
-  const communityGroups = conversations.filter(
-    (c) => c.type === 'group' && c.communityId === activeComm?.id
-  );
+  const loadCommunityGroups = async (communityId: string) => {
+    if (!token) return;
+    setGroupsLoading(true);
+    setGroupsError('');
+    try {
+      const response = await fetch(`/api/communities/${encodeURIComponent(communityId)}/groups`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Could not load community groups.');
+      setCommunityGroups(Array.isArray(data.groups) ? data.groups : []);
+    } catch (error) {
+      setGroupsError(error instanceof Error ? error.message : 'Could not load community groups.');
+      setCommunityGroups([]);
+    } finally {
+      setGroupsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeComm?.id) void loadCommunityGroups(activeComm.id);
+    else setCommunityGroups([]);
+  }, [activeComm?.id, token]);
+
+  const handleJoinGroup = async (groupId: string) => {
+    if (!activeComm || !token) return;
+    setGroupsError('');
+    try {
+      const response = await fetch(`/api/communities/${encodeURIComponent(activeComm.id)}/groups/${encodeURIComponent(groupId)}/join`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Could not join this group.');
+      await loadCommunityGroups(activeComm.id);
+    } catch (error) {
+      setGroupsError(error instanceof Error ? error.message : 'Could not join this group.');
+    }
+  };
+
+  const handleJoinCommunity = async () => {
+    if (!activeComm) return;
+    const joined = await joinCommunity(activeComm.id);
+    if (!joined) {
+      setGroupsError('Could not join this community. Please try again.');
+      return;
+    }
+    await refreshCommunities();
+    await loadCommunityGroups(activeComm.id);
+  };
 
   const handlePostAnnouncement = async () => {
     if (!activeComm || !announceContent.trim()) return;
-    await postAnnouncement(
+    const posted = await postAnnouncement(
       activeComm.id,
       announceTitle.trim() || 'Announcement',
       announceContent.trim()
     );
+    if (!posted) {
+      setGroupsError('Announcement could not be published. Check your permissions and try again.');
+      return;
+    }
     setAnnounceTitle('');
     setAnnounceContent('');
     setShowAnnounceModal(false);
@@ -45,7 +98,7 @@ export const CommunitiesTab: React.FC<CommunitiesTabProps> = ({
     <div className="flex-1 flex flex-col h-full overflow-y-auto bg-slate-50 dark:bg-slate-900 p-4 space-y-4">
       {/* Community Selector Header */}
       <div className="flex items-center justify-between">
-        <div>
+        <div className="min-w-0">
           <h2 className="text-base font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-2">
             <Globe className="w-5 h-5 text-emerald-500" />
             GB Communities
@@ -53,6 +106,18 @@ export const CommunitiesTab: React.FC<CommunitiesTabProps> = ({
           <p className="text-xs text-slate-500 dark:text-slate-400">
             Connect topics, announcement feeds, and sub-groups
           </p>
+          {communities.length > 1 && (
+            <select
+              aria-label="Select community"
+              value={activeComm?.id || ''}
+              onChange={(event) => setSelectedCommunityId(event.target.value)}
+              className="mt-2 max-w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-xs text-slate-700 dark:text-slate-200"
+            >
+              {communities.map((community) => (
+                <option key={community.id} value={community.id}>{community.name}</option>
+              ))}
+            </select>
+          )}
         </div>
 
         <button
@@ -79,14 +144,14 @@ export const CommunitiesTab: React.FC<CommunitiesTabProps> = ({
                   {activeComm.name}
                 </h3>
                 <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
-                  {activeComm.memberIds.length} members • {communityGroups.length} linked groups
+                  {activeComm.memberCount} members • {communityGroups.length} linked groups
                 </span>
               </div>
             </div>
 
             {!isMember ? (
               <button
-                onClick={() => joinCommunity(activeComm.id)}
+                onClick={handleJoinCommunity}
                 className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-sm transition shrink-0"
               >
                 Join
@@ -155,35 +220,32 @@ export const CommunitiesTab: React.FC<CommunitiesTabProps> = ({
             </span>
 
             <div className="space-y-1.5">
+              {groupsLoading && <div className="text-xs text-slate-400 py-2">Loading linked groups…</div>}
+              {groupsError && <div role="alert" className="text-xs text-red-600 dark:text-red-400 py-2">{groupsError}</div>}
               {communityGroups.map((grp) => (
-                <div
-                  key={grp.id}
-                  onClick={() => onOpenGroup(grp.id)}
-                  className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition border border-slate-100 dark:border-slate-800/60"
-                >
+                <div key={grp.id} className="flex items-center justify-between gap-2 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/60">
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <img
-                      src={grp.icon}
-                      alt={grp.name}
-                      referrerPolicy="no-referrer"
-                      className="w-8 h-8 rounded-xl object-cover"
-                    />
+                    <img src={grp.icon || ''} alt="" referrerPolicy="no-referrer" className="w-8 h-8 rounded-xl object-cover bg-slate-100 dark:bg-slate-800" />
                     <div className="truncate">
-                      <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
-                        {grp.name}
-                      </div>
-                      <div className="text-[10px] text-slate-400 truncate">
-                        {grp.members.length} members
-                      </div>
+                      <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">{grp.name}</div>
+                      <div className="text-[10px] text-slate-400 truncate">{grp.memberCount} members</div>
                     </div>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+                  {grp.isMember ? (
+                    <button type="button" onClick={() => onOpenGroup(grp.id)} className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-xs font-semibold">
+                      Open <ChevronRight className="w-3 h-3" />
+                    </button>
+                  ) : (
+                    <button type="button" disabled={!isMember} onClick={() => handleJoinGroup(grp.id)} className="shrink-0 px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold disabled:opacity-40">
+                      Join group
+                    </button>
+                  )}
                 </div>
               ))}
 
-              {communityGroups.length === 0 && (
+              {!groupsLoading && communityGroups.length === 0 && (
                 <div className="text-xs text-slate-400 py-2">
-                  No groups linked yet. Create a group and select this community.
+                  No linked groups yet. Community admins can create a group and link it to this community.
                 </div>
               )}
             </div>

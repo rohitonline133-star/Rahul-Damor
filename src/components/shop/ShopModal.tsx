@@ -18,6 +18,12 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
+declare global {
+  interface Window {
+    Razorpay?: new (options: any) => { open: () => void };
+  }
+}
+
 interface ShopModalProps {
   onClose: () => void;
 }
@@ -41,12 +47,21 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
 
   // Subscriptions
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
+  const [availablePlans, setAvailablePlans] = useState<any[]>([]);
+  const [subscriptionNotice, setSubscriptionNotice] = useState<string | null>(null);
 
   // Checkout states
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'upi' | 'wallet'>('card');
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [checkoutSuccess, setCheckoutSuccess] = useState<any | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [shippingAddress, setShippingAddress] = useState({
+    fullName: currentUser?.displayName || '',
+    address: '',
+    city: '',
+    postalCode: '',
+    country: 'India',
+  });
 
   // Load products
   const loadProducts = async () => {
@@ -74,7 +89,14 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
       });
       if (res.ok) {
         const data = await res.json();
-        setCart(data.cart || { items: [], total: 0 });
+        const items = Array.isArray(data.items) ? data.items.map((item: any) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          title: item.product?.name || item.product?.title || 'Product',
+          price: Number(item.product?.price || 0),
+          image: item.product?.image || '',
+        })) : [];
+        setCart({ items, total: Number(data.subtotal || 0) });
       }
     } catch {
       // ignore
@@ -111,7 +133,8 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
       });
       if (res.ok) {
         const data = await res.json();
-        setSubscriptions(data.subscriptions || []);
+        setSubscriptions(data.subscription && data.subscription.plan !== 'free' ? [data.subscription] : []);
+        setAvailablePlans(Array.isArray(data.availablePlans) ? data.availablePlans : []);
       }
     } catch {
       // ignore
@@ -144,8 +167,10 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
         }),
       });
       if (res.ok) {
-        const data = await res.json();
-        setCart(data.cart);
+        await loadCart();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setCheckoutError(data.error || 'Could not update your cart.');
       }
     } catch {
       // ignore
@@ -155,25 +180,23 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
   // Update item quantity
   const handleUpdateQuantity = async (productId: string, quantity: number) => {
     if (!token) return;
+    if (quantity < 1) {
+      await handleRemoveFromCart(productId);
+      return;
+    }
     try {
       const res = await fetch('/api/shop/cart', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          action: 'update',
-          productId,
-          quantity,
-        }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ productId, quantity }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        setCart(data.cart);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Could not update quantity.');
       }
-    } catch {
-      // ignore
+      await loadCart();
+    } catch (error) {
+      setCheckoutError(error instanceof Error ? error.message : 'Could not update quantity.');
     }
   };
 
@@ -181,27 +204,21 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
   const handleRemoveFromCart = async (productId: string) => {
     if (!token) return;
     try {
-      const res = await fetch('/api/shop/cart', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          action: 'remove',
-          productId,
-        }),
+      const res = await fetch(`/api/shop/cart/${encodeURIComponent(productId)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) {
-        const data = await res.json();
-        setCart(data.cart);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Could not remove item.');
       }
-    } catch {
-      // ignore
+      await loadCart();
+    } catch (error) {
+      setCheckoutError(error instanceof Error ? error.message : 'Could not remove item.');
     }
   };
 
-  // Checkout
+  // Checkout uses Razorpay Checkout; paid status is granted only by the server verifier.
   const handleCheckout = async () => {
     if (!token || cart.items.length === 0) return;
     setIsCheckingOut(true);
@@ -216,22 +233,144 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          items: cart.items,
-          totalAmount: cart.total,
+          items: cart.items.map((item) => ({ productId: item.productId, quantity: item.quantity })),
+          shippingAddress,
           paymentMethod,
         }),
       });
-
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setCheckoutSuccess(data.order);
-        setCart({ items: [], total: 0 });
-        loadOrders();
-      } else {
-        setCheckoutError(data.error || 'Checkout could not be processed');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.order || !data.razorpay) {
+        setCheckoutError(data.error || 'Secure checkout could not be started.');
+        return;
       }
+
+      if (!window.Razorpay) {
+        const loaded = await new Promise<boolean>((resolve) => {
+          const script = document.createElement('script');
+          script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+          script.async = true;
+          script.onload = () => resolve(!!window.Razorpay);
+          script.onerror = () => resolve(false);
+          document.body.appendChild(script);
+        });
+        if (!loaded) {
+          setCheckoutError('Razorpay Checkout could not load. Your order is still unpaid; please retry.');
+          return;
+        }
+      }
+
+      const RazorpayConstructor = window.Razorpay;
+      if (!RazorpayConstructor) throw new Error('Razorpay Checkout is unavailable.');
+      const checkout = new RazorpayConstructor({
+        key: data.razorpay.keyId,
+        amount: data.razorpay.amount,
+        currency: data.razorpay.currency,
+        name: data.razorpay.name,
+        description: data.razorpay.description,
+        order_id: data.razorpay.orderId,
+        theme: { color: '#00a884' },
+        prefill: { name: currentUser?.displayName || '' },
+        handler: async (paymentResponse: any) => {
+          try {
+            const verifyResponse = await fetch('/api/payments/razorpay/verify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+              body: JSON.stringify(paymentResponse),
+            });
+            const verifyData = await verifyResponse.json().catch(() => ({}));
+            if (!verifyResponse.ok || !verifyData.success) {
+              setCheckoutError(verifyData.error || 'Payment verification is pending. Do not retry payment yet.');
+              await loadOrders();
+              return;
+            }
+            setCheckoutSuccess({ ...data.order, status: 'confirmed', paymentStatus: 'paid' });
+            setCheckoutError(null);
+            await Promise.all([loadOrders(), loadCart()]);
+          } catch {
+            setCheckoutError('Payment was submitted but verification could not finish. Your order remains locked until server verification succeeds.');
+            await loadOrders();
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            setCheckoutError('Checkout closed. Your order remains unpaid; you can retry from the cart.');
+            void loadOrders();
+          },
+        },
+      });
+      checkout.open();
     } catch (err: any) {
       setCheckoutError(err.message || 'Checkout failed');
+    } finally {
+      setIsCheckingOut(false);
+    }
+  };
+
+  const handleUpgradePlan = async (plan: string) => {
+    if (!token || !['pro', 'business'].includes(plan)) return;
+    setIsCheckingOut(true);
+    setSubscriptionNotice(null);
+    try {
+      const response = await fetch('/api/subscriptions/upgrade', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ plan }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.razorpay) {
+        setSubscriptionNotice(data.error || 'Subscription checkout could not be started.');
+        return;
+      }
+      if (!window.Razorpay) {
+        const loaded = await new Promise<boolean>((resolve) => {
+          const script = document.createElement('script');
+          script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+          script.async = true;
+          script.onload = () => resolve(!!window.Razorpay);
+          script.onerror = () => resolve(false);
+          document.body.appendChild(script);
+        });
+        if (!loaded) {
+          setSubscriptionNotice('Razorpay Checkout could not load. No payment was collected.');
+          return;
+        }
+      }
+      const RazorpayConstructor = window.Razorpay;
+      if (!RazorpayConstructor) throw new Error('Razorpay Checkout is unavailable.');
+      const checkout = new RazorpayConstructor({
+        key: data.razorpay.keyId,
+        amount: data.razorpay.amount,
+        currency: data.razorpay.currency,
+        name: data.razorpay.name,
+        description: data.razorpay.description,
+        order_id: data.razorpay.orderId,
+        theme: { color: '#00a884' },
+        prefill: { name: currentUser?.displayName || '' },
+        handler: async (paymentResponse: any) => {
+          try {
+            const verifyResponse = await fetch('/api/payments/razorpay/verify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+              body: JSON.stringify(paymentResponse),
+            });
+            const verifyData = await verifyResponse.json().catch(() => ({}));
+            if (!verifyResponse.ok || !verifyData.success) {
+              setSubscriptionNotice(verifyData.error || 'Payment verification is pending. Premium access remains locked.');
+              return;
+            }
+            setSubscriptionNotice('Payment verified. Your GB Official subscription is active.');
+            await loadSubscriptions();
+          } catch {
+            setSubscriptionNotice('Payment was submitted but verification is pending. Premium access remains locked until the server confirms it.');
+          }
+        },
+        modal: {
+          ondismiss: () => setSubscriptionNotice('Checkout closed. No subscription was activated.'),
+        },
+      });
+      checkout.open();
+    } catch (error) {
+      setSubscriptionNotice(error instanceof Error ? error.message : 'Subscription checkout failed.');
     } finally {
       setIsCheckingOut(false);
     }
@@ -337,7 +476,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
                           {p.category === 'badges' ? '✓' : p.category === 'themes' ? '🎨' : '📦'}
                         </div>
                         <span className="font-mono font-bold text-sm text-[#00a884] dark:text-[#25d366]">
-                          ${p.price.toFixed(2)}
+                          ₹${p.price.toFixed(2)}
                         </span>
                       </div>
                       <h4 className="font-bold text-xs text-slate-900 dark:text-white group-hover:text-emerald-600 transition">
@@ -380,10 +519,10 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
                   <CheckCircle2 className="w-7 h-7" />
                 </div>
                 <h4 className="font-bold text-base text-emerald-900 dark:text-emerald-100">
-                  Order Successfully Placed!
+                  {checkoutSuccess.paymentStatus === 'paid' ? 'Payment Successful' : 'Order Created — Payment Pending'}
                 </h4>
                 <p className="text-xs text-emerald-700 dark:text-emerald-300 max-w-sm mx-auto">
-                  Order ID #{checkoutSuccess.id}. Your digital items and permissions have been instantly unlocked on your GB Official account.
+                  Order ID #{checkoutSuccess.id}. {checkoutSuccess.paymentStatus === 'paid' ? 'Razorpay payment was verified. Your order is confirmed.' : 'This order is awaiting verified payment. Paid features remain locked.'}
                 </p>
                 <div className="pt-2 flex justify-center gap-2">
                   <button
@@ -433,7 +572,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
                           {item.title}
                         </h5>
                         <div className="text-[11px] text-slate-500">
-                          ${item.price.toFixed(2)} each
+                          ₹${item.price.toFixed(2)} each
                         </div>
                       </div>
 
@@ -461,7 +600,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
                         </div>
 
                         <span className="w-16 text-right font-mono font-bold text-xs text-slate-900 dark:text-white">
-                          ${((item.price || 0) * (item.quantity || 1)).toFixed(2)}
+                          ₹${((item.price || 0) * (item.quantity || 1)).toFixed(2)}
                         </span>
 
                         <button
@@ -481,49 +620,36 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
                     Grand Total
                   </span>
                   <span className="font-mono text-base font-bold text-[#00a884] dark:text-[#25d366]">
-                    ${cart.total.toFixed(2)}
+                    ₹${cart.total.toFixed(2)}
                   </span>
                 </div>
 
-                {/* Payment Provider & Method Configuration State */}
-                <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#111b21] space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <CreditCard className="w-4 h-4 text-emerald-500" />
-                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                        Payment Method
-                      </span>
-                    </div>
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold flex items-center gap-1">
-                      <ShieldCheck className="w-3 h-3" /> Sandbox Mode Active
-                    </span>
-                  </div>
+                {/* Shipping details required by the order API */}
+                <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#111b21] space-y-2">
+                  <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">Shipping details</h4>
+                  {([
+                    ['fullName', 'Full name'],
+                    ['address', 'Address'],
+                    ['city', 'City'],
+                    ['postalCode', 'Postal code'],
+                    ['country', 'Country'],
+                  ] as const).map(([field, label]) => (
+                    <label key={field} className="block text-[11px] text-slate-500">
+                      {label}
+                      <input
+                        value={shippingAddress[field]}
+                        onChange={(event) => setShippingAddress((current) => ({ ...current, [field]: event.target.value }))}
+                        maxLength={200}
+                        required
+                        autoComplete={field === 'fullName' ? 'name' : field === 'address' ? 'street-address' : field === 'city' ? 'address-level2' : field === 'postalCode' ? 'postal-code' : 'country-name'}
+                        className="mt-1 w-full rounded-xl px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs"
+                      />
+                    </label>
+                  ))}
+                </div>
 
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { id: 'card', label: 'Credit Card', icon: '💳' },
-                      { id: 'upi', label: 'UPI / Wallet', icon: '📱' },
-                      { id: 'wallet', label: 'GB Balance', icon: '⚡' },
-                    ].map((m) => (
-                      <button
-                        key={m.id}
-                        type="button"
-                        onClick={() => setPaymentMethod(m.id as any)}
-                        className={`p-2.5 rounded-xl text-xs font-semibold border flex flex-col items-center gap-1 transition ${
-                          paymentMethod === m.id
-                            ? 'border-[#00a884] bg-emerald-50/50 dark:bg-emerald-950/30 text-[#00a884] dark:text-[#25d366]'
-                            : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
-                        }`}
-                      >
-                        <span className="text-sm">{m.icon}</span>
-                        <span>{m.label}</span>
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
-                    External payment provider notice: If Stripe/Razorpay keys are not supplied in .env, payments process securely in instant sandbox test mode with verified server receipts.
-                  </div>
+                <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 text-xs text-amber-800 dark:text-amber-300">
+                  Secure checkout is provided by Razorpay. Your order and paid features are confirmed only after the server verifies successful payment.
                 </div>
 
                 {checkoutError && (
@@ -536,11 +662,11 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
                 {/* Submit Checkout Button */}
                 <button
                   onClick={handleCheckout}
-                  disabled={isCheckingOut}
+                  disabled={isCheckingOut || !shippingAddress.fullName.trim() || !shippingAddress.address.trim() || !shippingAddress.city.trim() || !shippingAddress.postalCode.trim() || !shippingAddress.country.trim()}
                   className="w-full py-3 rounded-2xl bg-[#00a884] hover:bg-[#008f6f] text-white text-xs font-bold shadow-lg shadow-emerald-500/20 transition flex items-center justify-center gap-2"
                 >
                   <Zap className="w-4 h-4" />
-                  {isCheckingOut ? 'Processing Payment...' : `Pay $${cart.total.toFixed(2)} & Complete Order`}
+                  {isCheckingOut ? 'Opening Secure Checkout...' : `Pay Securely — ₹${cart.total.toFixed(2)}`}
                 </button>
               </div>
             )}
@@ -586,7 +712,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
                   <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800/80 flex items-center justify-between text-xs font-bold">
                     <span className="text-slate-500">Paid via {order.paymentMethod || 'Card'}</span>
                     <span className="font-mono text-[#00a884] dark:text-[#25d366]">
-                      ${(order.totalAmount || 0).toFixed(2)}
+                      ₹${(order.total || order.totalAmount || 0).toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -612,26 +738,39 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
                 </p>
               </div>
               <div className="pt-2 flex items-baseline gap-2">
-                <span className="text-2xl font-black font-mono">$4.99</span>
+                <span className="text-sm font-bold">Pricing set by GB Official</span>
                 <span className="text-xs text-emerald-200">/ month</span>
               </div>
-              <button
-                onClick={async () => {
-                  if (!token) return;
-                  await fetch('/api/subscriptions', {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      Authorization: `Bearer ${token}`,
-                    },
-                    body: JSON.stringify({ tier: 'vip_monthly', plan: 'Monthly VIP' }),
-                  });
-                  loadSubscriptions();
-                }}
-                className="w-full py-2.5 rounded-xl bg-white text-emerald-900 font-bold text-xs shadow hover:bg-emerald-50 transition"
-              >
-                Activate VIP Pass
-              </button>
+              <div className="w-full py-2.5 rounded-xl bg-white/15 border border-white/20 text-white/90 text-xs text-center font-semibold">
+                Choose a paid plan below. Checkout is processed by Razorpay and premium access is granted only after server-side payment verification.
+              </div>
+            </div>
+
+            {subscriptionNotice && (
+              <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-200">
+                {subscriptionNotice}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <h5 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Choose a paid plan</h5>
+              {availablePlans.filter((plan) => plan.id === 'pro' || plan.id === 'business').map((plan) => (
+                <div key={plan.id} className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="font-bold text-xs text-slate-900 dark:text-white">{plan.name}</div>
+                    <div className="text-[11px] text-slate-500">
+                      {plan.price == null ? 'Price not configured' : `₹${Number(plan.price).toFixed(2)} / month`}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleUpgradePlan(plan.id)}
+                    disabled={isCheckingOut || plan.price == null}
+                    className="shrink-0 px-3 py-2 rounded-xl bg-[#00a884] text-white text-[11px] font-bold disabled:opacity-40"
+                  >
+                    {isCheckingOut ? 'Please wait...' : 'Pay with Razorpay'}
+                  </button>
+                </div>
+              ))}
             </div>
 
             {/* Active Subscriptions */}

@@ -1,1 +1,98 @@
 @import "tailwindcss";
+
+
+/* GB Official custom chat skin — scoped to the conversation screen */
+.gb-custom-chat-theme {
+  color: #f7f2f3;
+  background-color: #09090c !important;
+  background-image:
+    radial-gradient(ellipse at 18% 22%, rgba(120, 10, 28, .25), transparent 34%),
+    radial-gradient(ellipse at 82% 68%, rgba(90, 8, 24, .22), transparent 38%),
+    repeating-linear-gradient(135deg, rgba(255,255,255,.025) 0 2px, transparent 2px 6px),
+    linear-gradient(145deg, #09090c, #171116 52%, #08090c) !important;
+}
+.gb-custom-chat-theme .gb-chat-header {
+  background: linear-gradient(180deg, #260911, #100b10 72%, #3b0b18) !important;
+  border-bottom: 2px solid #8f102b;
+  box-shadow: 0 4px 18px rgba(160, 12, 45, .25);
+}
+.gb-custom-chat-theme .gb-chat-header img {
+  box-shadow: 0 0 0 2px #a81435, 0 0 12px rgba(255, 32, 78, .45);
+}
+.gb-custom-chat-theme .gb-message-bubble {
+  border: 1px solid rgba(255,255,255,.32) !important;
+  border-radius: 22px !important;
+  box-shadow: 0 4px 14px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.75);
+  color: #171116 !important;
+  font-weight: 650;
+  position: relative;
+  overflow: hidden;
+}
+.gb-custom-chat-theme .gb-message-in {
+  background:
+    repeating-linear-gradient(105deg, rgba(255,255,255,.20) 0 1px, transparent 1px 4px),
+    linear-gradient(145deg, #fff, #dedde1 58%, #f8f7f8) !important;
+  border-color: #bfc0c4 !important;
+  border-top-left-radius: 7px !important;
+}
+.gb-custom-chat-theme .gb-message-out {
+  background:
+    repeating-linear-gradient(105deg, rgba(255,255,255,.18) 0 1px, transparent 1px 4px),
+    linear-gradient(145deg, #ffd0dc, #f58da9 62%, #ffc4d2) !important;
+  border-color: #e87998 !important;
+  border-top-right-radius: 7px !important;
+}
+.gb-custom-chat-theme .gb-chat-composer {
+  background: linear-gradient(180deg, rgba(8,8,12,.12), #100b10) !important;
+  border-top: 1px solid rgba(221, 32, 76, .45);
+}
+.gb-custom-chat-theme .gb-composer-pill {
+  background:
+    repeating-linear-gradient(105deg, rgba(255,255,255,.17) 0 1px, transparent 1px 4px),
+    linear-gradient(145deg, #fff, #dedde1) !important;
+  border: 1px solid #b8aeb3 !important;
+  box-shadow: 0 3px 12px rgba(0,0,0,.42), inset 0 1px 0 #fff !important;
+}
+.gb-custom-chat-theme .gb-composer-pill input { color: #171116 !important; }
+.gb-custom-chat-theme .gb-composer-pill button { color: #8d1531 !important; }
+.gb-custom-chat-theme .gb-chat-composer > div > button {
+  background: linear-gradient(145deg, #f43c65, #850d2b) !important;
+  box-shadow: 0 3px 12px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.35);
+}
+.gb-custom-chat-theme .gb-chat-composer .text-slate-500,
+.gb-custom-chat-theme .gb-chat-composer .text-slate-400 { color: #6e5660 !important; }
+
+
+/* GB Official in-chat virtual keyboard inspired by the supplied black/red/white/pink reference */
+.gb-custom-chat-theme .gb-virtual-keyboard {
+  background:
+    radial-gradient(ellipse at 20% 0%, rgba(125, 10, 32, .35), transparent 45%),
+    linear-gradient(145deg, #09090c, #1b0c12 55%, #08090c) !important;
+}
+.gb-custom-chat-theme .gb-key {
+  min-width: 0;
+  min-height: 38px;
+  padding: 5px 3px;
+  border-radius: 10px;
+  border: 1px solid #c8c3c6;
+  color: #171116;
+  font-size: 14px;
+  font-weight: 800;
+  text-shadow: 0 1px 0 rgba(255,255,255,.9);
+  background:
+    repeating-linear-gradient(105deg, rgba(255,255,255,.22) 0 1px, transparent 1px 4px),
+    linear-gradient(145deg, #fff, #dedde1 65%, #f8f7f8);
+  box-shadow: 0 3px 0 #aaa3a8, 0 4px 7px rgba(0,0,0,.45), inset 0 1px 0 #fff;
+}
+.gb-custom-chat-theme .gb-key:active { transform: translateY(2px); box-shadow: 0 1px 0 #aaa3a8; }
+.gb-custom-chat-theme .gb-key-tool { min-height: 30px; font-size: 11px; border-radius: 9px; }
+.gb-custom-chat-theme .gb-key-special {
+  color: #fff;
+  border-color: #a91a3b;
+  text-shadow: 0 1px 2px #390513;
+  background: linear-gradient(145deg, #f13c65, #8b0d2d 72%, #5b071c);
+  box-shadow: 0 3px 0 #4e0719, 0 4px 7px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.35);
+}
+@media (max-width: 380px) {
+  .gb-custom-chat-theme .gb-key { min-height: 34px; font-size: 12px; padding-inline: 1px; }
+}

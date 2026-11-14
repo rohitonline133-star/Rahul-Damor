@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   X,
   ChevronLeft,
@@ -83,7 +83,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onOpenBroadcasts,
   onOpenCommunities,
 }) => {
-  const { currentUser, updateProfile, token } = useAuth();
+  const { currentUser, updateProfile, token, toggleTwoFactor, requestChangePhone, verifyChangePhone } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
   const [currentSection, setCurrentSection] = useState<SettingSection>('root');
@@ -92,13 +92,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [displayName, setDisplayName] = useState(currentUser?.displayName || '');
   const [username, setUsername] = useState(currentUser?.username || '');
   const [bio, setBio] = useState(currentUser?.bio || '');
-  const [phone, setPhone] = useState(currentUser?.phone || '+1 (555) 019-2834');
+  const [phone, setPhone] = useState(currentUser?.phone || '');
   const [avatar, setAvatar] = useState(currentUser?.avatar || '');
   const [isSaving, setIsSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   // Account / 2FA State
   const [twoFactor, setTwoFactor] = useState(false);
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    fetch('/api/auth/two-factor', { headers: { Authorization: `Bearer ${token}` } })
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error('Could not load security settings')))
+      .then((data) => { if (!cancelled) setTwoFactor(Boolean(data.enabled)); })
+      .catch(() => { if (!cancelled) setTwoFactor(false); });
+    return () => { cancelled = true; };
+  }, [token]);
   const [appLock, setAppLock] = useState(false);
   const [newPhone, setNewPhone] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
@@ -106,6 +116,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [phoneMsg, setPhoneMsg] = useState<string | null>(null);
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [accountActionError, setAccountActionError] = useState<string | null>(null);
 
   // Privacy State
   const [lastSeen, setLastSeen] = useState<'everyone' | 'contacts' | 'nobody'>('everyone');
@@ -168,97 +179,84 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   const handleToggle2FA = async (enabled: boolean) => {
-    if (!token) return;
-    try {
-      const res = await fetch('/api/account/two-factor', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ enabled, pin: enabled ? '123456' : undefined }),
-      });
-      if (res.ok) {
-        setTwoFactor(enabled);
-      }
-    } catch {}
+    const pin = enabled ? window.prompt('Choose a new 6-digit verification PIN:') : undefined;
+    if (enabled && (!pin || !/^\d{6}$/.test(pin))) return;
+    const currentPassword = twoFactor ? window.prompt('Enter your current password to change two-step verification:') : undefined;
+    if (twoFactor && !currentPassword) return;
+    const result = await toggleTwoFactor(enabled, pin || undefined, currentPassword || undefined);
+    if (result.success) setTwoFactor(enabled);
+    else window.alert(result.error || 'Could not update two-step verification.');
   };
 
   const handleRequestPhoneChange = async () => {
     if (!token || !newPhone.trim()) return;
     setPhoneError(null);
-    try {
-      const res = await fetch('/api/account/change-phone-request', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ newPhone: newPhone.trim() }),
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setPhoneStep(2);
-        setPhoneMsg(`Verification code dispatched. (Test code: ${data.testVerificationCode || '123456'})`);
-      } else {
-        setPhoneError(data.error || 'Failed to request phone change');
-      }
-    } catch (e: any) {
-      setPhoneError(e.message);
+    const result = await requestChangePhone(newPhone.trim());
+    if (result.success) {
+      setPhoneStep(2);
+      setPhoneMsg('Verification code sent by SMS. It expires in 5 minutes.');
+    } else {
+      setPhoneError(result.error || 'Could not send the verification code.');
     }
   };
 
   const handleVerifyPhoneChange = async () => {
     if (!token || !verificationCode.trim()) return;
     setPhoneError(null);
-    try {
-      const res = await fetch('/api/account/change-phone-verify', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          newPhone: newPhone.trim(),
-          verificationCode: verificationCode.trim(),
-        }),
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setPhone(newPhone);
-        setPhoneStep(1);
-        setNewPhone('');
-        setVerificationCode('');
-        setPhoneMsg('Phone number updated successfully!');
-        setTimeout(() => setPhoneMsg(null), 3000);
-      } else {
-        setPhoneError(data.error || 'Invalid verification code');
-      }
-    } catch (e: any) {
-      setPhoneError(e.message);
+    const result = await verifyChangePhone(newPhone.trim(), verificationCode.trim());
+    if (result.success) {
+      setPhone(newPhone);
+      setPhoneStep(1);
+      setNewPhone('');
+      setVerificationCode('');
+      setPhoneMsg('Phone number updated successfully!');
+      setTimeout(() => setPhoneMsg(null), 3000);
+    } else {
+      setPhoneError(result.error || 'Invalid or expired verification code.');
     }
   };
 
   const handleExportData = async () => {
     if (!token) return;
     setIsExporting(true);
+    setAccountActionError(null);
     try {
-      const res = await fetch('/api/account/export-data', {
+      const res = await fetch('/api/account/export', {
+        method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) {
-        const blob = await res.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `GB_Official_Export_${currentUser?.username || 'user'}.json`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      }
-    } catch {}
-    setIsExporting(false);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.archive) throw new Error(data.error || 'Could not export account data.');
+      const blob = new Blob([JSON.stringify(data.archive, null, 2)], { type: 'application/json' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `GB_Official_Export_${currentUser?.username || 'user'}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      setAccountActionError(error instanceof Error ? error.message : 'Could not export account data.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!token || !window.confirm('Permanently delete your GB Official account and associated data? This cannot be undone.')) return;
+    setAccountActionError(null);
+    try {
+      const response = await fetch('/api/auth/delete-account', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.success) throw new Error(data.error || 'Account deletion failed.');
+      onLogout();
+    } catch (error) {
+      setAccountActionError(error instanceof Error ? error.message : 'Account deletion failed.');
+    }
   };
 
   const handleRunBackup = () => {
@@ -498,12 +496,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   Deleting your account will delete your message history, delete you from all GB groups, and erase device backups.
                 </p>
+                {accountActionError && <p role="alert" className="text-xs text-red-600 dark:text-red-400">{accountActionError}</p>}
                 <button
-                  onClick={() => {
-                    if (window.confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
-                      onLogout();
-                    }
-                  }}
+                  onClick={handleDeleteAccount}
                   className="px-4 py-1.5 rounded-xl bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition"
                 >
                   Delete Account
@@ -585,7 +580,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div className="p-3 rounded-2xl bg-slate-50 dark:bg-[#111b21] flex items-center justify-between border border-slate-200/80 dark:border-slate-800">
                 <div>
                   <div className="text-xs font-bold text-slate-900 dark:text-white">Two-Step Verification</div>
-                  <div className="text-[11px] text-slate-400">Require 6-digit PIN on registration</div>
+                  <div className="text-[11px] text-slate-400">Require PIN when signing in</div>
                 </div>
                 <input
                   type="checkbox"
@@ -608,9 +603,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 />
               </div>
 
-              <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 text-xs text-emerald-800 dark:text-emerald-300">
-                <span className="font-bold block mb-1">End-to-End Encryption Protocol</span>
-                Your personal chats, voice calls, and media are end-to-end encrypted with Signal-compatible double ratchet protocols. Not even GB Official servers can read your communications.
+              <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 text-xs text-amber-900 dark:text-amber-200">
+                <span className="font-bold block mb-1">Encryption status</span>
+                End-to-end encryption is not yet available. Messages and media may be processed by the GB Official server, so do not treat this chat as a private encrypted channel yet.
               </div>
             </div>
           )}

@@ -6,3 +6,7 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Runtime user database contains personal data, credentials and session material.
+data/database.json
+data/database.json.*

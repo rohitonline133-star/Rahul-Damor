@@ -16,7 +16,7 @@ export const CreateShopItemModal: React.FC<CreateShopItemModalProps> = ({
   const { token, currentUser } = useAuth();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [price, setPrice] = useState('4.99');
+  const [price, setPrice] = useState('499');
   const [category, setCategory] = useState('Themes');
   const [image, setImage] = useState('');
   const [stockCount, setStockCount] = useState('25');
@@ -127,18 +127,18 @@ export const CreateShopItemModal: React.FC<CreateShopItemModalProps> = ({
 
             <div>
               <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider block mb-1">
-                Price (USD) *
+                Price (INR) *
               </label>
               <div className="relative flex items-center">
-                <span className="absolute left-3.5 text-xs text-slate-400">$</span>
+                <span className="absolute left-3.5 text-xs text-slate-400">₹</span>
                 <input
                   type="number"
                   step="0.01"
-                  min="0.49"
+                  min="1"
                   required
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
-                  placeholder="4.99"
+                  placeholder="499"
                   className="w-full pl-7 pr-3 py-2 rounded-2xl bg-slate-50 dark:bg-[#111b21] border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
