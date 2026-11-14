@@ -2718,7 +2718,7 @@ app.post('/api/auth/oauth/google', async (req, res) => {
   try {
     const verifyUrl = credential
       ? `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`
-      : `https://www.googleapis.com/oauth2/v3/userinfo?access_token=${encodeURIComponent(accessToken)}`;
+      : `https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(accessToken)}`;
 
     const verifyRes = await fetch(verifyUrl);
     if (!verifyRes.ok) {
@@ -2728,7 +2728,7 @@ app.post('/api/auth/oauth/google', async (req, res) => {
     }
 
     const payload = await verifyRes.json();
-    if (payload.aud !== googleClientId || payload.email_verified !== true) {
+    if (payload.aud !== googleClientId || !(payload.email_verified === true || payload.email_verified === 'true')) {
       logSecurityEvent(null, 'OAUTH_GOOGLE_FAIL', 'failure', 'Google token audience or verified-email check failed', req);
       res.status(401).json({ error: 'Google account verification failed. Use a verified account configured for this app.' });
       return;
