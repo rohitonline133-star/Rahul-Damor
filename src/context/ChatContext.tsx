@@ -44,8 +44,8 @@ interface ChatContextType {
   communities: Community[];
   refreshCommunities: () => Promise<void>;
   createCommunity: (name: string, description: string, icon?: string) => Promise<string | null>;
-  joinCommunity: (commId: string) => Promise<void>;
-  postAnnouncement: (commId: string, title: string, content: string) => Promise<void>;
+  joinCommunity: (commId: string) => Promise<boolean>;
+  postAnnouncement: (commId: string, title: string, content: string) => Promise<boolean>;
 
   // In-app Notification Banner
   toast: ToastAlert | null;
@@ -689,23 +689,25 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const joinCommunity = async (commId: string) => {
-    if (!token) return;
+  const joinCommunity = async (commId: string): Promise<boolean> => {
+    if (!token) return false;
     try {
-      await fetch(`/api/communities/${commId}/join`, {
+      const response = await fetch(`/api/communities/${encodeURIComponent(commId)}/join`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (!response.ok) return false;
       await refreshCommunities();
+      return true;
     } catch {
-      // ignore
+      return false;
     }
   };
 
-  const postAnnouncement = async (commId: string, title: string, content: string) => {
-    if (!token) return;
+  const postAnnouncement = async (commId: string, title: string, content: string): Promise<boolean> => {
+    if (!token) return false;
     try {
-      await fetch(`/api/communities/${commId}/announcements`, {
+      const response = await fetch(`/api/communities/${encodeURIComponent(commId)}/announcements`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -713,9 +715,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         },
         body: JSON.stringify({ title, content }),
       });
+      if (!response.ok) return false;
       await refreshCommunities();
+      return true;
     } catch {
-      // ignore
+      return false;
     }
   };
 
