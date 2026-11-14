@@ -47,6 +47,8 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
 
   // Subscriptions
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
+  const [availablePlans, setAvailablePlans] = useState<any[]>([]);
+  const [subscriptionNotice, setSubscriptionNotice] = useState<string | null>(null);
 
   // Checkout states
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'upi' | 'wallet'>('card');
@@ -132,6 +134,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
       if (res.ok) {
         const data = await res.json();
         setSubscriptions(data.subscription && data.subscription.plan !== 'free' ? [data.subscription] : []);
+        setAvailablePlans(Array.isArray(data.availablePlans) ? data.availablePlans : []);
       }
     } catch {
       // ignore
@@ -298,6 +301,76 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
       checkout.open();
     } catch (err: any) {
       setCheckoutError(err.message || 'Checkout failed');
+    } finally {
+      setIsCheckingOut(false);
+    }
+  };
+
+  const handleUpgradePlan = async (plan: string) => {
+    if (!token || !['pro', 'business'].includes(plan)) return;
+    setIsCheckingOut(true);
+    setSubscriptionNotice(null);
+    try {
+      const response = await fetch('/api/subscriptions/upgrade', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ plan }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.razorpay) {
+        setSubscriptionNotice(data.error || 'Subscription checkout could not be started.');
+        return;
+      }
+      if (!window.Razorpay) {
+        const loaded = await new Promise<boolean>((resolve) => {
+          const script = document.createElement('script');
+          script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+          script.async = true;
+          script.onload = () => resolve(!!window.Razorpay);
+          script.onerror = () => resolve(false);
+          document.body.appendChild(script);
+        });
+        if (!loaded) {
+          setSubscriptionNotice('Razorpay Checkout could not load. No payment was collected.');
+          return;
+        }
+      }
+      const RazorpayConstructor = window.Razorpay;
+      if (!RazorpayConstructor) throw new Error('Razorpay Checkout is unavailable.');
+      const checkout = new RazorpayConstructor({
+        key: data.razorpay.keyId,
+        amount: data.razorpay.amount,
+        currency: data.razorpay.currency,
+        name: data.razorpay.name,
+        description: data.razorpay.description,
+        order_id: data.razorpay.orderId,
+        theme: { color: '#00a884' },
+        prefill: { name: currentUser?.displayName || '' },
+        handler: async (paymentResponse: any) => {
+          try {
+            const verifyResponse = await fetch('/api/payments/razorpay/verify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+              body: JSON.stringify(paymentResponse),
+            });
+            const verifyData = await verifyResponse.json().catch(() => ({}));
+            if (!verifyResponse.ok || !verifyData.success) {
+              setSubscriptionNotice(verifyData.error || 'Payment verification is pending. Premium access remains locked.');
+              return;
+            }
+            setSubscriptionNotice('Payment verified. Your GB Official subscription is active.');
+            await loadSubscriptions();
+          } catch {
+            setSubscriptionNotice('Payment was submitted but verification is pending. Premium access remains locked until the server confirms it.');
+          }
+        },
+        modal: {
+          ondismiss: () => setSubscriptionNotice('Checkout closed. No subscription was activated.'),
+        },
+      });
+      checkout.open();
+    } catch (error) {
+      setSubscriptionNotice(error instanceof Error ? error.message : 'Subscription checkout failed.');
     } finally {
       setIsCheckingOut(false);
     }
@@ -665,12 +738,39 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
                 </p>
               </div>
               <div className="pt-2 flex items-baseline gap-2">
-                <span className="text-2xl font-black font-mono">$4.99</span>
+                <span className="text-sm font-bold">Pricing set by GB Official</span>
                 <span className="text-xs text-emerald-200">/ month</span>
               </div>
               <div className="w-full py-2.5 rounded-xl bg-white/15 border border-white/20 text-white/90 text-xs text-center font-semibold">
-                Paid plans will become available after a verified payment provider is configured. No free activation or simulated charge is available.
+                Choose a paid plan below. Checkout is processed by Razorpay and premium access is granted only after server-side payment verification.
               </div>
+            </div>
+
+            {subscriptionNotice && (
+              <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-200">
+                {subscriptionNotice}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <h5 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Choose a paid plan</h5>
+              {availablePlans.filter((plan) => plan.id === 'pro' || plan.id === 'business').map((plan) => (
+                <div key={plan.id} className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="font-bold text-xs text-slate-900 dark:text-white">{plan.name}</div>
+                    <div className="text-[11px] text-slate-500">
+                      {plan.price == null ? 'Price not configured' : `₹${Number(plan.price).toFixed(2)} / month`}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleUpgradePlan(plan.id)}
+                    disabled={isCheckingOut || plan.price == null}
+                    className="shrink-0 px-3 py-2 rounded-xl bg-[#00a884] text-white text-[11px] font-bold disabled:opacity-40"
+                  >
+                    {isCheckingOut ? 'Please wait...' : 'Pay with Razorpay'}
+                  </button>
+                </div>
+              ))}
             </div>
 
             {/* Active Subscriptions */}
