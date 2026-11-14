@@ -5985,7 +5985,7 @@ app.post('/api/shop/orders', async (req, res) => {
   });
 });
 
-function finalizeRazorpayPayment(payment: { id: string; order_id: string; amount: number; currency: string; status: string }) {
+function finalizeRazorpayPayment(payment: { id: string; order_id: string; amount: number; currency: string; status: string }): { ok: true; duplicate: boolean } | { ok: false; status: number; error: string } {
   const transaction = (db.transactions || []).find((item: any) =>
     item.gateway === 'razorpay' && item.gatewayOrderId === payment.order_id
   );
