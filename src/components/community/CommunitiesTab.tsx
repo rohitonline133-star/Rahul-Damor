@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Users2, Megaphone, Plus, ChevronRight, ShieldCheck, MessageSquare, Globe } from 'lucide-react';
 import { useChat } from '../../context/ChatContext';
-import { Community } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 
 interface CommunitiesTabProps {
