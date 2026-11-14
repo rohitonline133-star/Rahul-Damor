@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
 import { isSupportedOtpPurpose, isValidOtpCode, canAddGroupMembers, isCommunityGroupLinkValid, isValidShippingAddress } from './src/lib/server-validation';
+import { createRazorpayOrder, fetchCapturedRazorpayPayment, getRazorpayConfig, isValidRazorpaySignature, isValidRazorpayWebhookSignature } from './src/lib/razorpay';
 import { createServer as createViteServer } from 'vite';
 
 const app = express();
@@ -26,7 +27,7 @@ app.use((_req, res, next) => {
   next();
 });
 
-app.use(express.json({ limit: '25mb' }));
+app.use(express.json({ limit: '25mb', verify: (req, _res, buffer) => { (req as any).rawBody = Buffer.from(buffer); } }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
 // Ensure data directory exists
@@ -5870,25 +5871,25 @@ app.get('/api/shop/orders', (req, res) => {
   res.json({ orders });
 });
 
-app.post('/api/shop/orders', (req, res) => {
+app.post('/api/shop/orders', async (req, res) => {
   const user = authenticate(req);
-  if (!user) {
-    res.status(401).json({ error: 'Unauthorized' });
+  if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+
+  const config = getRazorpayConfig();
+  if (!config) {
+    res.status(503).json({ error: 'Razorpay is not configured. Add the required keys and webhook secret in the hosting secret manager.', code: 'RAZORPAY_NOT_CONFIGURED' });
     return;
   }
 
   const { items, shippingAddress, paymentMethod } = req.body || {};
-  if (!items || !Array.isArray(items) || items.length === 0 || items.length > 50) {
-    res.status(400).json({ error: 'Provide between 1 and 50 order items.' });
-    return;
+  if (!Array.isArray(items) || items.length === 0 || items.length > 50) {
+    res.status(400).json({ error: 'Provide between 1 and 50 order items.' }); return;
   }
   if (!isValidShippingAddress(shippingAddress)) {
-    res.status(400).json({ error: 'A complete, valid shipping address is required.' });
-    return;
+    res.status(400).json({ error: 'A complete, valid shipping address is required.' }); return;
   }
-  if (paymentMethod !== undefined && !['card', 'upi', 'netbanking', 'wallet', 'cod'].includes(paymentMethod)) {
-    res.status(400).json({ error: 'Unsupported payment method.' });
-    return;
+  if (paymentMethod !== undefined && !['card', 'upi', 'netbanking', 'wallet'].includes(paymentMethod)) {
+    res.status(400).json({ error: 'Unsupported payment method.' }); return;
   }
 
   let subtotal = 0;
@@ -5900,28 +5901,27 @@ app.post('/api/shop/orders', (req, res) => {
     if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 100) { res.status(400).json({ error: 'Product quantity must be between 1 and 100.' }); return; }
     if (prod.inStock === false || (Number.isFinite(prod.stockCount) && prod.stockCount < quantity)) { res.status(409).json({ error: `${prod.name} is out of stock or has insufficient quantity.` }); return; }
     const price = Number(prod.price);
-    if (!Number.isFinite(price) || price < 0) { res.status(500).json({ error: 'A store product has an invalid price.' }); return; }
-    const name = prod.name;
-    const image = prod.image || '';
+    if (!Number.isFinite(price) || price <= 0) { res.status(500).json({ error: 'A store product has an invalid price.' }); return; }
     subtotal += price * quantity;
-    orderItems.push({
-      productId: item.productId,
-      name,
-      quantity,
-      unitPrice: price,
-      image,
-    });
+    orderItems.push({ productId: item.productId, name: prod.name, quantity, unitPrice: price, image: prod.image || '' });
   }
 
   const total = Number(subtotal.toFixed(2));
+  const amountMinor = Math.round(total * 100);
+  if (!Number.isSafeInteger(amountMinor) || amountMinor < 100) {
+    res.status(400).json({ error: 'The order total is below Razorpay minimum payment amount.' }); return;
+  }
+
+  const now = Date.now();
   const newOrder = {
-    id: 'ord_' + Date.now(),
+    id: 'ord_' + crypto.randomUUID().replace(/-/g, ''),
     userId: user.id,
     userName: user.displayName,
     items: orderItems,
     subtotal: total,
     shipping: 0,
     total,
+    currency: config.currency,
     status: 'pending_payment',
     shippingAddress: {
       fullName: shippingAddress.fullName.trim(),
@@ -5930,57 +5930,167 @@ app.post('/api/shop/orders', (req, res) => {
       postalCode: shippingAddress.postalCode.trim(),
       country: shippingAddress.country.trim(),
     },
-    paymentMethod: paymentMethod || 'card',
+    paymentMethod: paymentMethod || 'upi',
     paymentStatus: 'pending',
     trackingNumber: null,
-    createdAt: Date.now(),
+    createdAt: now,
   };
 
-  db.shop_orders = db.shop_orders || [];
-  db.shop_orders.unshift(newOrder);
-
-  // Keep the cart intact until a payment gateway confirms settlement.
-
-  // Record transaction
-  db.transactions = db.transactions || [];
-  db.transactions.unshift({
-    id: 'tx_' + Date.now(),
-    userId: user.id,
-    type: 'shop_purchase',
-    amount: total,
-    currency: 'USD',
-    status: 'pending',
-    description: `GB Shop Order #${newOrder.id.slice(-6).toUpperCase()} — awaiting verified gateway payment`,
-    createdAt: newOrder.createdAt,
-  });
-
-  // Create notification
-  const notif = {
-    id: 'notif_' + Date.now(),
-    userId: user.id,
-    title: 'Order Created — Payment Pending',
-    body: `Your order for ${orderItems[0].name} was created. It will be confirmed only after the payment gateway verifies payment.`,
-    type: 'system',
-    targetId: newOrder.id,
-    isRead: false,
-    createdAt: Date.now(),
-  };
-  db.notifications = db.notifications || [];
-  db.notifications.unshift(notif);
-
-  if (!saveDb(db)) {
-    db.shop_orders = db.shop_orders.filter((order: any) => order.id !== newOrder.id);
-    db.transactions = db.transactions.filter((transaction: any) => transaction.userId !== user.id || transaction.createdAt !== newOrder.createdAt);
-    db.notifications = db.notifications.filter((notification: any) => notification.id !== notif.id);
-    res.status(500).json({ error: 'Could not save the order. No payment was taken; please try again.' });
+  let gatewayOrder: { id: string; amount: number; currency: string };
+  try {
+    gatewayOrder = await createRazorpayOrder(amountMinor, config.currency, newOrder.id, config);
+  } catch (error) {
+    console.error('Razorpay order creation failed:', error instanceof Error ? error.message : 'unknown error');
+    res.status(502).json({ error: 'Razorpay could not start checkout. No payment was collected.' });
     return;
   }
-  sendSSE(user.id, 'notification', { notification: notif });
+  newOrder.gatewayOrderId = gatewayOrder.id;
+
+  const transaction = {
+    id: 'tx_' + crypto.randomUUID().replace(/-/g, ''),
+    userId: user.id,
+    type: 'shop_purchase',
+    orderId: newOrder.id,
+    gateway: 'razorpay',
+    gatewayOrderId: gatewayOrder.id,
+    amount: total,
+    amountMinor,
+    currency: gatewayOrder.currency,
+    status: 'pending',
+    description: `GB Shop Order ${newOrder.id}`,
+    createdAt: now,
+  };
+  const snapshot = JSON.parse(JSON.stringify(db)) as DbSchema;
+  db.shop_orders = db.shop_orders || [];
+  db.shop_orders.unshift(newOrder);
+  db.transactions = db.transactions || [];
+  db.transactions.unshift(transaction);
+  if (!saveDb(db)) {
+    db = snapshot;
+    res.status(500).json({ error: 'Could not save the order. No payment was collected.' });
+    return;
+  }
 
   res.status(201).json({
     order: newOrder,
-    gatewayNotice: 'No live payment was collected. Order remains pending until a trusted payment gateway confirms payment.',
+    razorpay: {
+      keyId: config.keyId,
+      orderId: gatewayOrder.id,
+      amount: gatewayOrder.amount,
+      currency: gatewayOrder.currency,
+      name: 'GB Official',
+      description: 'GB Official Store purchase',
+    },
   });
+});
+
+function finalizeRazorpayPayment(payment: { id: string; order_id: string; amount: number; currency: string; status: string }) {
+  const transaction = (db.transactions || []).find((item: any) =>
+    item.gateway === 'razorpay' && item.gatewayOrderId === payment.order_id
+  );
+  if (!transaction) return { ok: false, status: 404, error: 'Payment order was not found.' };
+  if (transaction.status === 'paid') return { ok: true, duplicate: true };
+  if (payment.status !== 'captured' || payment.amount !== transaction.amountMinor || payment.currency !== transaction.currency) {
+    return { ok: false, status: 400, error: 'Payment amount, currency, or capture status does not match the pending order.' };
+  }
+
+  const snapshot = JSON.parse(JSON.stringify(db)) as DbSchema;
+  transaction.status = 'paid';
+  transaction.paymentId = payment.id;
+  transaction.paidAt = Date.now();
+
+  if (transaction.type === 'shop_purchase') {
+    const order = (db.shop_orders || []).find((item: any) => item.id === transaction.orderId && item.userId === transaction.userId);
+    if (!order || order.gatewayOrderId !== payment.order_id) {
+      db = snapshot;
+      return { ok: false, status: 404, error: 'Matching shop order was not found.' };
+    }
+    order.paymentStatus = 'paid';
+    order.status = 'confirmed';
+    order.paymentId = payment.id;
+    db.shop_cart[transaction.userId] = [];
+  } else if (transaction.type === 'subscription_purchase') {
+    const plan = transaction.plan;
+    if (!['pro', 'business'].includes(plan)) {
+      db = snapshot;
+      return { ok: false, status: 400, error: 'Invalid subscription payment record.' };
+    }
+    db.subscriptions = db.subscriptions || {};
+    db.subscriptions[transaction.userId] = {
+      plan,
+      status: 'active',
+      pricePerMonth: transaction.amount,
+      currency: transaction.currency,
+      renewalDate: Date.now() + 30 * 86400000,
+      paymentId: payment.id,
+      gateway: 'razorpay',
+      features: plan === 'business'
+        ? ['Official Business Verified Tick', 'GB Shop Storefront with 0% Platform Fee', 'Automated Quick Replies & Greetings', 'Up to 10 Linked Companion Devices', 'Large 2GB File & Media Uploads']
+        : ['Verified Pro Badge & Custom Profile Flair', 'Large 2GB File & Media Uploads', 'Unlimited HD Video & Audio Calling', 'Priority Broadcast Channels & Polls', 'Custom Themes & Wallpapers'],
+    };
+  } else {
+    db = snapshot;
+    return { ok: false, status: 400, error: 'Unsupported payment transaction type.' };
+  }
+
+  if (!saveDb(db)) {
+    db = snapshot;
+    return { ok: false, status: 500, error: 'Could not persist verified payment. Please contact support with the payment reference.' };
+  }
+  sendSSE(transaction.userId, 'payment_updated', { paymentId: payment.id, transactionId: transaction.id, status: 'paid' });
+  return { ok: true, duplicate: false };
+}
+
+app.post('/api/payments/razorpay/verify', async (req, res) => {
+  const user = authenticate(req);
+  if (!user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+  const config = getRazorpayConfig();
+  if (!config) { res.status(503).json({ error: 'Razorpay is not configured.' }); return; }
+
+  const { razorpay_order_id: orderId, razorpay_payment_id: paymentId, razorpay_signature: signature } = req.body || {};
+  if (!isValidRazorpaySignature(orderId, paymentId, signature, config.keySecret)) {
+    res.status(400).json({ error: 'Invalid Razorpay payment signature.' }); return;
+  }
+  const transaction = (db.transactions || []).find((item: any) =>
+    item.gateway === 'razorpay' && item.gatewayOrderId === orderId && item.userId === user.id
+  );
+  if (!transaction) { res.status(404).json({ error: 'Payment order not found for this account.' }); return; }
+
+  try {
+    const payment = await fetchCapturedRazorpayPayment(paymentId, config);
+    if (payment.order_id !== orderId) { res.status(400).json({ error: 'Payment does not belong to this checkout order.' }); return; }
+    const result = finalizeRazorpayPayment(payment);
+    if (!result.ok) { res.status(result.status).json({ error: result.error }); return; }
+    res.json({ success: true, status: 'paid', duplicate: result.duplicate });
+  } catch (error) {
+    console.error('Razorpay payment verification failed:', error instanceof Error ? error.message : 'unknown error');
+    res.status(502).json({ error: 'Payment could not be verified with Razorpay. Your purchase remains locked until verification succeeds.' });
+  }
+});
+
+app.post('/api/payments/razorpay/webhook', (req, res) => {
+  const config = getRazorpayConfig();
+  const rawBody = (req as any).rawBody as Buffer | undefined;
+  const signature = req.header('x-razorpay-signature');
+  if (!config || !rawBody || !isValidRazorpayWebhookSignature(rawBody, signature, config.webhookSecret)) {
+    res.status(400).json({ error: 'Invalid payment webhook signature.' }); return;
+  }
+  const event = req.body || {};
+  if (event.event === 'payment.captured') {
+    const payment = event.payload?.payment?.entity;
+    if (!payment || typeof payment.id !== 'string' || typeof payment.order_id !== 'string') {
+      res.status(400).json({ error: 'Malformed payment event.' }); return;
+    }
+    const result = finalizeRazorpayPayment({
+      id: payment.id,
+      order_id: payment.order_id,
+      amount: payment.amount,
+      currency: payment.currency,
+      status: payment.status,
+    });
+    if (!result.ok && result.status !== 404) { res.status(result.status).json({ error: result.error }); return; }
+  }
+  res.json({ received: true });
 });
 
 // -------------------------------------------------------------
