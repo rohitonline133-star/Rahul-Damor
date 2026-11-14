@@ -233,45 +233,43 @@ function createEmptyDb(): DbSchema {
 }
 
 function normalizeDb(data: Partial<DbSchema>): DbSchema {
-  const empty = createEmptyDb();
-  return {
-    ...empty,
-    ...data,
-    users: Array.isArray(data.users) ? data.users : [],
-    conversations: Array.isArray(data.conversations) ? data.conversations : [],
-    messages: Array.isArray(data.messages) ? data.messages : [],
-    statuses: Array.isArray(data.statuses) ? data.statuses : [],
-    communities: Array.isArray(data.communities) ? data.communities : [],
-    calls: Array.isArray(data.calls) ? data.calls : [],
-    reports: Array.isArray(data.reports) ? data.reports : [],
-    notifications: Array.isArray(data.notifications) ? data.notifications : [],
-    posts: Array.isArray(data.posts) ? data.posts : [],
-    channels: Array.isArray(data.channels) ? data.channels : [],
-    followers: Array.isArray(data.followers) ? data.followers : [],
-    follow_requests: Array.isArray(data.follow_requests) ? data.follow_requests : [],
-    verification_requests: Array.isArray(data.verification_requests) ? data.verification_requests : [],
-    blocked_users: Array.isArray(data.blocked_users) ? data.blocked_users : [],
-    muted_users: Array.isArray(data.muted_users) ? data.muted_users : [],
-    location_shares: Array.isArray(data.location_shares) ? data.location_shares : [],
-    shop_products: Array.isArray(data.shop_products) ? data.shop_products : [],
-    shop_cart: data.shop_cart && typeof data.shop_cart === 'object' ? data.shop_cart : {},
-    shop_orders: Array.isArray(data.shop_orders) ? data.shop_orders : [],
-    payment_methods: Array.isArray(data.payment_methods) ? data.payment_methods : [],
-    transactions: Array.isArray(data.transactions) ? data.transactions : [],
-    subscriptions: data.subscriptions && typeof data.subscriptions === 'object' ? data.subscriptions : {},
-    devices: Array.isArray(data.devices) ? data.devices : [],
-    custom_lists: Array.isArray(data.custom_lists) ? data.custom_lists : [],
-    broadcast_lists: Array.isArray(data.broadcast_lists) ? data.broadcast_lists : [],
-    phone_verifications: Array.isArray(data.phone_verifications) ? data.phone_verifications : [],
-    sessions: Array.isArray(data.sessions) ? data.sessions : [],
-    security_logs: Array.isArray(data.security_logs) ? data.security_logs : [],
-    security_notifications: Array.isArray(data.security_notifications) ? data.security_notifications : [],
-    two_factor_auth: data.two_factor_auth && typeof data.two_factor_auth === 'object' ? data.two_factor_auth : {},
-    oauth_accounts: Array.isArray(data.oauth_accounts) ? data.oauth_accounts : [],
-    password_resets: Array.isArray(data.password_resets) ? data.password_resets : [],
-  };
-}
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    throw new Error('Database root must be a JSON object.');
+  }
 
+  const arrayKeys: (keyof DbSchema)[] = [
+    'users', 'conversations', 'messages', 'statuses', 'communities', 'calls',
+    'reports', 'notifications', 'posts', 'channels', 'followers', 'follow_requests',
+    'verification_requests', 'blocked_users', 'muted_users', 'location_shares',
+    'shop_products', 'shop_orders', 'payment_methods', 'transactions', 'devices',
+    'custom_lists', 'broadcast_lists', 'phone_verifications', 'sessions',
+    'security_logs', 'security_notifications', 'oauth_accounts', 'password_resets',
+  ];
+  const objectKeys: (keyof DbSchema)[] = [
+    'shop_cart', 'subscriptions', 'two_factor_auth',
+  ];
+
+  // Missing fields are safely initialized for forward-compatible schema additions.
+  // Present-but-invalid fields are rejected: replacing them with [] or {} could
+  // silently erase valid user data after a partial/corrupt write.
+  for (const key of arrayKeys) {
+    const value = (data as any)[key];
+    if (value !== undefined && !Array.isArray(value)) {
+      throw new Error(`Database field "${String(key)}" must be an array; refusing lossy recovery.`);
+    }
+  }
+  for (const key of objectKeys) {
+    const value = (data as any)[key];
+    if (value !== undefined && (!value || typeof value !== 'object' || Array.isArray(value))) {
+      throw new Error(`Database field "${String(key)}" must be an object; refusing lossy recovery.`);
+    }
+  }
+
+  return {
+    ...createEmptyDb(),
+    ...data,
+  } as DbSchema;
+}
 function loadDb(): DbSchema {
   if (fs.existsSync(DB_FILE)) {
     // Never replace a corrupt or unreadable database with a fresh empty one:
@@ -326,7 +324,9 @@ for (const demoUser of db.users) {
     demoUser.passwordHash = hashPassword(crypto.randomBytes(32).toString('hex'), replacementSalt);
   }
 }
-saveDb(db);
+if (!saveDb(db)) {
+  throw new Error('Could not persist startup security cleanup. Refusing to start with potentially exposed sessions or OTP records.');
+}
 
 // Authentication Token & Persistent Session Manager
 const activeSessions = new Map<string, string>(); // token -> userId
@@ -7687,13 +7687,15 @@ app.all('/api/tests/run', (req, res) => {
   if (process.env.NODE_ENV === 'production') { res.status(404).json({ error: 'Not found' }); return; }
   const user = authenticate(req);
   if (!user || user.role !== 'admin') { res.status(403).json({ error: 'Administrator access required.' }); return; }
-  res.json(runAutomatedTestSuite());
+  res.status(503).json({ error: 'Legacy diagnostics are disabled because they rely on demo fixtures and do not provide isolated test evidence. Use the automated CI test suite.' });
 });
 
 app.post('/api/tests/run-single', (req, res) => {
   if (process.env.NODE_ENV === 'production') { res.status(404).json({ error: 'Not found' }); return; }
   const user = authenticate(req);
   if (!user || user.role !== 'admin') { res.status(403).json({ error: 'Administrator access required.' }); return; }
+  res.status(503).json({ error: 'Legacy diagnostics are disabled because they rely on demo fixtures and do not provide isolated test evidence. Use the automated CI test suite.' });
+  return;
   const { testId } = req.body;
   if (!testId) {
     res.status(400).json({ error: 'testId is required' });
