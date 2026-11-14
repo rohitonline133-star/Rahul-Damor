@@ -256,7 +256,9 @@ export const ShopModal: React.FC<ShopModalProps> = ({ onClose }) => {
         }
       }
 
-      const checkout = new window.Razorpay!({
+      const RazorpayConstructor = window.Razorpay;
+      if (!RazorpayConstructor) throw new Error('Razorpay Checkout is unavailable.');
+      const checkout = new RazorpayConstructor({
         key: data.razorpay.keyId,
         amount: data.razorpay.amount,
         currency: data.razorpay.currency,
