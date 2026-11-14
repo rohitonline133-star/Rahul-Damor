@@ -402,7 +402,7 @@ function logSecurityEvent(
 function createSessionRecord(userId: string, req?: express.Request, deviceName?: string) {
   const token = 'gb_tok_' + crypto.randomBytes(32).toString('hex');
   const now = Date.now();
-  const clientIp = req ? ((req.headers['x-forwarded-for'] as string) || req.ip || '127.0.0.1') : '127.0.0.1';
+  const clientIp = req ? (req.ip || req.socket.remoteAddress || 'unknown') : 'unknown';
   const userAgent = req?.headers['user-agent'] || 'GB Official Android Client';
 
   let platform = 'Android';
@@ -637,7 +637,7 @@ app.post('/api/auth/phone/send-otp', async (req, res) => {
   }
 
   // Client identification for rate limiting
-  const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0].trim() || req.socket.remoteAddress || '127.0.0.1';
+  const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
   const deviceId = (req.headers['x-device-id'] as string) || (req.headers['user-agent'] as string) || 'default_device';
 
   // Multi-tier Rate Limiting:
