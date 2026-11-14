@@ -3724,6 +3724,24 @@ app.post('/api/messages', (req, res) => {
     res.status(403).json({ error: 'Only group admins can send messages in this group.' });
     return;
   }
+  if (conv.type !== 'group') {
+    const otherMemberIds = conv.members
+      .map((member: any) => member?.userId)
+      .filter((memberId: any) => typeof memberId === 'string' && memberId !== user.id);
+    const blocked = otherMemberIds.some((memberId: string) => {
+      const other = db.users.find((candidate: any) => candidate.id === memberId);
+      return (user.blockedUserIds || []).includes(memberId) ||
+        (other?.blockedUserIds || []).includes(user.id) ||
+        (db.blocked_users || []).some((entry: any) =>
+          (entry.blockerId === user.id && entry.blockedId === memberId) ||
+          (entry.blockerId === memberId && entry.blockedId === user.id)
+        );
+    });
+    if (blocked) {
+      res.status(403).json({ error: 'Messaging is unavailable because this user relationship is blocked.' });
+      return;
+    }
+  }
 
   if (replyToId !== undefined && (typeof replyToId !== 'string' || replyToId.length > 128)) {
     res.status(400).json({ error: 'Invalid reply reference.' });
@@ -6050,14 +6068,34 @@ app.post('/api/location/share', (req, res) => {
     return;
   }
 
-  const { conversationId, latitude, longitude, address, isLive, durationMinutes } = req.body;
-  if (!conversationId || typeof latitude !== 'number' || typeof longitude !== 'number') {
+  const { conversationId, latitude, longitude, address, isLive, durationMinutes } = req.body || {};
+  if (typeof conversationId !== 'string' || !conversationId.trim() ||
+      typeof latitude !== 'number' || !Number.isFinite(latitude) || latitude < -90 || latitude > 90 ||
+      typeof longitude !== 'number' || !Number.isFinite(longitude) || longitude < -180 || longitude > 180 ||
+      (address !== undefined && (typeof address !== 'string' || address.length > 300)) ||
+      (isLive !== undefined && typeof isLive !== 'boolean')) {
     res.status(400).json({ error: 'Invalid location parameters' });
     return;
   }
 
+  const conv = db.conversations.find((c) => c.id === conversationId);
+  if (!conv || !Array.isArray(conv.members) ||
+      !conv.members.some((member: any) => member?.userId === user.id)) {
+    res.status(403).json({ error: 'Not a member of this conversation.' });
+    return;
+  }
+  if (conv.type === 'group' && conv.permissions?.sendMessages === false &&
+      !isGroupAdmin(conv, user.id)) {
+    res.status(403).json({ error: 'Only group admins can share location in this group.' });
+    return;
+  }
+
   const now = Date.now();
-  const duration = isLive ? Number(durationMinutes || 60) : 0;
+  const duration = isLive ? Number(durationMinutes ?? 60) : 0;
+  if (isLive && (!Number.isInteger(duration) || duration < 1 || duration > 1440)) {
+    res.status(400).json({ error: 'Live location duration must be between 1 and 1440 minutes.' });
+    return;
+  }
   const expiresAt = isLive ? now + duration * 60 * 1000 : undefined;
 
   const locationData = {
@@ -6091,13 +6129,11 @@ app.post('/api/location/share', (req, res) => {
     createdAt: now,
   };
 
+  const previousLastMessage = conv.lastMessage;
+  const previousUpdatedAt = conv.updatedAt;
   db.messages.push(newMsg);
-
-  const conv = db.conversations.find((c) => c.id === conversationId);
-  if (conv) {
-    conv.lastMessage = newMsg;
-    conv.updatedAt = now;
-  }
+  conv.lastMessage = newMsg;
+  conv.updatedAt = now;
 
   if (isLive) {
     db.location_shares = db.location_shares || [];
@@ -6117,9 +6153,18 @@ app.post('/api/location/share', (req, res) => {
     });
   }
 
-  saveDb(db);
+  if (!saveDb(db)) {
+    db.messages = db.messages.filter((message: any) => message.id !== newMsg.id);
+    conv.lastMessage = previousLastMessage;
+    conv.updatedAt = previousUpdatedAt;
+    if (isLive) db.location_shares = (db.location_shares || []).filter((share: any) =>
+      !(share.userId === user.id && share.conversationId === conversationId && share.createdAt === now)
+    );
+    res.status(500).json({ error: 'Could not persist location message. Please retry.' });
+    return;
+  }
 
-  if (conv && Array.isArray(conv.members)) {
+  if (Array.isArray(conv.members)) {
     conv.members.forEach((member: any) => {
       if (typeof member?.userId === 'string' && member.userId.length > 0) {
         sendSSE(member.userId, 'message_created', { message: newMsg });
@@ -6683,13 +6728,20 @@ app.post('/api/subscriptions/upgrade', (req, res) => {
     return;
   }
 
-  const { plan } = req.body;
+  const { plan } = req.body || {};
   if (!['free', 'pro', 'business'].includes(plan)) {
     res.status(400).json({ error: 'Invalid plan selected' });
     return;
   }
+  if (plan !== 'free') {
+    res.status(503).json({
+      error: 'Paid subscriptions are unavailable until a verified payment provider is configured.',
+      code: 'PAYMENT_PROVIDER_NOT_CONFIGURED',
+    });
+    return;
+  }
 
-  const price = plan === 'business' ? 14.99 : plan === 'pro' ? 4.99 : 0;
+  const price = 0;
   const features =
     plan === 'business'
       ? [
@@ -6715,28 +6767,17 @@ app.post('/api/subscriptions/upgrade', (req, res) => {
 
   db.subscriptions = db.subscriptions || {};
   db.subscriptions[user.id] = {
-    plan,
+    plan: 'free',
     status: 'active',
-    pricePerMonth: price,
-    renewalDate: Date.now() + 30 * 86400000,
+    pricePerMonth: 0,
+    renewalDate: Date.now() + 365 * 86400000,
     features,
   };
 
-  if (plan !== 'free') {
-    db.transactions = db.transactions || [];
-    db.transactions.unshift({
-      id: 'tx_' + Date.now(),
-      userId: user.id,
-      type: 'subscription',
-      amount: price,
-      currency: 'USD',
-      status: 'completed',
-      description: `GB Official ${plan.toUpperCase()} Membership`,
-      createdAt: Date.now(),
-    });
+  if (!saveDb(db)) {
+    res.status(500).json({ error: 'Could not persist subscription change.' });
+    return;
   }
-
-  saveDb(db);
 
   res.json({
     subscription: db.subscriptions[user.id],
@@ -7115,8 +7156,11 @@ app.post('/api/settings', (req, res) => {
   // Phone changes must go through the OTP-verified change-phone endpoints.
   if (avatar) user.avatar = avatar;
 
-  saveDb(db);
-  res.json({ success: true, user });
+  if (!saveDb(db)) {
+    res.status(500).json({ error: 'Could not save settings. Please retry.' });
+    return;
+  }
+  res.json({ success: true, user: sanitizeUserForViewer(user, user) });
 });
 
 
