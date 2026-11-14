@@ -1500,7 +1500,9 @@ app.get('/api/events', (req, res) => {
 app.get('/api/auth/oauth/config', (req, res) => {
   const googleClientId = process.env.GOOGLE_CLIENT_ID;
   const facebookAppId = process.env.FACEBOOK_APP_ID;
+  const facebookAppSecret = process.env.FACEBOOK_APP_SECRET;
   const instagramAppId = process.env.INSTAGRAM_APP_ID || process.env.INSTAGRAM_CLIENT_ID;
+  const instagramAppSecret = process.env.INSTAGRAM_APP_SECRET;
   const isTwilioConfigured = !!(
     process.env.TWILIO_ACCOUNT_SID &&
     process.env.TWILIO_AUTH_TOKEN &&
@@ -1516,18 +1518,18 @@ app.get('/api/auth/oauth/config', (req, res) => {
         : 'Google OAuth is NOT CONFIGURED. Set GOOGLE_CLIENT_ID in environment settings.',
     },
     facebook: {
-      configured: !!facebookAppId,
+      configured: !!facebookAppId && !!facebookAppSecret,
       appId: facebookAppId || null,
-      message: facebookAppId
-        ? 'Facebook OAuth active and configured.'
-        : 'Facebook OAuth is NOT CONFIGURED. Set FACEBOOK_APP_ID in environment settings.',
+      message: facebookAppId && facebookAppSecret
+        ? 'Facebook OAuth token verification is configured.'
+        : 'Facebook OAuth is not configured. Set FACEBOOK_APP_ID and FACEBOOK_APP_SECRET.',
     },
     instagram: {
-      configured: !!instagramAppId,
+      configured: !!instagramAppId && !!instagramAppSecret,
       appId: instagramAppId || null,
-      message: instagramAppId
-        ? 'Instagram / Meta OAuth active and configured.'
-        : 'Instagram / Meta OAuth is NOT CONFIGURED. Set INSTAGRAM_APP_ID in environment settings.',
+      message: instagramAppId && instagramAppSecret
+        ? 'Instagram OAuth token verification is configured.'
+        : 'Instagram OAuth is not configured. Set INSTAGRAM_APP_ID and INSTAGRAM_APP_SECRET.',
     },
     smsGateway: {
       configured: isTwilioConfigured,
