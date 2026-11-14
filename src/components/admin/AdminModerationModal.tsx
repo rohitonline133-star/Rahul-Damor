@@ -245,7 +245,7 @@ export const AdminModerationModal: React.FC<AdminModerationModalProps> = ({ onCl
                       Dismiss
                     </button>
                     <button
-                      onClick={() => handleResolveReport(report.id, 'ban_user')}
+                      onClick={() => handleResolveReport(report.id, report.targetType === 'user' ? 'suspend_user' : 'delete_content')}
                       className="px-3 py-1 rounded-lg bg-red-600 text-white text-xs font-semibold"
                     >
                       Ban Target & Resolve
