@@ -5922,6 +5922,7 @@ app.post('/api/shop/orders', async (req, res) => {
     shipping: 0,
     total,
     currency: config.currency,
+    gatewayOrderId: null as string | null,
     status: 'pending_payment',
     shippingAddress: {
       fullName: shippingAddress.fullName.trim(),
