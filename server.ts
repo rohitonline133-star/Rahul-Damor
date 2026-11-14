@@ -6009,6 +6009,13 @@ function finalizeRazorpayPayment(payment: { id: string; order_id: string; amount
     order.paymentStatus = 'paid';
     order.status = 'confirmed';
     order.paymentId = payment.id;
+    for (const purchasedItem of order.items || []) {
+      const product = (db.shop_products || []).find((item: any) => item.id === purchasedItem.productId);
+      if (product && Number.isFinite(product.stockCount)) {
+        product.stockCount = Math.max(0, product.stockCount - purchasedItem.quantity);
+        if (product.stockCount === 0) product.inStock = false;
+      }
+    }
     db.shop_cart[transaction.userId] = [];
   } else if (transaction.type === 'subscription_purchase') {
     const plan = transaction.plan;
