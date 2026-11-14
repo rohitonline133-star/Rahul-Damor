@@ -253,19 +253,22 @@ function normalizeDb(data: Partial<DbSchema>): DbSchema {
 }
 
 function loadDb(): DbSchema {
-  try {
-    if (fs.existsSync(DB_FILE)) {
-      const data = fs.readFileSync(DB_FILE, 'utf-8');
-      const parsed = JSON.parse(data);
-      const synced = syncSeedData(parsed);
-      saveDb(synced);
-      return synced;
+  if (fs.existsSync(DB_FILE)) {
+    // Never replace a corrupt or unreadable database with a fresh empty one:
+    // doing so would silently destroy user data.
+    const raw = fs.readFileSync(DB_FILE, 'utf-8');
+    const parsed = JSON.parse(raw);
+    const normalized = normalizeDb(parsed);
+    if (!saveDb(normalized)) {
+      throw new Error('Could not persist the normalized database.');
     }
-  } catch (err) {
-    console.warn('Could not read existing database, initializing fresh:', err);
+    return normalized;
   }
-  const fresh = getInitialDb();
-  saveDb(fresh);
+
+  const fresh = createEmptyDb();
+  if (!saveDb(fresh)) {
+    throw new Error('Could not initialize the database file.');
+  }
   return fresh;
 }
 
