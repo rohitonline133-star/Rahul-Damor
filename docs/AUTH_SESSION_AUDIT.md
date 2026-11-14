@@ -23,3 +23,11 @@ This audit was performed against `feature/gb-official-complete-suite` after comm
 
 ## Release interpretation
 A passing CI run currently proves only that the existing helper unit tests, TypeScript check, and Vite/server production build pass. It does not prove that the legacy admin diagnostic suite passes on an empty database, nor that live authentication providers or production persistence work. Do not enable the production guard until the database and transaction work above is complete.
+
+
+## Follow-up fixes applied on the feature branch
+
+- Database normalization now rejects present-but-invalid collection/object fields instead of silently replacing them with empty arrays or objects. Missing fields can still be initialized for forward-compatible additions.
+- Startup now aborts if the security cleanup (revoking persisted sessions and pending OTP/password-reset records) cannot be saved.
+- Removed the legacy in-server diagnostic implementation that depended on fixed demo accounts and generated simulated PASS results. The old admin diagnostic endpoints now return HTTP 503 with an explicit explanation until isolated integration tests replace them.
+- These changes do not implement PostgreSQL or atomic multi-entity transactions. The production startup guard remains in place.
