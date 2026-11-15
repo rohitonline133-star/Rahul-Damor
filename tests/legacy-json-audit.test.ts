@@ -10,7 +10,7 @@ test('audits legacy collection shapes and reports counts without exposing record
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gb-legacy-audit-'));
   const source = path.join(dir, 'database.json');
   const raw = JSON.stringify({
-    users: [{ id: 'u1', email: 'private@example.invalid' }, { id: 'u2' }],
+    users: [{ id: 'u1', email: 'private@example.invalid' }, { id: 'u2' }, { displayName: 'Missing identifier' }],
     sessions: [{ id: 's1', token: 'never-print-this' }],
     phone_verifications: [{ id: 'otp1', code: '000000' }],
     shop_cart: { u1: [{ productId: 'p1' }] },
@@ -20,7 +20,9 @@ test('audits legacy collection shapes and reports counts without exposing record
   try {
     const result = auditLegacyJson(source);
     assert.equal(result.sourceSha256, crypto.createHash('sha256').update(raw).digest('hex'));
-    assert.equal(result.collections.users.records, 2);
+    assert.equal(result.collections.users.records, 3);
+    assert.equal(result.collections.users.recordsWithoutStringId, 1);
+    assert.ok(result.warnings.some((entry) => entry.includes('"users" contains 1 record(s) without a non-empty string ID')));
     assert.equal(result.collections.sessions.importPolicy, 'never-import');
     assert.equal(result.collections.phone_verifications.importPolicy, 'never-import');
     assert.equal(result.collections.shop_cart.records, 1);
