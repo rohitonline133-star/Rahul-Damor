@@ -55,6 +55,10 @@ Run `docker compose -f infra/docker-compose.yml up -d`. This starts local depend
 
 Before production, replace every local single-instance dependency with a tested highly available deployment and complete a security and operational review.
 
+## Reliable realtime event delivery contract
+
+See [OUTBOX_DELIVERY_CONTRACT.md](./OUTBOX_DELIVERY_CONTRACT.md) for the required transactional outbox producer, dispatcher, consumer, retry, idempotency, replay, and failure-test contract. This is a design gate; no production dispatcher or broker delivery is implemented yet.
+
 ## Detailed Active-Active design
 
 See [ACTIVE_ACTIVE_DESIGN.md](./ACTIVE_ACTIVE_DESIGN.md) for the consistency model, partition ownership, failure fencing, database migration gates, realtime event architecture, operational requirements, phased acceptance criteria, and honest capacity qualification process. This is a design document, not deployed infrastructure.
