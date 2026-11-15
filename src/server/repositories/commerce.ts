@@ -81,3 +81,64 @@ export async function createShopOrder(client:PoolClient,input:{
     payload:{orderId:input.id,userId:input.userId,itemCount:snapshots.length,totalMinor:total,currency}});
   return {id:input.id,currency,subtotalMinor:subtotal,shippingMinor:shipping,totalMinor:total,itemCount:snapshots.length};
 }
+
+export type ProductPage={items:Array<{id:string;sellerId:string;name:string;description:string;currency:string;unitAmountMinor:string;category:string;imageUrl:string|null;stockQuantity:string;createdAt:string}>;nextCursor:string|null};
+function decodeCursor(cursor?:string):{createdAt:string;id:string}|null{
+ if(!cursor)return null;
+ if(cursor.length>512)throw new Error('Invalid pagination cursor.');
+ let value:{createdAt?:unknown;id?:unknown};
+ try{value=JSON.parse(Buffer.from(cursor,'base64url').toString('utf8'));}catch{throw new Error('Invalid pagination cursor.');}
+ if(typeof value.createdAt!=='string'||Number.isNaN(Date.parse(value.createdAt))||typeof value.id!=='string'||!ID.test(value.id))throw new Error('Invalid pagination cursor.');
+ return {createdAt:value.createdAt,id:value.id};
+}
+export async function listActiveProducts(client:PoolClient,input:{limit?:number;cursor?:string;category?:string;search?:string}={}):Promise<ProductPage>{
+ const limit=input.limit??24;if(!Number.isInteger(limit)||limit<1||limit>100)throw new Error('Invalid page size.');
+ if(input.category!==undefined&&(typeof input.category!=='string'||input.category.length>120))throw new Error('Invalid category.');
+ if(input.search!==undefined&&(typeof input.search!=='string'||input.search.length>120))throw new Error('Invalid search query.');
+ const cursor=decodeCursor(input.cursor);
+ const result=await client.query(`SELECT id,seller_id,name,description,currency,unit_amount_minor,category,image_url,stock_quantity,created_at
+   FROM shop_products WHERE is_active
+   AND ($1::text IS NULL OR category=$1)
+   AND ($2::text IS NULL OR name ILIKE '%' || $2 || '%' OR description ILIKE '%' || $2 || '%')
+   AND ($3::timestamptz IS NULL OR (created_at,id)<($3,$4))
+   ORDER BY created_at DESC,id DESC LIMIT $5`,
+ [input.category??null,input.search?.trim()||null,cursor?.createdAt??null,cursor?.id??null,limit+1]);
+ const rows=result.rows as Array<{id:string;seller_id:string;name:string;description:string;currency:string;unit_amount_minor:string;category:string;image_url:string|null;stock_quantity:string;created_at:Date|string}>;
+ const hasMore=rows.length>limit,selected=rows.slice(0,limit);
+ const items=selected.map(p=>({id:p.id,sellerId:p.seller_id,name:p.name,description:p.description,currency:p.currency,unitAmountMinor:String(p.unit_amount_minor),category:p.category,imageUrl:p.image_url,stockQuantity:String(p.stock_quantity),createdAt:new Date(p.created_at).toISOString()}));
+ const last=selected[selected.length-1];
+ return {items,nextCursor:hasMore&&last?Buffer.from(JSON.stringify({createdAt:new Date(last.created_at).toISOString(),id:last.id})).toString('base64url'):null};
+}
+export async function getActiveProduct(client:PoolClient,productId:string){
+ id(productId,'product ID');
+ const result=await client.query(`SELECT id,seller_id,name,description,currency,unit_amount_minor,category,image_url,stock_quantity,created_at
+  FROM shop_products WHERE id=$1 AND is_active`,[productId]);
+ const p=result.rows[0];if(!p)return null;
+ return {id:p.id,sellerId:p.seller_id,name:p.name,description:p.description,currency:p.currency,unitAmountMinor:String(p.unit_amount_minor),category:p.category,imageUrl:p.image_url,stockQuantity:String(p.stock_quantity),createdAt:new Date(p.created_at).toISOString()};
+}
+export async function listUserCart(client:PoolClient,userId:string){
+ id(userId,'user ID');
+ const result=await client.query(`SELECT p.id AS product_id,p.seller_id,p.name,p.currency,p.unit_amount_minor,p.image_url,p.stock_quantity,i.quantity,i.added_at
+  FROM shop_cart_items i JOIN shop_products p ON p.id=i.product_id
+  WHERE i.user_id=$1 AND p.is_active ORDER BY i.added_at DESC,p.id`,[userId]);
+ return result.rows.map(p=>({productId:p.product_id,sellerId:p.seller_id,name:p.name,currency:p.currency,unitAmountMinor:String(p.unit_amount_minor),imageUrl:p.image_url,stockQuantity:String(p.stock_quantity),quantity:p.quantity,addedAt:new Date(p.added_at).toISOString()}));
+}
+export async function listUserOrders(client:PoolClient,input:{userId:string;limit?:number;before?:string}){
+ id(input.userId,'user ID');const limit=input.limit??20;if(!Number.isInteger(limit)||limit<1||limit>100)throw new Error('Invalid page size.');
+ const before=input.before??null;if(before!==null&&(typeof before!=='string'||Number.isNaN(Date.parse(before))))throw new Error('Invalid order cursor.');
+ const result=await client.query(`SELECT id,currency,subtotal_minor,shipping_minor,total_minor,order_status,payment_status,created_at
+  FROM shop_orders WHERE user_id=$1 AND ($2::timestamptz IS NULL OR created_at<$2)
+  ORDER BY created_at DESC,id DESC LIMIT $3`,[input.userId,before,limit+1]);
+ const hasMore=result.rows.length>limit,rows=result.rows.slice(0,limit);
+ return {items:rows.map(o=>({id:o.id,currency:o.currency,subtotalMinor:String(o.subtotal_minor),shippingMinor:String(o.shipping_minor),totalMinor:String(o.total_minor),orderStatus:o.order_status,paymentStatus:o.payment_status,createdAt:new Date(o.created_at).toISOString()})),nextCursor:hasMore&&rows.length?new Date(rows[rows.length-1].created_at).toISOString():null};
+}
+export async function getUserOrder(client:PoolClient,input:{userId:string;orderId:string}){
+ id(input.userId,'user ID');id(input.orderId,'order ID');
+ const result=await client.query(`SELECT o.id,o.currency,o.subtotal_minor,o.shipping_minor,o.total_minor,o.order_status,o.payment_status,o.created_at,
+  i.id AS item_id,i.product_id,i.product_name,i.quantity,i.unit_amount_minor,i.image_url
+  FROM shop_orders o LEFT JOIN shop_order_items i ON i.order_id=o.id
+  WHERE o.id=$1 AND o.user_id=$2 ORDER BY i.id`,[input.orderId,input.userId]);
+ if(!result.rows.length)return null;const first=result.rows[0];
+ return {id:first.id,currency:first.currency,subtotalMinor:String(first.subtotal_minor),shippingMinor:String(first.shipping_minor),totalMinor:String(first.total_minor),orderStatus:first.order_status,paymentStatus:first.payment_status,createdAt:new Date(first.created_at).toISOString(),
+  items:result.rows.filter(r=>r.item_id).map(r=>({id:r.item_id,productId:r.product_id,productName:r.product_name,quantity:r.quantity,unitAmountMinor:String(r.unit_amount_minor),imageUrl:r.image_url}))};
+}
