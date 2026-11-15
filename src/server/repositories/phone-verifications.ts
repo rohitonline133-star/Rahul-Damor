@@ -59,6 +59,21 @@ export async function createPhoneVerificationChallenge(
   if (input.requestIp != null && !validText(input.requestIp, 64)) throw new Error('Invalid request IP metadata.');
   if (input.deviceId != null && !validText(input.deviceId, 128)) throw new Error('Invalid device metadata.');
 
+  // Serialize issuance per phone/purpose and enforce the resend cooldown.
+  await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [
+    `${input.phone}:${input.purpose}`,
+  ]);
+  const active = await client.query<{ cooldown_until: Date }>(`
+    SELECT cooldown_until FROM verification_challenges
+    WHERE phone = $1 AND purpose = $2
+      AND consumed_at IS NULL AND superseded_at IS NULL
+    ORDER BY created_at DESC LIMIT 1
+    FOR UPDATE
+  `, [input.phone, input.purpose]);
+  if (active.rows[0] && new Date(active.rows[0].cooldown_until).getTime() > Date.now()) {
+    throw new Error('Phone verification resend cooldown is active.');
+  }
+
   const now = Date.now();
   const code = randomInt(100000, 1000000).toString();
   const salt = randomBytes(16).toString('hex');
