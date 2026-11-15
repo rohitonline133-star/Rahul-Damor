@@ -1,6 +1,5 @@
-import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
-import { connect, JSONCodec, type NatsConnection } from 'nats';
+import { connect, jetstream, JSONCodec, type NatsConnection } from 'nats';
 
 type OutboxEvent = {
   event_id: string;
@@ -34,6 +33,8 @@ for (const [name, value, min, max] of [
   }
 }
 
+const sslMode = process.env.PGSSLMODE || 'verify-full';
+if (!['disable', 'verify-full'].includes(sslMode)) throw new Error('PGSSLMODE must be disable or verify-full.');
 const pool = new Pool({
   connectionString: databaseUrl,
   max: 4,
@@ -41,7 +42,7 @@ const pool = new Pool({
   idleTimeoutMillis: 30000,
   statement_timeout: 15000,
   application_name: 'gb-official-outbox-dispatcher',
-  ssl: process.env.PGSSLMODE === 'disable' ? false : { rejectUnauthorized: true },
+  ssl: sslMode === 'disable' ? false : { rejectUnauthorized: true },
 });
 const codec = JSONCodec<Record<string, unknown>>();
 let nc: NatsConnection | undefined;
@@ -128,7 +129,7 @@ async function dispatchOne(event: OutboxEvent): Promise<void> {
     data: event.payload,
   };
   try {
-    const ack = await (await import('nats')).jetstream(nc).publish(
+    const ack = await jetstream(nc).publish(
       subjectFor(event),
       codec.encode(envelope),
       { msgID: event.event_id },
