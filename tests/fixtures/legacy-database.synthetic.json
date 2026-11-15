@@ -1,10 +1,4 @@
 {
-  "_fixture": {
-    "kind": "synthetic-shape-scaffold",
-    "version": 1,
-    "notProductionData": true,
-    "notes": "Illustrative records only. Do not treat these generic fields as a complete legacy schema."
-  },
   "users": [
     {
       "id": "synthetic-users-001",
