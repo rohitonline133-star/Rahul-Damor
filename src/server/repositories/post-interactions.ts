@@ -99,14 +99,14 @@ export async function addPostComment(
   }
   const inserted = await client.query<{ id: string }>(`
     INSERT INTO post_comments (id, post_id, author_id, client_comment_id, body)
-    SELECT $1, p.id, $3, $4, $5
+    SELECT $5, p.id, $2, $3, $4
     FROM posts p
     JOIN accounts author ON author.id = p.author_id
     JOIN accounts commenter ON commenter.id = $3 AND commenter.account_status = 'active'
     WHERE ${VISIBLE_POST}
     ON CONFLICT (author_id, client_comment_id) DO NOTHING
     RETURNING id
-  `, [input.postId, input.authorId, input.authorId, input.clientCommentId, input.body.trim()]);
+  `, [input.postId, input.authorId, input.clientCommentId, input.body.trim(), input.id]);
   if (inserted.rows[0]) {
     await insertOutboxEvent(client, {
       aggregateType: 'post', aggregateId: input.postId, eventType: 'commented',
