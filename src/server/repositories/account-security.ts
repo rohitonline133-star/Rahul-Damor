@@ -134,3 +134,54 @@ export function hashRecoveryCode(code: string, pepper: string): string {
       typeof pepper !== 'string' || pepper.length < 32) throw new Error('Invalid recovery code configuration.');
   return createHmac('sha256', pepper).update(code).digest('hex');
 }
+
+/**
+ * Verifies a recovery challenge and changes the password in the same transaction.
+ * candidateHash must be HMAC-SHA256(code, server-side pepper). The caller must
+ * commit only when this function returns true; rollback on false/error.
+ */
+export async function completePasswordRecovery(
+  client: PoolClient,
+  input: {
+    userId: string;
+    candidateCodeHash: string;
+    newPasswordHash: string;
+    newPasswordSalt: string;
+  },
+): Promise<boolean> {
+  if (!ID.test(input.userId) || !HEX64.test(input.candidateCodeHash) ||
+      !/^[a-f0-9]{128}$/i.test(input.newPasswordHash) ||
+      !/^[a-f0-9]{32,128}$/i.test(input.newPasswordSalt)) {
+    throw new Error('Invalid password recovery completion input.');
+  }
+  const selected = await client.query<{
+    id: string; code_hash: string; attempts: number; max_attempts: number; expires_at: Date;
+  }>(`SELECT id, code_hash, attempts, max_attempts, expires_at
+      FROM password_recovery_challenges
+      WHERE user_id = $1 AND consumed_at IS NULL
+      ORDER BY created_at DESC LIMIT 1 FOR UPDATE`, [input.userId]);
+  const challenge = selected.rows[0];
+  if (!challenge || challenge.attempts >= challenge.max_attempts ||
+      new Date(challenge.expires_at).getTime() <= Date.now()) return false;
+
+  const expected = Buffer.from(challenge.code_hash, 'hex');
+  const actual = Buffer.from(input.candidateCodeHash, 'hex');
+  const matches = expected.length === actual.length && timingSafeEqual(expected, actual);
+  if (!matches) {
+    await client.query(`UPDATE password_recovery_challenges
+      SET attempts = attempts + 1,
+          consumed_at = CASE WHEN attempts + 1 >= max_attempts THEN now() ELSE consumed_at END
+      WHERE id = $1 AND consumed_at IS NULL`, [challenge.id]);
+    return false;
+  }
+
+  const updated = await client.query(`UPDATE accounts
+    SET password_hash = $2, password_salt = $3, updated_at = now(), version = version + 1
+    WHERE id = $1 AND account_status = 'active' RETURNING id`,
+  [input.userId, input.newPasswordHash, input.newPasswordSalt]);
+  if (updated.rowCount !== 1) return false;
+
+  const consumed = await client.query(`UPDATE password_recovery_challenges
+    SET consumed_at = now() WHERE id = $1 AND consumed_at IS NULL RETURNING id`, [challenge.id]);
+  return consumed.rowCount === 1;
+}
