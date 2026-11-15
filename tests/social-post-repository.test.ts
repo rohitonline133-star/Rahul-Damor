@@ -51,6 +51,11 @@ test('visible-post lookup enforces author, public, accepted-follower and deletio
   assert.match(calls[0].sql, /f\.status = 'accepted'/);
   assert.match(calls[0].sql, /f\.follower_id = \$2/);
   assert.match(calls[0].sql, /f\.following_id = p\.author_id/);
+  assert.match(calls[0].sql, /FROM user_blocks b/);
+  assert.match(calls[0].sql, /FROM user_mutes m/);
+  assert.match(calls[0].sql, /up\.is_private/);
+  assert.match(calls[0].sql, /b\.blocker_id = p\.author_id AND b\.blocked_id = \$2/);
+  assert.match(calls[0].sql, /m\.muter_id = \$2 AND m\.muted_id = p\.author_id/);
 });
 
 test('returns no post when the SQL authorization predicate finds no visible row', async () => {

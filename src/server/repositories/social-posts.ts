@@ -84,15 +84,33 @@ export async function findVisibleSocialPost(
       AND author.account_status = 'active'
       AND (
         p.author_id = $2
-        OR p.visibility = 'public'
+        OR NOT EXISTS (
+          SELECT 1 FROM user_blocks b
+          WHERE (b.blocker_id = p.author_id AND b.blocked_id = $2)
+             OR (b.blocker_id = $2 AND b.blocked_id = p.author_id)
+        )
+      )
+      AND (
+        p.author_id = $2
         OR (
-          p.visibility = 'followers'
+          COALESCE((SELECT up.is_private FROM user_profiles up WHERE up.user_id = p.author_id), false) = false
+          AND p.visibility = 'public'
+        )
+        OR (
+          p.visibility IN ('public', 'followers')
           AND EXISTS (
             SELECT 1 FROM follows f
             WHERE f.follower_id = $2
               AND f.following_id = p.author_id
               AND f.status = 'accepted'
           )
+        )
+      )
+      AND (
+        p.author_id = $2
+        OR NOT EXISTS (
+          SELECT 1 FROM user_mutes m
+          WHERE m.muter_id = $2 AND m.muted_id = p.author_id
         )
       )
     LIMIT 1
