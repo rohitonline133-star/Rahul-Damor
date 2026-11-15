@@ -21,7 +21,25 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: gb_ci
+          POSTGRES_PASSWORD: ci-only-not-a-secret
+          POSTGRES_DB: gb_official_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U gb_ci -d gb_official_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://gb_ci:ci-only-not-a-secret@localhost:5432/gb_official_ci
+      PGSSLMODE: disable
+      GB_POSTGRES_PASSWORD: ci-only-not-a-secret
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -35,9 +53,13 @@ jobs:
         run: npm install --legacy-peer-deps --no-audit --no-fund
 
       - name: Validate local infrastructure Compose configuration
-        env:
-          GB_POSTGRES_PASSWORD: ci-only-not-a-secret
         run: docker compose -f infra/docker-compose.yml config --quiet
+
+      - name: Apply PostgreSQL migration
+        run: npm run db:migrate
+
+      - name: Verify migration idempotency and checksum
+        run: npm run db:migrate
 
       - name: Unit tests
         run: npm test
