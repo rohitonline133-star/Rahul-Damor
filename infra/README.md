@@ -78,3 +78,15 @@ Use `PGSSLMODE=disable` only for loopback/local development. The migration runne
 **Important migration boundary:** this is a schema and connection/migration foundation, not a completed application data migration. Existing `server.ts` request handlers still read and mutate the local JSON `DbSchema` synchronously. The new PostgreSQL helper is not yet wired into those handlers, legacy JSON records have not been imported, and production startup remains deliberately blocked. Do not run this migration against production data or claim PostgreSQL-backed application operation until the handler/repository refactor, data migration, rollback plan, and integration tests are complete.
 
 CI provisions a disposable PostgreSQL 17 service, applies the migration twice to verify idempotency/checksum handling, then runs unit tests, TypeScript validation, and the production build. CI database credentials are test-only.
+
+## Legacy JSON preflight audit (read-only)
+
+Before designing or running a data import, create a protected backup of the legacy JSON file and run the metadata-only audit:
+
+```sh
+npm run db:audit-legacy -- ./data/database.json ./legacy-audit-manifest.json
+```
+
+The tool reports a SHA-256 source checksum, byte size, per-collection record counts, duplicate IDs, malformed collection shapes, and unknown top-level keys. It does not print record values or modify the source file. The manifest contains metadata only; store it with the migration evidence, not in a public repository.
+
+Sessions, password-reset tokens, and pending OTP records are marked **never-import**. Two-factor authentication material requires a separately reviewed encryption/key-rotation procedure. The audit is a preflight aid, not a migration or proof of referential integrity. A human-reviewed domain mapping and an independently tested import/rollback tool are still required.
