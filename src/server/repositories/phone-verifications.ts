@@ -40,12 +40,14 @@ function validText(value: unknown, max: number): value is string {
   return typeof value === 'string' && value.length > 0 && value.length <= max;
 }
 
-/** Caller must hold a transaction. Returns the OTP only for delivery; only its HMAC is stored. */
+/** Caller must hold a transaction. Pepper is an application secret, never database data. */
 export async function createPhoneVerificationChallenge(
   client: PoolClient,
   input: NewPhoneChallenge,
+  pepper: string,
 ): Promise<IssuedPhoneChallenge> {
-  if (!input || !E164.test(input.phone) || !PURPOSES.has(input.purpose)) {
+  if (!input || !E164.test(input.phone) || !PURPOSES.has(input.purpose) ||
+      typeof pepper !== 'string' || pepper.length < 32) {
     throw new Error('Invalid phone verification challenge.');
   }
   const ttlMs = input.ttlMs ?? 10 * 60 * 1000;
@@ -77,7 +79,7 @@ export async function createPhoneVerificationChallenge(
   const now = Date.now();
   const code = randomInt(100000, 1000000).toString();
   const salt = randomBytes(16).toString('hex');
-  const codeHash = createHmac('sha256', salt).update(code).digest('hex');
+  const codeHash = createHmac('sha256', pepper).update(`${salt}:${code}`).digest('hex');
   const id = 'pv_' + randomBytes(16).toString('hex');
   const expiresAt = new Date(now + ttlMs);
   const cooldownUntil = new Date(now + cooldownMs);
@@ -105,8 +107,10 @@ export async function verifyPhoneVerificationCode(
   phone: string,
   purpose: PhoneOtpPurpose,
   code: string,
+  pepper: string,
 ): Promise<VerifiedPhoneChallenge | null> {
-  if (!E164.test(phone) || !PURPOSES.has(purpose) || !CODE.test(code)) {
+  if (!E164.test(phone) || !PURPOSES.has(purpose) || !CODE.test(code) ||
+      typeof pepper !== 'string' || pepper.length < 32) {
     throw new Error('Invalid phone verification input.');
   }
   const selected = await client.query<{
@@ -129,7 +133,7 @@ export async function verifyPhoneVerificationCode(
     return null;
   }
 
-  const candidate = createHmac('sha256', row.code_salt).update(code).digest();
+  const candidate = createHmac('sha256', pepper).update(`${row.code_salt}:${code}`).digest();
   const expected = Buffer.from(row.code_hash, 'hex');
   const matches = expected.length === candidate.length && timingSafeEqual(expected, candidate);
   if (!matches) {
