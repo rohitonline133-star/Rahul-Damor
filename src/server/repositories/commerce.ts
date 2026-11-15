@@ -18,6 +18,7 @@ export async function addCartItem(client:PoolClient,input:{userId:string;product
     SELECT $1,p.id,$3 FROM shop_products p WHERE p.id=$2 AND p.is_active AND p.stock_quantity >= $3
     ON CONFLICT(user_id,product_id) DO UPDATE SET quantity=shop_cart_items.quantity+EXCLUDED.quantity, added_at=now()
     WHERE shop_cart_items.quantity+EXCLUDED.quantity <= 1000
+      AND shop_cart_items.quantity+EXCLUDED.quantity <= (SELECT stock_quantity FROM shop_products WHERE id=EXCLUDED.product_id)
     RETURNING product_id`,[input.userId,input.productId,input.quantity]);
   if(!item.rows[0])return false;
   await client.query(`UPDATE shop_carts SET updated_at=now() WHERE user_id=$1`,[input.userId]);
