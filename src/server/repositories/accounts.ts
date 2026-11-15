@@ -92,6 +92,24 @@ export async function findAccountForLogin(
   return result.rows[0] ?? null;
 }
 
+/** Upgrade a legacy password hash only if credentials have not changed since lookup. */
+export async function upgradeAccountPasswordHash(
+  client: PoolClient,
+  input: { accountId: string; previousHash: string; previousSalt: string; passwordHash: string; passwordSalt: string },
+): Promise<boolean> {
+  if (!ID_PATTERN.test(input.accountId) || !/^[a-f0-9]{128}$/i.test(input.previousHash) ||
+      !/^[a-f0-9]{32,128}$/i.test(input.previousSalt) || !/^[a-f0-9]{128}$/i.test(input.passwordHash) ||
+      !/^[a-f0-9]{32,128}$/i.test(input.passwordSalt)) {
+    throw new Error('Invalid password hash upgrade input.');
+  }
+  const result = await client.query(`
+    UPDATE accounts
+    SET password_hash = $4, password_salt = $5, updated_at = now(), version = version + 1
+    WHERE id = $1 AND password_hash = $2 AND password_salt = $3 AND account_status = 'active'
+  `, [input.accountId, input.previousHash, input.previousSalt, input.passwordHash, input.passwordSalt]);
+  return result.rowCount === 1;
+}
+
 /** Returns only fields safe for a public profile response. */
 export async function findPublicAccount(
   client: PoolClient,
