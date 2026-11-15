@@ -1,58 +1,43 @@
 # Transactional outbox delivery contract
 
-**Status:** design contract only. No dispatcher, broker publisher, worker lease, or production event delivery is implemented by this document.
+**Status:** producer validation/insertion helper and a JetStream dispatcher are implemented on the infrastructure feature branch. Application domain routes do not yet call the producer, consumers are not implemented, and no regional broker topology is provisioned.
 
-## Why this is required
+## Producer implementation
 
-The current application handlers do not insert rows into `event_outbox`. The table in `0001_core.sql` is only a schema foundation. A broker connection by itself cannot make application events reliable: the domain mutation and outbox insert must commit in the same PostgreSQL transaction.
+Use `insertOutboxEvent(client, input)` from `src/server/outbox.ts` with the exact PostgreSQL client that performed the domain mutation. The caller must insert the event before committing the same transaction; the helper deliberately does not create or commit transactions.
+
+The helper validates subject tokens, aggregate/partition identifiers, schema versions, JSON shape, payload size/depth, and rejects common credential-bearing field names recursively. It uses parameterized SQL and returns the database-generated event ID. These checks are defense-in-depth, not a substitute for domain-specific data minimization or authorization.
 
 ## Required producer contract
 
 1. Validate the command and authorize the actor before changing state.
 2. In one database transaction, apply the domain mutation and insert an outbox row.
-3. Use a stable event ID, aggregate type/ID, event type, schema version, and partition key.
-4. Store only the minimum event payload needed by consumers. Do not put passwords, bearer tokens, OTPs, payment credentials, or raw authentication secrets in events.
+3. Use a stable aggregate identity, event type, schema version, and partition key.
+4. Store only the minimum event payload needed by consumers. Never put passwords, bearer tokens, OTPs, payment credentials, or raw authentication secrets in events.
 5. Commit before acknowledging success to the caller.
-6. Enforce idempotency at the command boundary and at each consumer. A retry must not duplicate a message, payment, membership change, or notification.
+6. Enforce idempotency at the command boundary and at each consumer.
 
-## Required dispatcher contract
+## Dispatcher implementation
 
-The eventual dispatcher must:
+`scripts/dispatch-outbox.ts` claims bounded batches with `FOR UPDATE SKIP LOCKED`, uses expiring per-row claims, publishes to JetStream with the stable event ID as message ID, and marks published only after broker acknowledgement. It records a fixed safe failure code and dead-letters after the configured attempt limit. It does not log event payloads or credentials.
 
-- Claim bounded batches with row-level locking and `FOR UPDATE SKIP LOCKED`.
-- Use a renewable, expiring claim lease with a unique worker identity and monotonically increasing fencing token; never hold a database transaction open while waiting on network I/O.
-- Publish with the stable outbox event ID as the broker message ID and partition by the domain ordering key.
-- Treat delivery as **at least once**, not exactly once. A crash after broker acknowledgement but before marking the row published can cause redelivery.
-- Mark a row published only after the broker confirms durable acceptance.
-- Retry transient errors with bounded exponential backoff and jitter.
-- Move poison events to a restricted dead-letter workflow after a configurable attempt limit; retain the original event ID and failure metadata, but do not log sensitive payloads.
-- Expose oldest-pending age, backlog count, publish latency, retries, dead-letter count, and lease expiry metrics.
-- Apply backpressure and stop claiming work when broker health or downstream lag exceeds configured limits.
+Delivery is **at least once**, not exactly once. A crash after broker acknowledgement but before the database update can cause redelivery. Consumers must deduplicate.
 
 ## Required consumer contract
 
 - Validate event type and schema version before processing.
 - Persist a processed-event receipt in the same transaction as the consumer's domain side effect.
-- Reject or quarantine unsupported schema versions; never silently reinterpret payloads.
-- Preserve per-aggregate ordering where the domain requires it. Do not promise global ordering.
+- Reject or quarantine unsupported schema versions.
+- Preserve per-aggregate ordering where required; do not promise global ordering.
 - Support bounded replay from a durable cursor and safe restart after a crash.
 - Authorize subscriptions server-side; a client-supplied user ID is never an authorization credential.
 
-## Schema and implementation gates
+## Remaining production gates
 
-Before implementing the dispatcher, add a versioned migration for claim lease fields, attempt timestamps, last safe error code, and dead-letter state. Add constraints and partial indexes for claimable rows. The migration runner must discover and apply ordered migration files with immutable checksums under one advisory lock.
+- Convert domain handlers to PostgreSQL repositories and insert outbox rows atomically with every supported mutation.
+- Implement idempotent, authorized consumers and broker-backed realtime fanout.
+- Add PostgreSQL + JetStream integration tests for concurrent claims, worker crash, lease expiry, duplicate publish, broker outage, dead-letter behavior, consumer idempotency, authorization, replay, and shutdown.
+- Add metrics/alerts for backlog count, oldest pending age, publish latency, retries, dead-letter count, lease expiry, and consumer lag.
+- Define retention, backup, encryption, regional replication, and disaster-recovery policies.
 
-Before production use, implement and test:
-
-- atomic domain-write + outbox insertion;
-- two concurrent dispatchers claiming without duplicate active ownership;
-- crash after publish but before acknowledgement persistence;
-- lease expiry and stale-worker fencing;
-- duplicate and out-of-order delivery;
-- broker outage, retry exhaustion, and dead-letter replay;
-- consumer idempotency and authorization;
-- multi-instance and regional recovery behavior.
-
-## Explicit non-claims
-
-This contract does not connect NATS, implement a worker, change application routes, or make realtime delivery production-ready. The existing in-memory SSE registry remains single-process state until separately replaced and tested.
+This is not a production realtime service until the domain producers, consumers, operational controls, and multi-instance failure tests are complete.
