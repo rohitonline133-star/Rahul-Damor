@@ -130,7 +130,7 @@ export async function verifyAndConsumePasswordRecoveryChallenge(
 
 /** HMAC helper: pepper must come from a secret manager/environment, never the database. */
 export function hashRecoveryCode(code: string, pepper: string): string {
-  if (typeof code !== 'string' || !/^\\d{6}$/.test(code) ||
+  if (typeof code !== 'string' || !/^\d{6}$/.test(code) ||
       typeof pepper !== 'string' || pepper.length < 32) throw new Error('Invalid recovery code configuration.');
   return createHmac('sha256', pepper).update(code).digest('hex');
 }
