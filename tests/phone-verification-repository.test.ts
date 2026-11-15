@@ -22,9 +22,10 @@ function fakeClient(rows: unknown[][] = [], rowCount = 1) {
 
 test('challenge creation stores only an HMAC digest and supersedes older challenges', async () => {
   const { client, calls } = fakeClient([[], []]);
+  const pepper = 'p'.repeat(32);
   const issued = await createPhoneVerificationChallenge(client, {
     phone: '+14155552671', purpose: 'register', requestIp: '127.0.0.1',
-  });
+  }, pepper);
   assert.match(issued.code, /^[0-9]{6}$/);
   assert.match(issued.id, /^pv_[a-f0-9]{32}$/);
   assert.equal(calls.length, 4);
@@ -32,12 +33,13 @@ test('challenge creation stores only an HMAC digest and supersedes older challen
   assert.match(calls[1].sql, /cooldown_until/);
   assert.match(calls[2].sql, /SET superseded_at = now\(\)/);
   assert.match(calls[3].sql, /INSERT INTO verification_challenges/);
-  assert.equal(calls[3].values?.[3], createHmac('sha256', String(calls[3].values?.[4])).update(issued.code).digest('hex'));
+  assert.equal(calls[3].values?.[3], createHmac('sha256', pepper).update(`${String(calls[3].values?.[4])}:${issued.code}`).digest('hex'));
 });
 
 test('challenge limits and phone format are validated before database access', async () => {
   const { client, calls } = fakeClient();
-  await assert.rejects(() => createPhoneVerificationChallenge(client, { phone: '12345', purpose: 'register' }));
+  await assert.rejects(() => createPhoneVerificationChallenge(client, { phone: '+14155552671', purpose: 'register' }, 'short'));
+  await assert.rejects(() => createPhoneVerificationChallenge(client, { phone: '12345', purpose: 'register' }, 'p'.repeat(32)));
   await assert.rejects(() => createPhoneVerificationChallenge(client, {
     phone: '+14155552671', purpose: 'register', ttlMs: 999999999,
   }));
@@ -45,14 +47,14 @@ test('challenge limits and phone format are validated before database access', a
 });
 
 test('successful OTP verification returns a bearer token whose SHA-256 digest is stored', async () => {
-  const code = '123456', salt = 'a'.repeat(32);
-  const hash = createHmac('sha256', salt).update(code).digest('hex');
+  const code = '123456', salt = 'a'.repeat(32), pepper = 'p'.repeat(32);
+  const hash = createHmac('sha256', pepper).update(`${salt}:${code}`).digest('hex');
   const { client, calls } = fakeClient([[
     { id: 'pv_1', phone: '+14155552671', purpose: 'register', code_hash: hash,
       code_salt: salt, attempts: 0, max_attempts: 5, expires_at: new Date(Date.now() + 60000),
       verified_at: null, consumed_at: null, superseded_at: null },
   ], [{ id: 'pv_1' }]]);
-  const verified = await verifyPhoneVerificationCode(client, '+14155552671', 'register', code);
+  const verified = await verifyPhoneVerificationCode(client, '+14155552671', 'register', code, pepper);
   assert.ok(verified);
   assert.match(verified.verificationToken, /^gb_pvtok_[a-f0-9]{64}$/);
   assert.equal(calls.length, 2);
@@ -66,7 +68,7 @@ test('incorrect OTP increments attempts and never issues a token', async () => {
       code_salt: 'a'.repeat(32), attempts: 0, max_attempts: 5, expires_at: new Date(Date.now() + 60000),
       verified_at: null, consumed_at: null, superseded_at: null },
   ]]);
-  assert.equal(await verifyPhoneVerificationCode(client, '+14155552671', 'register', '123456'), null);
+  assert.equal(await verifyPhoneVerificationCode(client, '+14155552671', 'register', '123456', 'p'.repeat(32)), null);
   assert.match(calls[1].sql, /attempts = attempts \+ 1/);
   assert.match(calls[1].sql, /max_attempts/);
 });
