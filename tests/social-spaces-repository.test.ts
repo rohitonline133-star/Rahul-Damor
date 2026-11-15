@@ -9,11 +9,11 @@ function fake(responses: unknown[][]) {
   return {client,calls};
 }
 test('group creation persists conversation, owner/member roles, settings and outbox',async()=>{
-  const {client,calls}=fake([[],[],[],[],[],[{event_id:'e'}]]);
+  const {client,calls}=fake([[],[],[],[],[],[],[{event_id:'e'}]]);
   const result=await createGroup(client,{id:'g1',ownerId:'u1',name:'Team',memberIds:['u2']});
-  assert.deepEqual(result,{id:'g1'}); assert.equal(calls.length,6);
+  assert.deepEqual(result,{id:'g1'}); assert.equal(calls.length,7);
   assert.match(calls[0].sql,/conversation_type/); assert.match(calls[1].sql,/INSERT INTO groups/);
-  assert.match(calls[5].sql,/event_outbox/);
+  assert.match(calls[6].sql,/event_outbox/);
 });
 test('group membership is authorized by owner/admin in SQL',async()=>{
   const {client,calls}=fake([[{user_id:'u2'}],[],[{event_id:'e'}]]);
