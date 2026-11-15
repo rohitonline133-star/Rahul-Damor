@@ -169,3 +169,53 @@ export async function markAllNotificationsRead(client:PoolClient,input:{userId:s
     WHERE user_id=$1 AND read_at IS NULL RETURNING id`,[input.userId]);
   return result.rowCount ?? result.rows.length;
 }
+
+export async function requestCommunityJoin(client:PoolClient,input:{
+  communityId:string;userId:string;
+}):Promise<'joined'|'requested'|'already_member'>{
+  requireId(input.communityId,'community ID'); requireId(input.userId,'user ID');
+  const result=await client.query<{visibility:string;member_id:string|null}>(`SELECT c.visibility,
+    (SELECT cm.user_id FROM community_members cm WHERE cm.community_id=c.id AND cm.user_id=$2) AS member_id
+    FROM communities c WHERE c.id=$1 FOR SHARE`,[input.communityId,input.userId]);
+  const community=result.rows[0];
+  if(!community) throw new Error('Community not found.');
+  if(community.member_id) return 'already_member';
+  if(community.visibility==='public'){
+    const joined=await joinCommunity(client,input);
+    return joined?'joined':'already_member';
+  }
+  const pending=await client.query(`INSERT INTO community_join_requests(community_id,user_id,status)
+    VALUES($1,$2,'pending') ON CONFLICT(community_id,user_id) DO UPDATE
+    SET status='pending',requested_at=now(),reviewed_at=NULL,reviewed_by=NULL
+    WHERE community_join_requests.status IN ('rejected','cancelled')
+    RETURNING user_id`,[input.communityId,input.userId]);
+  if(pending.rows[0]){
+    await insertOutboxEvent(client,{aggregateType:'community',aggregateId:input.communityId,
+      eventType:'join_requested',partitionKey:input.communityId,
+      payload:{communityId:input.communityId,userId:input.userId}});
+  }
+  return 'requested';
+}
+export async function reviewCommunityJoinRequest(client:PoolClient,input:{
+  communityId:string;actorId:string;userId:string;decision:'approved'|'rejected';
+}):Promise<boolean>{
+  requireId(input.communityId,'community ID'); requireId(input.actorId,'moderator ID'); requireId(input.userId,'user ID');
+  if(input.decision!=='approved'&&input.decision!=='rejected') throw new Error('Invalid community join decision.');
+  const reviewed=await client.query<{user_id:string}>(`UPDATE community_join_requests r
+    SET status=$4,reviewed_at=now(),reviewed_by=$2
+    WHERE r.community_id=$1 AND r.user_id=$3 AND r.status='pending'
+      AND EXISTS(SELECT 1 FROM community_members moderator
+        WHERE moderator.community_id=r.community_id AND moderator.user_id=$2
+          AND moderator.role IN ('owner','moderator'))
+    RETURNING r.user_id`,[input.communityId,input.actorId,input.userId,input.decision]);
+  if(!reviewed.rows[0]) return false;
+  if(input.decision==='approved'){
+    await client.query(`INSERT INTO community_members(community_id,user_id,role)
+      VALUES($1,$2,'member') ON CONFLICT(community_id,user_id) DO NOTHING`,
+      [input.communityId,input.userId]);
+  }
+  await insertOutboxEvent(client,{aggregateType:'community',aggregateId:input.communityId,
+    eventType:input.decision==='approved'?'member_joined':'join_rejected',
+    partitionKey:input.communityId,payload:{communityId:input.communityId,userId:input.userId,actorId:input.actorId}});
+  return true;
+}

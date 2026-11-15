@@ -62,3 +62,24 @@ test('mark all notifications read only updates unread rows for the user',async()
   assert.equal(await markAllNotificationsRead(client,{userId:'u1'}),2);
   assert.match(calls[0].sql,/user_id=\$1 AND read_at IS NULL/);
 });
+
+test('private community join creates a pending request and event',async()=>{
+ const {client,calls}=fake([[{visibility:'private',member_id:null}],[{user_id:'u2'}],[{event_id:'e'}]]);
+ const {requestCommunityJoin}=await import('../src/server/repositories/social-spaces');
+ assert.equal(await requestCommunityJoin(client,{communityId:'c1',userId:'u2'}),'requested');
+ assert.match(calls[1].sql,/community_join_requests/); assert.match(calls[2].sql,/event_outbox/);
+});
+test('private community approval requires owner or moderator and creates membership atomically',async()=>{
+ const {client,calls}=fake([[{user_id:'u2'}],[],[{event_id:'e'}]]);
+ const {reviewCommunityJoinRequest}=await import('../src/server/repositories/social-spaces');
+ assert.equal(await reviewCommunityJoinRequest(client,{communityId:'c1',actorId:'u1',userId:'u2',decision:'approved'}),true);
+ assert.match(calls[0].sql,/role IN \('owner','moderator'\)/);
+ assert.match(calls[1].sql,/INSERT INTO community_members/);
+ assert.match(calls[2].sql,/event_outbox/);
+});
+test('non-moderator cannot approve a private community request',async()=>{
+ const {client,calls}=fake([[]]);
+ const {reviewCommunityJoinRequest}=await import('../src/server/repositories/social-spaces');
+ assert.equal(await reviewCommunityJoinRequest(client,{communityId:'c1',actorId:'u9',userId:'u2',decision:'approved'}),false);
+ assert.equal(calls.length,1);
+});
