@@ -21,7 +21,7 @@ function fakeClient(rows: unknown[][] = [], rowCount = 1) {
 }
 
 test('challenge creation stores only an HMAC digest and supersedes older challenges', async () => {
-  const { client, calls } = fakeClient();
+  const { client, calls } = fakeClient([[], []]);
   const issued = await createPhoneVerificationChallenge(client, {
     phone: '+14155552671', purpose: 'register', requestIp: '127.0.0.1',
   });
