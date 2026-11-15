@@ -99,3 +99,8 @@ Sessions, password-reset tokens, and pending OTP records are marked **never-impo
 ## PostgreSQL cutover execution plan
 
 See [POSTGRES_CUTOVER_EXECUTION_PLAN.md](./POSTGRES_CUTOVER_EXECUTION_PLAN.md) for the collection-to-table mapping backlog, phased repository conversion, safe legacy import/rollback gates, integration tests, outbox/realtime implementation sequence, and multi-region qualification criteria. It is an execution plan; the listed application migration and distributed services are not yet implemented.
+
+
+## Outbox dispatcher implementation
+
+The branch includes a separately supervised JetStream publisher worker at `scripts/dispatch-outbox.ts`, runnable with `npm run db:dispatch-outbox`. See [OUTBOX_DISPATCHER_OPERATIONS.md](./OUTBOX_DISPATCHER_OPERATIONS.md) for environment, stream contract, retry/dead-letter semantics, and production gates. This worker only delivers rows already written to `event_outbox`; domain routes still need atomic outbox producers and consumers still need idempotency/authorization implementations.
