@@ -11,13 +11,13 @@ function fake(rows: unknown[][]) {
 
 test('message history is member-scoped and paginates on timestamp plus ID',async()=>{
  const {client,calls}=fake([[
-  {id:'m3',conversation_id:'c1',sender_id:'u1',body:{text:'3'},created_at:'2026-11-15T10:00:00.000Z',edited_at:null},
+  {id:'m3',conversation_id:'c1',sender_id:'u1',body:{text:'3'},created_at:'2026-11-15T10:00:00.000Z',cursor_created_at:'2026-11-15T10:00:00.000000Z',edited_at:null},
   {id:'m2',conversation_id:'c1',sender_id:'u2',body:{text:'2'},created_at:'2026-11-15T10:00:00.000Z',edited_at:null},
   {id:'m1',conversation_id:'c1',sender_id:'u1',body:{text:'1'},created_at:'2026-11-15T09:59:00.000Z',edited_at:null}
  ]]);
  const page=await listConversationMessages(client,{conversationId:'c1',viewerId:'u1',limit:2});
  assert.deepEqual(page.items.map(x=>x.id),['m3','m2']);
- assert.deepEqual(page.nextCursor,{createdAt:'2026-11-15T10:00:00.000Z',id:'m2'});
+ assert.deepEqual(page.nextCursor,{createdAt:'2026-11-15T10:00:00.000000Z',id:'m2'});
  assert.match(calls[0].sql,/JOIN conversation_members/);
  assert.match(calls[0].sql,/m.deleted_at IS NULL/);
  assert.deepEqual(calls[0].values,['c1','u1',null,null,3]);
