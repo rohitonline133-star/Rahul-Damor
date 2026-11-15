@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { PoolClient } from 'pg';
 import { hashRecoveryCode, saveEncryptedTotpSecret, enableTwoFactor,
-  getEncryptedTotpSecret, consumeTwoFactorBackupCode, verifyAndConsumePasswordRecoveryChallenge } from '../src/server/repositories/account-security';
+  getEncryptedTotpSecret, consumeTwoFactorBackupCode, verifyAndConsumePasswordRecoveryChallenge,
+  completePasswordRecovery } from '../src/server/repositories/account-security';
 
 function fakeClient(responses: unknown[][]) {
   const calls: Array<{sql:string;values?:unknown[]}> = [];
@@ -40,4 +41,20 @@ test('password recovery challenge verification locks the row and consumes it onc
   assert.equal(await verifyAndConsumePasswordRecoveryChallenge(client,'acct_1','d'.repeat(64)),true);
   assert.match(calls[0].sql,/FOR UPDATE/);
   assert.match(calls[1].sql,/consumed_at = now\(\)/);
+});
+
+test('password recovery changes the credential and consumes the challenge atomically', async () => {
+  const {client,calls}=fakeClient([
+    [{id:'pr_2',code_hash:'e'.repeat(64),attempts:0,max_attempts:5,expires_at:new Date(Date.now()+60000)}],
+    [{id:'acct_1'}],
+    [{id:'pr_2'}],
+  ]);
+  const result=await completePasswordRecovery(client,{
+    userId:'acct_1',candidateCodeHash:'e'.repeat(64),
+    newPasswordHash:'f'.repeat(128),newPasswordSalt:'a'.repeat(32),
+  });
+  assert.equal(result,true);
+  assert.match(calls[0].sql,/FOR UPDATE/);
+  assert.match(calls[1].sql,/UPDATE accounts/);
+  assert.match(calls[2].sql,/consumed_at = now/);
 });
