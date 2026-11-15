@@ -23,7 +23,7 @@ The helper validates subject tokens, aggregate/partition identifiers, schema ver
 
 Delivery is **at least once**, not exactly once. A crash after broker acknowledgement but before the database update can cause redelivery. Consumers must deduplicate.
 
-## Required consumer contract
+The migration `0003_consumer_inbox.sql` adds `consumer_event_receipts` (unique per consumer/event) and per-partition `consumer_checkpoints`. These are primitives only; a consumer must commit its receipt/checkpoint atomically with its own domain side effect.\n\n## Required consumer contract
 
 - Validate event type and schema version before processing.
 - Persist a processed-event receipt in the same transaction as the consumer's domain side effect.
