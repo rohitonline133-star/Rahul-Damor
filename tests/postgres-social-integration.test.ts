@@ -75,17 +75,20 @@ test('PostgreSQL integration: mute state is owner-scoped and reversible',{skip:!
 
 test('PostgreSQL integration: community-linked group enforces community membership',{skip:!enabled},async()=>{
  const client=await pool!.connect();
- const owner=randomUUID(),member=randomUUID(),outsider=randomUUID(),communityId=randomUUID(),groupId=randomUUID();
+ const owner=randomUUID(),member=randomUUID(),outsider=randomUUID(),communityId=randomUUID(),otherCommunityId=randomUUID(),groupId=randomUUID();
  try{
   await client.query('BEGIN');
   await fixture(client,owner,'it_'+owner.replaceAll('-','').slice(0,20));
   await fixture(client,member,'it_'+member.replaceAll('-','').slice(0,20));
   await fixture(client,outsider,'it_'+outsider.replaceAll('-','').slice(0,20));
   await createCommunity(client,{id:communityId,slug:'c-'+communityId.replaceAll('-','').slice(0,20),name:'Integration community',ownerId:owner});
+  await createCommunity(client,{id:otherCommunityId,slug:'c-'+otherCommunityId.replaceAll('-','').slice(0,20),name:'Second integration community',ownerId:owner});
   await createGroup(client,{id:groupId,ownerId:owner,name:'Integration group'});
   await client.query("INSERT INTO community_members(community_id,user_id,role) VALUES($1,$2,'member')",[communityId,member]);
   assert.equal(await linkGroupToCommunity(client,{communityId,groupId,actorId:owner}),true);
+  assert.equal(await linkGroupToCommunity(client,{communityId:otherCommunityId,groupId,actorId:owner}),true);
   assert.equal(await joinCommunityGroup(client,{communityId,groupId,userId:member}),true);
+  assert.equal(await joinCommunityGroup(client,{communityId:otherCommunityId,groupId,userId:outsider}),false);
   assert.equal(await joinCommunityGroup(client,{communityId,groupId,userId:outsider}),false);
   assert.equal(await addGroupMember(client,{groupId,actorId:owner,userId:outsider}),false);
   await client.query("INSERT INTO community_members(community_id,user_id,role) VALUES($1,$2,'member')",[communityId,outsider]);
