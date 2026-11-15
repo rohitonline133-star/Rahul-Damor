@@ -143,3 +143,69 @@ export async function getUserOrder(client:PoolClient,input:{userId:string;orderI
  return {id:first.id,currency:first.currency,subtotalMinor:String(first.subtotal_minor),shippingMinor:String(first.shipping_minor),totalMinor:String(first.total_minor),orderStatus:first.order_status,paymentStatus:first.payment_status,createdAt:new Date(first.created_at).toISOString(),
   items:result.rows.filter(r=>r.item_id).map(r=>({id:r.item_id,productId:r.product_id,productName:r.product_name,quantity:r.quantity,unitAmountMinor:String(r.unit_amount_minor),imageUrl:r.image_url}))};
 }
+
+export type NewShopProduct={id:string;sellerId:string;name:string;description?:string;currency:string;unitAmountMinor:number;category?:string;imageUrl?:string|null;stockQuantity?:number};
+export async function createShopProduct(client:PoolClient,input:NewShopProduct){
+ id(input.id,'product ID');id(input.sellerId,'seller ID');
+ if(typeof input.name!=='string'||!input.name.trim()||input.name.trim().length>180)throw new Error('Invalid product name.');
+ if(typeof input.description!=='string'&&input.description!==undefined)throw new Error('Invalid product description.');
+ const description=input.description??'';if(description.length>12000)throw new Error('Invalid product description.');
+ if(typeof input.currency!=='string'||!/^[A-Z]{3}$/.test(input.currency))throw new Error('Invalid currency.');
+ if(!Number.isSafeInteger(input.unitAmountMinor)||input.unitAmountMinor<0)throw new Error('Invalid product price.');
+ const category=input.category??'';
+ if(typeof category!=='string'||category.length>120)throw new Error('Invalid product category.');
+ const stock=input.stockQuantity??0;if(!Number.isSafeInteger(stock)||stock<0||stock>1000000000)throw new Error('Invalid product stock.');
+ const image=input.imageUrl??null;if(image!==null&&(typeof image!=='string'||image.length>2048))throw new Error('Invalid product image URL.');
+ const result=await client.query(`INSERT INTO shop_products(id,seller_id,name,description,currency,unit_amount_minor,category,image_url,stock_quantity)
+ VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)
+ RETURNING id,seller_id,name,description,currency,unit_amount_minor,category,image_url,stock_quantity,created_at`,
+ [input.id,input.sellerId,input.name.trim(),description,input.currency,input.unitAmountMinor,category,image,stock]);
+ return result.rows[0]??null;
+}
+export async function updateShopProduct(client:PoolClient,input:{productId:string;actorId:string;isAdmin?:boolean;name?:string;description?:string;unitAmountMinor?:number;category?:string;imageUrl?:string|null;stockQuantity?:number;isActive?:boolean}){
+ id(input.productId,'product ID');id(input.actorId,'actor ID');
+ if(input.name!==undefined&&(typeof input.name!=='string'||!input.name.trim()||input.name.trim().length>180))throw new Error('Invalid product name.');
+ if(input.description!==undefined&&(typeof input.description!=='string'||input.description.length>12000))throw new Error('Invalid product description.');
+ if(input.unitAmountMinor!==undefined&&(!Number.isSafeInteger(input.unitAmountMinor)||input.unitAmountMinor<0))throw new Error('Invalid product price.');
+ if(input.category!==undefined&&(typeof input.category!=='string'||input.category.length>120))throw new Error('Invalid product category.');
+ if(input.imageUrl!==undefined&&input.imageUrl!==null&&(typeof input.imageUrl!=='string'||input.imageUrl.length>2048))throw new Error('Invalid product image URL.');
+ if(input.stockQuantity!==undefined&&(!Number.isSafeInteger(input.stockQuantity)||input.stockQuantity<0||input.stockQuantity>1000000000))throw new Error('Invalid product stock.');
+ if(input.isActive!==undefined&&typeof input.isActive!=='boolean')throw new Error('Invalid product status.');
+ const result=await client.query(`UPDATE shop_products SET
+ name=CASE WHEN $3::boolean THEN $4 ELSE name END,
+ description=CASE WHEN $5::boolean THEN $6 ELSE description END,
+ unit_amount_minor=CASE WHEN $7::boolean THEN $8 ELSE unit_amount_minor END,
+ category=CASE WHEN $9::boolean THEN $10 ELSE category END,
+ image_url=CASE WHEN $11::boolean THEN $12 ELSE image_url END,
+ stock_quantity=CASE WHEN $13::boolean THEN $14 ELSE stock_quantity END,
+ is_active=CASE WHEN $15::boolean THEN $16 ELSE is_active END,
+ updated_at=now()
+ WHERE id=$1 AND ($17::boolean OR seller_id=$2)
+ RETURNING id,seller_id,name,description,currency,unit_amount_minor,category,image_url,stock_quantity,is_active,updated_at`,
+ [input.productId,input.actorId,input.name!==undefined,input.name?.trim(),input.description!==undefined,input.description,
+ input.unitAmountMinor!==undefined,input.unitAmountMinor,input.category!==undefined,input.category,
+ input.imageUrl!==undefined,input.imageUrl,input.stockQuantity!==undefined,input.stockQuantity,
+ input.isActive!==undefined,input.isActive,input.isAdmin===true]);
+ return result.rows[0]??null;
+}
+export async function deactivateShopProduct(client:PoolClient,input:{productId:string;actorId:string;isAdmin?:boolean}){
+ return updateShopProduct(client,{...input,isActive:false});
+}
+/** Sets an absolute cart quantity, matching the legacy API contract; caller owns transaction. */
+export async function setCartItemQuantity(client:PoolClient,input:{userId:string;productId:string;quantity:number}):Promise<boolean>{
+ id(input.userId,'user ID');id(input.productId,'product ID');qty(input.quantity);
+ await client.query(`INSERT INTO shop_carts(user_id) VALUES($1) ON CONFLICT(user_id) DO NOTHING`,[input.userId]);
+ const result=await client.query(`INSERT INTO shop_cart_items(user_id,product_id,quantity)
+ SELECT $1,p.id,$3::integer FROM shop_products p WHERE p.id=$2 AND p.is_active AND p.stock_quantity >= $3::bigint
+ ON CONFLICT(user_id,product_id) DO UPDATE SET quantity=EXCLUDED.quantity,added_at=now()
+ WHERE EXCLUDED.quantity <= (SELECT stock_quantity FROM shop_products WHERE id=EXCLUDED.product_id)
+ RETURNING product_id`,[input.userId,input.productId,input.quantity]);
+ if(result.rows[0])await client.query(`UPDATE shop_carts SET updated_at=now() WHERE user_id=$1`,[input.userId]);
+ return Boolean(result.rows[0]);
+}
+export async function clearUserCart(client:PoolClient,userId:string):Promise<number>{
+ id(userId,'user ID');
+ const result=await client.query(`DELETE FROM shop_cart_items WHERE user_id=$1 RETURNING product_id`,[userId]);
+ await client.query(`UPDATE shop_carts SET updated_at=now() WHERE user_id=$1`,[userId]);
+ return result.rowCount??result.rows.length;
+}

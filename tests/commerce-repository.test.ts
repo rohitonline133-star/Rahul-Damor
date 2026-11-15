@@ -61,3 +61,31 @@ test('invalid addresses and duplicate quantities are rejected before DB access',
  shippingAddress:{fullName:'A'}}));
  assert.equal(a.calls.length+b.calls.length,0);
 });
+
+import {createShopProduct,updateShopProduct,deactivateShopProduct,setCartItemQuantity,clearUserCart} from '../src/server/repositories/commerce';
+test('product creation validates price and stock and uses seller id from caller',async()=>{
+ const f=fake([[{id:'p1',seller_id:'u1'}]]);
+ const row=await createShopProduct(f.client,{id:'p1',sellerId:'u1',name:'Item',currency:'INR',unitAmountMinor:1200,stockQuantity:4});
+ assert.equal(row.id,'p1');assert.deepEqual(f.calls[0].values,['p1','u1','Item','', 'INR',1200,'',null,4]);
+ const bad=fake([]);await assert.rejects(()=>createShopProduct(bad.client,{id:'p2',sellerId:'u1',name:'Item',currency:'INR',unitAmountMinor:-1}));
+ assert.equal(bad.calls.length,0);
+});
+test('product update is seller-scoped in SQL and admin override is explicit',async()=>{
+ const f=fake([[{id:'p1'}]]);
+ assert.equal((await updateShopProduct(f.client,{productId:'p1',actorId:'u1',name:'Updated'}))?.id,'p1');
+ assert.match(f.calls[0].sql,/seller_id=\$2/);assert.equal(f.calls[0].values?.[16],false);
+ const a=fake([[{id:'p1'}]]);await updateShopProduct(a.client,{productId:'p1',actorId:'admin',isAdmin:true,isActive:false});
+ assert.equal(a.calls[0].values?.[16],true);
+});
+test('product removal is a soft deactivation, preserving order references',async()=>{
+ const f=fake([[{id:'p1',is_active:false}]]);
+ await deactivateShopProduct(f.client,{productId:'p1',actorId:'u1'});
+ assert.match(f.calls[0].sql,/is_active=CASE/);assert.match(f.calls[0].sql,/seller_id=\$2/);
+});
+test('absolute cart quantity is stock bounded and cart clear is owner scoped',async()=>{
+ const f=fake([[],[{product_id:'p1'}],[]]);
+ assert.equal(await setCartItemQuantity(f.client,{userId:'u1',productId:'p1',quantity:3}),true);
+ assert.match(f.calls[1].sql,/EXCLUDED\.quantity <= \(SELECT stock_quantity/);
+ const c=fake([[{product_id:'p1'},{product_id:'p2'}],[]]);
+ assert.equal(await clearUserCart(c.client,'u1'),2);assert.match(c.calls[0].sql,/WHERE user_id=\$1/);
+});
