@@ -57,7 +57,7 @@ export async function recordStatusView(client:PoolClient,input:{statusId:string;
        AND s.audience='selected' AND EXISTS(SELECT 1 FROM status_audience_members a WHERE a.status_id=s.id AND a.user_id=$2))
    )
    AND (s.audience='everyone'
-     OR (s.audience='contacts' AND EXISTS(SELECT 1 FROM follows f1 JOIN follows f2 ON f1.follower_id=f2.following_id AND f1.following_id=f2.following_id WHERE f1.follower_id=$2 AND f1.following_id=s.user_id AND f1.status='accepted' AND f2.status='accepted'))
+     OR (s.audience='contacts' AND EXISTS(SELECT 1 FROM follows f1 JOIN follows f2 ON f1.follower_id=f2.following_id AND f1.following_id=f2.follower_id WHERE f1.follower_id=$2 AND f1.following_id=s.user_id AND f1.status='accepted' AND f2.status='accepted'))
      OR (s.audience='selected' AND EXISTS(SELECT 1 FROM status_audience_members a WHERE a.status_id=s.id AND a.user_id=$2))
    )
  ))
