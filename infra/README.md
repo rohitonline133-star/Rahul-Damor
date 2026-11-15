@@ -65,7 +65,7 @@ See [ACTIVE_ACTIVE_DESIGN.md](./ACTIVE_ACTIVE_DESIGN.md) for the consistency mod
 
 ## PostgreSQL foundation (development / CI only)
 
-The branch now contains an additive foundational schema at `infra/migrations/0001_core.sql`, an ordered, checksum-verified advisory-lock migration runner (`npm run db:migrate`), and a bounded PostgreSQL pool/transaction helper at `src/server/postgres.ts`.
+The branch now contains an additive foundational schema at `infra/migrations/0001_core.sql` plus outbox dispatch and consumer receipt/checkpoint migrations, an ordered, checksum-verified advisory-lock migration runner (`npm run db:migrate`), and a bounded PostgreSQL pool/transaction helper at `src/server/postgres.ts`.
 
 For local development, set a private local password and start the Compose dependencies:
 
