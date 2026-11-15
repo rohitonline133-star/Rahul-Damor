@@ -72,3 +72,7 @@ The current SSE client registry and SSE tickets are in-process maps. Multiple AP
 - Production startup is enabled only after the above gates are reviewed and passed.
 
 **Current status:** inventory documented; PostgreSQL foundation and CI migration test exist; application persistence cutover, data import, distributed realtime, multi-region deployment, and capacity qualification remain incomplete.
+
+## Metadata audit safeguards
+
+`scripts/audit-legacy-json.ts` reports source SHA-256 and byte size, per-collection record counts, duplicate string IDs, records without a non-empty string ID, unknown top-level keys, and shape errors. The manifest intentionally excludes record values. Records without stable string IDs are flagged for manual mapping rather than being assigned guessed identifiers. The audit is read-only and does not perform an import. `sessions`, `password_resets`, and `phone_verifications` remain explicitly excluded from import.
