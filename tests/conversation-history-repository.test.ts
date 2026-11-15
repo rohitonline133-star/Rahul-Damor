@@ -12,7 +12,7 @@ function fake(rows: unknown[][]) {
 test('message history is member-scoped and paginates on timestamp plus ID',async()=>{
  const {client,calls}=fake([[
   {id:'m3',conversation_id:'c1',sender_id:'u1',body:{text:'3'},created_at:'2026-11-15T10:00:00.000Z',cursor_created_at:'2026-11-15T10:00:00.000000Z',edited_at:null},
-  {id:'m2',conversation_id:'c1',sender_id:'u2',body:{text:'2'},created_at:'2026-11-15T10:00:00.000Z',edited_at:null},
+  {id:'m2',conversation_id:'c1',sender_id:'u2',body:{text:'2'},created_at:'2026-11-15T10:00:00.000Z',cursor_created_at:'2026-11-15T10:00:00.000000Z',edited_at:null},
   {id:'m1',conversation_id:'c1',sender_id:'u1',body:{text:'1'},created_at:'2026-11-15T09:59:00.000Z',edited_at:null}
  ]]);
  const page=await listConversationMessages(client,{conversationId:'c1',viewerId:'u1',limit:2});
