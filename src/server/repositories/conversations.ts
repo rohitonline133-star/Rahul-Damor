@@ -145,8 +145,10 @@ export async function listConversationMessages(client: PoolClient, input: {
     validId(input.before.id, 'message cursor ID');
     if (typeof input.before.createdAt !== 'string' || Number.isNaN(Date.parse(input.before.createdAt))) throw new Error('Invalid message cursor timestamp.');
   }
-  const result = await client.query<{ id: string; conversation_id: string; sender_id: string; body: Record<string, unknown>; created_at: Date | string; edited_at: Date | string | null }>(`
-    SELECT m.id, m.conversation_id, m.sender_id, m.body, m.created_at, m.edited_at
+  const result = await client.query<{ id: string; conversation_id: string; sender_id: string; body: Record<string, unknown>; created_at: Date | string; cursor_created_at: string; edited_at: Date | string | null }>(`
+    SELECT m.id, m.conversation_id, m.sender_id, m.body, m.created_at,
+      to_char(m.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS cursor_created_at,
+      m.edited_at
     FROM messages m JOIN conversation_members cm
       ON cm.conversation_id=m.conversation_id AND cm.user_id=$2
     WHERE m.conversation_id=$1 AND m.deleted_at IS NULL
@@ -158,5 +160,6 @@ export async function listConversationMessages(client: PoolClient, input: {
   const iso=(v:Date|string)=>v instanceof Date?v.toISOString():new Date(v).toISOString();
   const items=rows.map(r=>({id:r.id,conversationId:r.conversation_id,senderId:r.sender_id,body:r.body,createdAt:iso(r.created_at),editedAt:r.edited_at==null?null:iso(r.edited_at)}));
   const last=items[items.length-1];
-  return {items,nextCursor:hasMore&&last?{createdAt:last.createdAt,id:last.id}:null};
+  const lastRow=rows[rows.length-1];
+  return {items,nextCursor:hasMore&&last&&lastRow?{createdAt:lastRow.cursor_created_at,id:last.id}:null};
 }
