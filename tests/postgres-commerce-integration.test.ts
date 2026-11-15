@@ -56,12 +56,18 @@ test('PostgreSQL commerce integration: payment attempts and transactions cannot 
   await account(client,seller);await account(client,buyer);await account(client,other);
   await product(client,pid,seller,3,1500);
   await createShopOrder(client,{id:orderId,userId:buyer,items:[{productId:pid,quantity:1}],shippingAddress:address});
+  await client.query('SAVEPOINT reject_wrong_payment_attempt');
   await assert.rejects(()=>client.query(`INSERT INTO shop_payment_attempts
    (id,order_id,user_id,provider,provider_order_id,amount_minor,currency)
    VALUES($1,$2,$3,'razorpay',$4,1500,'INR')`,[randomUUID(),orderId,other,'order_'+randomUUID().replaceAll('-','')]),/foreign key/i);
+  await client.query('ROLLBACK TO SAVEPOINT reject_wrong_payment_attempt');
+  await client.query('RELEASE SAVEPOINT reject_wrong_payment_attempt');
+  await client.query('SAVEPOINT reject_wrong_payment_transaction');
   await assert.rejects(()=>client.query(`INSERT INTO payment_transactions
    (id,user_id,order_id,provider,transaction_type,amount_minor,currency,status)
    VALUES($1,$2,$3,'razorpay','shop_purchase',1500,'INR','pending')`,[randomUUID(),other,orderId]),/foreign key/i);
+  await client.query('ROLLBACK TO SAVEPOINT reject_wrong_payment_transaction');
+  await client.query('RELEASE SAVEPOINT reject_wrong_payment_transaction');
   const valid=await client.query(`INSERT INTO shop_payment_attempts
    (id,order_id,user_id,provider,provider_order_id,amount_minor,currency)
    VALUES($1,$2,$3,'razorpay',$4,1500,'INR') RETURNING id`,
