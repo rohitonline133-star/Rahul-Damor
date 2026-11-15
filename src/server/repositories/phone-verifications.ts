@@ -26,7 +26,6 @@ export type VerifiedPhoneChallenge = {
 };
 
 const E164 = /^\+[1-9][0-9]{7,14}$/;
-const ID = /^pv_[a-f0-9]{32}$/;
 const CODE = /^[0-9]{6}$/;
 const PURPOSES = new Set<PhoneOtpPurpose>(['register', 'login', 'authenticate']);
 const MAX_TTL_MS = 15 * 60 * 1000;
