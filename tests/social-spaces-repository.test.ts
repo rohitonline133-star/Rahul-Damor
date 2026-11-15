@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { PoolClient } from 'pg';
-import { createGroup, addGroupMember, createCommunity, joinCommunity, createNotification, markNotificationRead } from '../src/server/repositories/social-spaces';
+import { createGroup, addGroupMember, createCommunity, joinCommunity, createNotification, markNotificationRead, linkGroupToCommunity, joinCommunityGroup } from '../src/server/repositories/social-spaces';
 
 function fake(responses: unknown[][]) {
   const calls:Array<{sql:string;values?:unknown[]}>=[];
@@ -82,4 +82,27 @@ test('non-moderator cannot approve a private community request',async()=>{
  const {reviewCommunityJoinRequest}=await import('../src/server/repositories/social-spaces');
  assert.equal(await reviewCommunityJoinRequest(client,{communityId:'c1',actorId:'u9',userId:'u2',decision:'approved'}),false);
  assert.equal(calls.length,1);
+});
+
+test('linked community groups require administrators of both spaces',async()=>{
+ const {client,calls}=fake([[{group_id:'g1'}],[{event_id:'e'}]]);
+ assert.equal(await linkGroupToCommunity(client,{communityId:'c1',groupId:'g1',actorId:'u1'}),true);
+ assert.match(calls[0].sql,/community_members cm/);
+ assert.match(calls[0].sql,/cm\.role IN \('owner','moderator'\)/);
+ assert.match(calls[0].sql,/gm\.role IN \('owner','admin'\)/);
+ assert.match(calls[1].sql,/event_outbox/);
+});
+test('community group join requires existing community membership and explicit link',async()=>{
+ const {client,calls}=fake([[{user_id:'u2'}],[],[{event_id:'e'}]]);
+ assert.equal(await joinCommunityGroup(client,{communityId:'c1',groupId:'g1',userId:'u2'}),true);
+ assert.match(calls[0].sql,/community_groups cg/);
+ assert.match(calls[0].sql,/community_members cm/);
+ assert.match(calls[1].sql,/group_member_settings/);
+ assert.match(calls[2].sql,/event_outbox/);
+});
+test('adding members to a community-linked group requires community membership',async()=>{
+ const {client,calls}=fake([[{user_id:'u2'}],[],[{event_id:'e'}]]);
+ assert.equal(await addGroupMember(client,{groupId:'g1',actorId:'u1',userId:'u2'}),true);
+ assert.match(calls[0].sql,/community_groups linked/);
+ assert.match(calls[0].sql,/community_members cm/);
 });

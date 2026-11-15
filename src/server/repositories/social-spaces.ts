@@ -47,6 +47,10 @@ export async function addGroupMember(client: PoolClient, input: {
     JOIN conversation_members actor ON actor.conversation_id=g.id AND actor.user_id=$2
       AND actor.role IN ('owner','admin')
     WHERE g.id=$1
+      AND (NOT EXISTS (SELECT 1 FROM community_groups linked WHERE linked.group_id=g.id)
+        OR EXISTS (SELECT 1 FROM community_groups linked
+          JOIN community_members cm ON cm.community_id=linked.community_id AND cm.user_id=$3
+          WHERE linked.group_id=g.id))
     ON CONFLICT (conversation_id,user_id) DO NOTHING RETURNING user_id`,
     [input.groupId,input.actorId,input.userId]);
   if (!result.rows[0]) return false;
@@ -217,5 +221,45 @@ export async function reviewCommunityJoinRequest(client:PoolClient,input:{
   await insertOutboxEvent(client,{aggregateType:'community',aggregateId:input.communityId,
     eventType:input.decision==='approved'?'member_joined':'join_rejected',
     partitionKey:input.communityId,payload:{communityId:input.communityId,userId:input.userId,actorId:input.actorId}});
+  return true;
+}
+
+
+/** Link an existing group to a community. The actor must administer both spaces. */
+export async function linkGroupToCommunity(client:PoolClient,input:{
+  communityId:string;groupId:string;actorId:string;
+}):Promise<boolean>{
+  requireId(input.communityId,'community ID');requireId(input.groupId,'group ID');requireId(input.actorId,'actor ID');
+  const result=await client.query(`INSERT INTO community_groups(community_id,group_id,created_by)
+    SELECT c.id,g.id,$3 FROM communities c
+    JOIN groups g ON g.id=$2
+    JOIN community_members cm ON cm.community_id=c.id AND cm.user_id=$3 AND cm.role IN ('owner','moderator')
+    JOIN conversation_members gm ON gm.conversation_id=g.id AND gm.user_id=$3 AND gm.role IN ('owner','admin')
+    ON CONFLICT(community_id,group_id) DO NOTHING RETURNING group_id`,
+    [input.communityId,input.groupId,input.actorId]);
+  if(!result.rows[0])return false;
+  await insertOutboxEvent(client,{aggregateType:'community',aggregateId:input.communityId,
+    eventType:'group_linked',partitionKey:input.communityId,
+    payload:{communityId:input.communityId,groupId:input.groupId,actorId:input.actorId}});
+  return true;
+}
+
+/** Community members can join only groups explicitly linked to that community. */
+export async function joinCommunityGroup(client:PoolClient,input:{
+  communityId:string;groupId:string;userId:string;
+}):Promise<boolean>{
+  requireId(input.communityId,'community ID');requireId(input.groupId,'group ID');requireId(input.userId,'user ID');
+  const result=await client.query(`INSERT INTO conversation_members(conversation_id,user_id,role)
+    SELECT cg.group_id,$3,'member' FROM community_groups cg
+    JOIN community_members cm ON cm.community_id=cg.community_id AND cm.user_id=$3
+    WHERE cg.community_id=$1 AND cg.group_id=$2
+    ON CONFLICT(conversation_id,user_id) DO NOTHING RETURNING user_id`,
+    [input.communityId,input.groupId,input.userId]);
+  if(!result.rows[0])return false;
+  await client.query('INSERT INTO group_member_settings(conversation_id,user_id) VALUES($1,$2)',
+    [input.groupId,input.userId]);
+  await insertOutboxEvent(client,{aggregateType:'group',aggregateId:input.groupId,
+    eventType:'member_joined',partitionKey:input.groupId,
+    payload:{groupId:input.groupId,userId:input.userId,communityId:input.communityId}});
   return true;
 }
