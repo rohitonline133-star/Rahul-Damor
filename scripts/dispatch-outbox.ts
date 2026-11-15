@@ -56,6 +56,16 @@ function subjectFor(event: OutboxEvent): string {
 }
 
 async function claimBatch(): Promise<OutboxEvent[]> {
+  // A worker may die after consuming its final attempt. Once its lease expires,
+  // make that row terminal instead of leaving it permanently unclaimable.
+  await pool.query(`
+    UPDATE event_outbox
+    SET dead_lettered_at = now(), claim_id = NULL, claimed_until = NULL,
+        last_error_code = COALESCE(last_error_code, 'attempt_limit_reached')
+    WHERE published_at IS NULL AND dead_lettered_at IS NULL
+      AND attempts >= $1
+      AND (claim_id IS NULL OR claimed_until < now())
+  `, [maxAttempts]);
   const result = await pool.query<OutboxEvent>(`
     WITH candidates AS (
       SELECT event_id
