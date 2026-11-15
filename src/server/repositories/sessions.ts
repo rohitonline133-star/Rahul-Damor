@@ -116,3 +116,34 @@ export async function revokeAllPersistentSessions(
   `, [userId]);
   return result.rowCount ?? 0;
 }
+
+/** Lists active sessions for a single account; bearer tokens are never returned. */
+export async function listPersistentSessions(
+  client: PoolClient,
+  userId: string,
+): Promise<StoredSession[]> {
+  if (!ID_PATTERN.test(userId)) throw new Error('Invalid session user ID.');
+  const result = await client.query<StoredSession>(`
+    SELECT id, user_id, expires_at, revoked_at, created_at, device_metadata
+    FROM user_sessions
+    WHERE user_id = $1 AND revoked_at IS NULL AND expires_at > now()
+    ORDER BY created_at DESC, id DESC
+  `, [userId]);
+  return result.rows;
+}
+
+/** Revokes a session only when it belongs to the authenticated account. */
+export async function revokePersistentSessionById(
+  client: PoolClient,
+  userId: string,
+  sessionId: string,
+): Promise<boolean> {
+  if (!ID_PATTERN.test(userId) || !/^sess_[A-Za-z0-9_-]{1,128}$/.test(sessionId)) {
+    throw new Error('Invalid session identifier.');
+  }
+  const result = await client.query(`
+    UPDATE user_sessions SET revoked_at = now()
+    WHERE id = $1 AND user_id = $2 AND revoked_at IS NULL
+  `, [sessionId, userId]);
+  return (result.rowCount ?? 0) === 1;
+}
