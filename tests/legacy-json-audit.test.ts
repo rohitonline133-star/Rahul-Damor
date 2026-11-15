@@ -46,3 +46,27 @@ test('rejects malformed collection shape and duplicate IDs', () => {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('audits the checked-in synthetic fixture across all 32 legacy collections', () => {
+  const fixturePath = path.resolve(process.cwd(), 'tests/fixtures/legacy-database.synthetic.json');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gb-legacy-fixture-audit-'));
+  const source = path.join(dir, 'database.json');
+  fs.copyFileSync(fixturePath, source);
+  try {
+    const fixture = JSON.parse(fs.readFileSync(source, 'utf8')) as Record<string, unknown>;
+    const result = auditLegacyJson(source);
+    assert.equal(Object.keys(result.collections).length, 32);
+    assert.deepEqual(result.errors, []);
+    assert.deepEqual(result.unknownKeys, ['_fixture']);
+    assert.deepEqual((fixture.sessions as unknown[]), []);
+    assert.deepEqual((fixture.phone_verifications as unknown[]), []);
+    assert.deepEqual((fixture.password_resets as unknown[]), []);
+    assert.deepEqual(fixture.two_factor_auth, {});
+    assert.equal(result.collections.sessions.importPolicy, 'never-import');
+    assert.equal(result.collections.phone_verifications.importPolicy, 'never-import');
+    assert.equal(result.collections.password_resets.importPolicy, 'never-import');
+    assert.equal(JSON.stringify(result).includes('synthetic-user-001'), false);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
