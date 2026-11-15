@@ -32,6 +32,7 @@ export async function createStatus(client:PoolClient,input:{
  const selected=[...new Set(input.selectedUserIds??[])];
  if(audience==='selected'&&(selected.length===0||selected.length>500))throw new Error('Selected audience must contain 1 to 500 users.');
  selected.forEach(id=>validId(id,'audience user ID'));
+ if(selected.includes(input.userId))throw new Error('Status audience must not include its owner.');
  if(audience!=='selected'&&selected.length)throw new Error('Selected users require selected audience.');
  const expiry=Date.parse(input.expiresAt);
  if(!Number.isFinite(expiry)||expiry<=Date.now()||expiry>Date.now()+24*60*60*1000)throw new Error('Status expiry must be within 24 hours.');
@@ -48,11 +49,18 @@ export async function recordStatusView(client:PoolClient,input:{statusId:string;
  WHERE s.id=$1 AND s.deleted_at IS NULL AND s.expires_at>now()
  AND (s.user_id=$2 OR (
    NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.blocker_id=s.user_id AND b.blocked_id=$2) OR (b.blocker_id=$2 AND b.blocked_id=s.user_id))
+   AND (
+     COALESCE((SELECT ps.status_visibility FROM user_privacy_settings ps WHERE ps.user_id=s.user_id),'everyone')='everyone'
+     OR (COALESCE((SELECT ps.status_visibility FROM user_privacy_settings ps WHERE ps.user_id=s.user_id),'everyone')='contacts'
+       AND EXISTS(SELECT 1 FROM follows f1 JOIN follows f2 ON f1.follower_id=f2.following_id AND f1.following_id=f2.follower_id WHERE f1.follower_id=$2 AND f1.following_id=s.user_id AND f1.status='accepted' AND f2.status='accepted'))
+     OR (COALESCE((SELECT ps.status_visibility FROM user_privacy_settings ps WHERE ps.user_id=s.user_id),'everyone')='selected'
+       AND s.audience='selected' AND EXISTS(SELECT 1 FROM status_audience_members a WHERE a.status_id=s.id AND a.user_id=$2))
+   )
    AND (s.audience='everyone'
-     OR (s.audience='contacts' AND EXISTS(SELECT 1 FROM follows f1 JOIN follows f2 ON f1.follower_id=f2.following_id AND f1.following_id=f2.follower_id WHERE f1.follower_id=$2 AND f1.following_id=s.user_id AND f1.status='accepted' AND f2.status='accepted'))
+     OR (s.audience='contacts' AND EXISTS(SELECT 1 FROM follows f1 JOIN follows f2 ON f1.follower_id=f2.following_id AND f1.following_id=f2.following_id WHERE f1.follower_id=$2 AND f1.following_id=s.user_id AND f1.status='accepted' AND f2.status='accepted'))
      OR (s.audience='selected' AND EXISTS(SELECT 1 FROM status_audience_members a WHERE a.status_id=s.id AND a.user_id=$2))
    )
- )
+ ))
  ON CONFLICT(status_id,viewer_id) DO NOTHING RETURNING status_id`,[input.statusId,input.viewerId]);
  return Boolean(r.rows[0]);
 }
@@ -70,7 +78,6 @@ export async function submitModerationReport(client:PoolClient,input:{
  await insertOutboxEvent(client,{aggregateType:'moderation_report',aggregateId:input.id,eventType:'submitted',partitionKey:'moderation-queue',payload:{reportId:input.id,targetType:input.targetType,category:input.category}});
  return {id:input.id};
 }
-
 export async function requestFollow(client:PoolClient,input:{requestId:string;requesterId:string;targetUserId:string}):Promise<'followed'|'requested'|'already_following'>{
  validId(input.requestId,'follow request ID');validId(input.requesterId,'requester ID');validId(input.targetUserId,'target user ID');
  if(input.requesterId===input.targetUserId)throw new Error('Cannot follow yourself.');
@@ -91,14 +98,10 @@ export async function requestFollow(client:PoolClient,input:{requestId:string;re
   if(existing.rows[0]?.status==='pending')return 'requested';
   throw new Error('Follow request could not be created.');
  }
- if(status==='pending'){
-  await client.query(`INSERT INTO follow_requests(id,requester_id,target_user_id,status)
-  VALUES($1,$2,$3,'pending') ON CONFLICT(requester_id,target_user_id) DO UPDATE
-  SET status='pending',created_at=now(),reviewed_at=NULL`,[input.requestId,input.requesterId,input.targetUserId]);
- }
- await insertOutboxEvent(client,{aggregateType:'follow',aggregateId:input.requesterId,
- eventType:status==='accepted'?'created':'requested',partitionKey:input.targetUserId,
- payload:{requesterId:input.requesterId,targetUserId:input.targetUserId,status}});
+ if(status==='pending')await client.query(`INSERT INTO follow_requests(id,requester_id,target_user_id,status)
+ VALUES($1,$2,$3,'pending') ON CONFLICT(requester_id,target_user_id) DO UPDATE
+ SET status='pending',created_at=now(),reviewed_at=NULL`,[input.requestId,input.requesterId,input.targetUserId]);
+ await insertOutboxEvent(client,{aggregateType:'follow',aggregateId:input.requesterId,eventType:status==='accepted'?'created':'requested',partitionKey:input.targetUserId,payload:{requesterId:input.requesterId,targetUserId:input.targetUserId,status}});
  return status==='accepted'?'followed':'requested';
 }
 export async function reviewFollowRequest(client:PoolClient,input:{
@@ -111,14 +114,9 @@ export async function reviewFollowRequest(client:PoolClient,input:{
  AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.blocker_id=$1 AND b.blocked_id=$2) OR (b.blocker_id=$2 AND b.blocked_id=$1))
  RETURNING r.requester_id`,[input.requesterId,input.targetUserId,input.decision]);
  if(!result.rows[0])return false;
- if(input.decision==='accepted'){
-  await client.query(`INSERT INTO follows(follower_id,following_id,status) VALUES($1,$2,'accepted')
-  ON CONFLICT(follower_id,following_id) DO UPDATE SET status='accepted'`,[input.requesterId,input.targetUserId]);
- }else{
-  await client.query(`UPDATE follows SET status='rejected' WHERE follower_id=$1 AND following_id=$2`,[input.requesterId,input.targetUserId]);
- }
- await insertOutboxEvent(client,{aggregateType:'follow',aggregateId:input.requesterId,
- eventType:input.decision,partitionKey:input.requesterId,
- payload:{requesterId:input.requesterId,targetUserId:input.targetUserId,decision:input.decision}});
+ if(input.decision==='accepted')await client.query(`INSERT INTO follows(follower_id,following_id,status) VALUES($1,$2,'accepted')
+ ON CONFLICT(follower_id,following_id) DO UPDATE SET status='accepted'`,[input.requesterId,input.targetUserId]);
+ else await client.query(`UPDATE follows SET status='rejected' WHERE follower_id=$1 AND following_id=$2`,[input.requesterId,input.targetUserId]);
+ await insertOutboxEvent(client,{aggregateType:'follow',aggregateId:input.requesterId,eventType:input.decision,partitionKey:input.requesterId,payload:{requesterId:input.requesterId,targetUserId:input.targetUserId,decision:input.decision}});
  return true;
 }
