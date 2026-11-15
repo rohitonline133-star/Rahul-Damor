@@ -27,10 +27,12 @@ test('challenge creation stores only an HMAC digest and supersedes older challen
   });
   assert.match(issued.code, /^[0-9]{6}$/);
   assert.match(issued.id, /^pv_[a-f0-9]{32}$/);
-  assert.equal(calls.length, 2);
-  assert.match(calls[0].sql, /SET superseded_at = now\(\)/);
-  assert.match(calls[1].sql, /INSERT INTO verification_challenges/);
-  assert.equal(calls[1].values?.[3], createHmac('sha256', String(calls[1].values?.[4])).update(issued.code).digest('hex'));
+  assert.equal(calls.length, 4);
+  assert.match(calls[0].sql, /pg_advisory_xact_lock/);
+  assert.match(calls[1].sql, /cooldown_until/);
+  assert.match(calls[2].sql, /SET superseded_at = now\(\)/);
+  assert.match(calls[3].sql, /INSERT INTO verification_challenges/);
+  assert.equal(calls[3].values?.[3], createHmac('sha256', String(calls[3].values?.[4])).update(issued.code).digest('hex'));
 });
 
 test('challenge limits and phone format are validated before database access', async () => {
