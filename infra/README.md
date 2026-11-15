@@ -57,7 +57,7 @@ Before production, replace every local single-instance dependency with a tested 
 
 ## Reliable realtime event delivery contract
 
-See [OUTBOX_DELIVERY_CONTRACT.md](./OUTBOX_DELIVERY_CONTRACT.md) for the required transactional outbox producer, dispatcher, consumer, retry, idempotency, replay, and failure-test contract. This is a design gate; no production dispatcher or broker delivery is implemented yet.
+See [OUTBOX_DELIVERY_CONTRACT.md](./OUTBOX_DELIVERY_CONTRACT.md) for the transactional outbox contract. The branch contains a validated PostgreSQL producer helper and JetStream dispatcher, but application routes do not yet insert events and consumers/realtime fanout are not production-ready.
 
 ## Detailed Active-Active design
 
