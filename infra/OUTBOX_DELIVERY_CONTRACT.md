@@ -41,3 +41,7 @@ The migration `0003_consumer_inbox.sql` adds `consumer_event_receipts` (unique p
 - Define retention, backup, encryption, regional replication, and disaster-recovery policies.
 
 This is not a production realtime service until the domain producers, consumers, operational controls, and multi-instance failure tests are complete.
+
+## Inbox helper implementation
+
+`src/server/inbox.ts` now provides `processInboxEvent(client, event, apply)`. It validates event metadata, inserts the `(consumer_name, event_id)` receipt with conflict-safe deduplication, invokes the domain side-effect callback, and advances the per-stream/per-partition checkpoint monotonically in the same caller-owned transaction. A duplicate returns without repeating the callback. If the callback throws, the caller must roll back; the helper deliberately does not catch the error or commit. `tests/inbox.test.ts` covers new delivery, duplicate delivery, callback failure, and invalid metadata. This is a reusable transactional primitive, not yet a wired GB Official consumer: no production domain subscriptions or realtime fanout are registered by this helper.
