@@ -10,7 +10,8 @@
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
-    "db:migrate": "tsx scripts/migrate-postgres.ts"
+    "db:migrate": "tsx scripts/migrate-postgres.ts",
+    "db:audit-legacy": "tsx scripts/audit-legacy-json.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
