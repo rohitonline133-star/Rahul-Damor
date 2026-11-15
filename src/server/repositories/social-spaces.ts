@@ -235,6 +235,7 @@ export async function linkGroupToCommunity(client:PoolClient,input:{
     JOIN groups g ON g.id=$2::text
     JOIN community_members cm ON cm.community_id=c.id AND cm.user_id=$3::text AND cm.role IN ('owner','moderator')
     JOIN conversation_members gm ON gm.conversation_id=g.id AND gm.user_id=$3::text AND gm.role IN ('owner','admin')
+    WHERE c.id=$1::text
     ON CONFLICT(community_id,group_id) DO NOTHING RETURNING group_id`,
     [input.communityId,input.groupId,input.actorId]);
   if(!result.rows[0])return false;
