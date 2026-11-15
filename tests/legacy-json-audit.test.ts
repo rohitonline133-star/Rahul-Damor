@@ -57,7 +57,7 @@ test('audits the checked-in synthetic fixture across all 32 legacy collections',
     const result = auditLegacyJson(source);
     assert.equal(Object.keys(result.collections).length, 32);
     assert.deepEqual(result.errors, []);
-    assert.deepEqual(result.unknownKeys, ['_fixture']);
+    assert.deepEqual(result.unknownKeys, []);
     assert.deepEqual((fixture.sessions as unknown[]), []);
     assert.deepEqual((fixture.phone_verifications as unknown[]), []);
     assert.deepEqual((fixture.password_resets as unknown[]), []);
