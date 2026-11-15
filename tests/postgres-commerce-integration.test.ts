@@ -48,3 +48,25 @@ test('PostgreSQL commerce integration: failed order leaves inventory unchanged a
   await client.query('ROLLBACK');
  }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
 });
+
+test('PostgreSQL commerce integration: payment attempts and transactions cannot cross order ownership',{skip:!enabled},async()=>{
+ const client=await pool!.connect();const seller=randomUUID(),buyer=randomUUID(),other=randomUUID(),pid=randomUUID(),orderId=randomUUID();
+ try{
+  await client.query('BEGIN');
+  await account(client,seller);await account(client,buyer);await account(client,other);
+  await product(client,pid,seller,3,1500);
+  await createShopOrder(client,{id:orderId,userId:buyer,items:[{productId:pid,quantity:1}],shippingAddress:address});
+  await assert.rejects(()=>client.query(`INSERT INTO shop_payment_attempts
+   (id,order_id,user_id,provider,provider_order_id,amount_minor,currency)
+   VALUES($1,$2,$3,'razorpay',$4,1500,'INR')`,[randomUUID(),orderId,other,'order_'+randomUUID().replaceAll('-','')]),/foreign key/i);
+  await assert.rejects(()=>client.query(`INSERT INTO payment_transactions
+   (id,user_id,order_id,provider,transaction_type,amount_minor,currency,status)
+   VALUES($1,$2,$3,'razorpay','shop_purchase',1500,'INR','pending')`,[randomUUID(),other,orderId]),/foreign key/i);
+  const valid=await client.query(`INSERT INTO shop_payment_attempts
+   (id,order_id,user_id,provider,provider_order_id,amount_minor,currency)
+   VALUES($1,$2,$3,'razorpay',$4,1500,'INR') RETURNING id`,
+   [randomUUID(),orderId,buyer,'order_'+randomUUID().replaceAll('-','')]);
+  assert.equal(valid.rowCount,1);
+  await client.query('ROLLBACK');
+ }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
+});
