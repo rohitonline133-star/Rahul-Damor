@@ -13,7 +13,7 @@ test('inventories literal Express routes and direct collection references', () =
     '  const conversation = db.conversations.find((entry) => entry.id === req.body.id);',
     '  db.messages.push({ conversationId: conversation.id });',
     '});',
-  ].join('\\n');
+  ].join('\n');
 
   const report = inventoryLegacyRoutes(source);
   assert.equal(report.routeCount, 2);
