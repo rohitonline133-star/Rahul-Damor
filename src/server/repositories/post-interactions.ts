@@ -119,11 +119,11 @@ export async function addPostComment(
     SELECT c.id FROM post_comments c
     JOIN posts p ON p.id = c.post_id
     JOIN accounts author ON author.id = p.author_id
-    WHERE c.author_id = $1 AND c.client_comment_id = $2
-      AND c.post_id = $3 AND c.deleted_at IS NULL
+    WHERE c.post_id = $1 AND c.author_id = $2
+      AND c.client_comment_id = $3 AND c.deleted_at IS NULL
       AND ${VISIBLE_POST}
     LIMIT 1
-  `, [input.authorId, input.clientCommentId, input.postId, input.authorId]);
+  `, [input.postId, input.authorId, input.clientCommentId]);
   if (existing.rows[0]) return { id: existing.rows[0].id, duplicate: true };
   throw new Error('Post is not available or comment could not be created.');
 }
