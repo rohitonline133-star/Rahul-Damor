@@ -19,8 +19,8 @@ export interface LegacyRouteInventory {
   limitations: string[];
 }
 
-const ROUTE_START = /\\bapp\\.(get|post|put|patch|delete|all)\\s*\\(\\s*(['"])([^'"]+)\\2/g;
-const DB_REFERENCE = /\\bdb\\.([A-Za-z_$][\\w$]*)/g;
+const ROUTE_START = /\bapp\.(get|post|put|patch|delete|all)\s*\(\s*(['"])([^'"]+)\2/g;
+const DB_REFERENCE = /\bdb\.([A-Za-z_$][\w$]*)/g;
 
 export function inventoryLegacyRoutes(source: string, sourceFile = 'server.ts'): LegacyRouteInventory {
   const matches: Array<{ method: string; routePath: string; index: number }> = [];
@@ -38,8 +38,8 @@ export function inventoryLegacyRoutes(source: string, sourceFile = 'server.ts'):
     const start = current.index;
     const end = matches[index + 1]?.index ?? source.length;
     const segment = source.slice(start, end);
-    const startLine = source.slice(0, start).split('\\n').length;
-    const endLine = source.slice(0, end).split('\\n').length;
+    const startLine = source.slice(0, start).split('\n').length;
+    const endLine = source.slice(0, end).split('\n').length;
     const collections = new Set<string>();
 
     for (const reference of segment.matchAll(DB_REFERENCE)) {
@@ -80,11 +80,11 @@ function runCli() {
   const outputPath = process.argv[3];
   try {
     const report = inventoryLegacyRoutes(fs.readFileSync(path.resolve(sourcePath), 'utf8'), path.basename(sourcePath));
-    const output = JSON.stringify(report, null, 2) + '\\n';
+    const output = JSON.stringify(report, null, 2) + '\n';
     if (outputPath) fs.writeFileSync(path.resolve(outputPath), output, { flag: 'wx', mode: 0o600 });
     process.stdout.write(output);
   } catch {
-    process.stderr.write('Route inventory failed; check the source path and permissions.\\n');
+    process.stderr.write('Route inventory failed; check the source path and permissions.\n');
     process.exitCode = 1;
   }
 }
