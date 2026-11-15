@@ -8,7 +8,8 @@ function fakeClient(responses: unknown[][]) {
   const client = {
     query: async (sql: string, values?: unknown[]) => {
       calls.push({ sql, values });
-      return { rows: responses.shift() ?? [], rowCount: 1 };
+      const rows = responses.shift() ?? [];
+      return { rows, rowCount: rows.length };
     },
   } as unknown as PoolClient;
   return { client, calls };
@@ -33,7 +34,8 @@ test('unlike removes only the caller like and writes an outbox event when change
   const { client, calls } = fakeClient([[{ post_id: 'post_1' }], [{ event_id: 'evt_2' }]]);
   assert.deepEqual(await unlikePost(client, { postId: 'post_1', userId: 'acct_2' }), { unliked: true });
   assert.match(calls[0].sql, /l\.user_id = \$2/);
-  assert.match(calls[1].sql, /unliked/);
+  assert.match(calls[1].sql, /INSERT INTO event_outbox/);
+  assert.equal(calls[1].values?.[2], 'unliked');
 });
 
 test('comment insert checks visibility, bounds content and uses client id idempotency', async () => {
@@ -45,7 +47,8 @@ test('comment insert checks visibility, bounds content and uses client id idempo
   assert.match(calls[0].sql, /p\.deleted_at IS NULL/);
   assert.match(calls[0].sql, /ON CONFLICT \(author_id, client_comment_id\) DO NOTHING/);
   assert.deepEqual(calls[0].values, ['post_1', 'acct_2', 'comment_client_123', 'Nice post', 'comment_1']);
-  assert.match(calls[1].sql, /commented/);
+  assert.match(calls[1].sql, /INSERT INTO event_outbox/);
+  assert.equal(calls[1].values?.[2], 'commented');
 });
 
 test('duplicate comment returns existing comment without duplicate event', async () => {
