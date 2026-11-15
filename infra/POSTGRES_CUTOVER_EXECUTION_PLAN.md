@@ -116,3 +116,8 @@ Existing work provides local PostgreSQL/Redis/NATS Compose services, additive fo
 It does **not** yet provide the complete relational schema, repository conversion, production data import, transactional outbox producers, NATS dispatcher/consumers, shared realtime state, regional database topology, provisioned compute/network/storage, or measured global capacity. Local Compose is a development aid, not a production HA cluster.
 
 No claim of 10-billion-account readiness is valid until workload assumptions, concurrency, read/write rates, media throughput, storage growth, replication costs, and measured failover/load tests are available.
+
+
+## Commerce schema batch
+
+Migration `0012_commerce_persistence.sql` now provides relational persistence primitives for products, carts, orders, order-line snapshots, opaque payment-provider references, transactions, subscriptions, and idempotent webhook receipts. See `infra/COMMERCE_PERSISTENCE_BOUNDARY.md`. Legacy commerce routes and data are not yet migrated; provider configuration and verified webhook integration remain required.
