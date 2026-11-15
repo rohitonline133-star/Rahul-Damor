@@ -1,4 +1,4 @@
-import test from 'node:test';
+import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
@@ -6,6 +6,7 @@ import { createStatus, requestFollow, reviewFollowRequest, blockUser } from '../
 
 const enabled = Boolean(process.env.DATABASE_URL);
 const pool = enabled ? new Pool({ connectionString: process.env.DATABASE_URL, ssl: process.env.PGSSLMODE === 'disable' ? false : { rejectUnauthorized: true } }) : null;
+after(async()=>{ if(pool) await pool.end(); });
 async function fixture(client: import('pg').PoolClient, id: string, username: string) {
   await client.query(`INSERT INTO accounts(id,username,username_normalized,password_hash,password_salt)
     VALUES($1,$2,$2,'hash','salt')`,[id,username]);
@@ -34,4 +35,3 @@ test('PostgreSQL integration: private follow approval and block cleanup',{skip:!
   await client.query('ROLLBACK');
  } catch(e){await client.query('ROLLBACK');throw e;} finally{client.release();}
 });
-test('PostgreSQL integration pool closes cleanly',{skip:!enabled},async()=>{await pool!.query('SELECT 1');});
