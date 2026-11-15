@@ -35,7 +35,7 @@ test('first request claims an idempotency key', async () => {
 test('completed request returns the stored response for an identical retry', async () => {
   const { client } = fakeClient([
     { rows: [], rowCount: 0 },
-    { rows: [{ request_hash: input.requestHash, response: { orderId: 'order_1' }, expires_at: new Date(Date.now() + 60000) }], rowCount: 1 },
+    { rows: [{ request_hash: input.requestHash, response: { orderId: 'order_1' }, expired: false }], rowCount: 1 },
   ]);
   assert.deepEqual(await claimIdempotencyKey(client, input), {
     kind: 'replay', response: { orderId: 'order_1' },
@@ -45,7 +45,7 @@ test('completed request returns the stored response for an identical retry', asy
 test('same key with a different request hash is rejected', async () => {
   const { client } = fakeClient([
     { rows: [], rowCount: 0 },
-    { rows: [{ request_hash: 'a'.repeat(64), response: null, expires_at: new Date(Date.now() + 60000) }], rowCount: 1 },
+    { rows: [{ request_hash: 'a'.repeat(64), response: null, expired: false }], rowCount: 1 },
   ]);
   await assert.rejects(() => claimIdempotencyKey(client, input), /different request/);
 });
@@ -53,7 +53,7 @@ test('same key with a different request hash is rejected', async () => {
 test('uncompleted matching request is reported as in progress', async () => {
   const { client } = fakeClient([
     { rows: [], rowCount: 0 },
-    { rows: [{ request_hash: input.requestHash, response: null, expires_at: new Date(Date.now() + 60000) }], rowCount: 1 },
+    { rows: [{ request_hash: input.requestHash, response: null, expired: false }], rowCount: 1 },
   ]);
   assert.deepEqual(await claimIdempotencyKey(client, input), { kind: 'in_progress' });
 });
@@ -63,6 +63,23 @@ test('completion stores only bounded JSON response under matching claim', async 
   await completeIdempotencyKey(client, { ...input, response: { result: 'ok' } });
   assert.match(calls[0].sql, /response IS NULL AND expires_at > now\(\)/);
   assert.deepEqual(calls[0].values?.slice(0, 3), [input.scope, input.key, input.requestHash]);
+});
+
+test('completion rejects null response because null marks an unfinished claim', async () => {
+  const { client, calls } = fakeClient();
+  await assert.rejects(() => completeIdempotencyKey(client, { ...input, response: null }), /non-null JSON/);
+  assert.equal(calls.length, 0);
+});
+
+test('expired claims use the database clock rather than the API host clock', async () => {
+  const { client, calls } = fakeClient([
+    { rows: [], rowCount: 0 },
+    { rows: [{ request_hash: input.requestHash, response: null, expired: true }], rowCount: 1 },
+    { rows: [], rowCount: 1 },
+  ]);
+  assert.deepEqual(await claimIdempotencyKey(client, input), { kind: 'claimed' });
+  assert.match(calls[1].sql, /expires_at <= now\(\)/);
+  assert.match(calls[2].sql, /SET response = NULL, request_hash = \$3/);
 });
 
 test('completion rejects oversized response and cleanup uses bounded batch', async () => {
