@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { createStatus, requestFollow, reviewFollowRequest, blockUser } from '../src/server/repositories/social-graph';
+import { createGroup, createCommunity, linkGroupToCommunity, joinCommunityGroup, addGroupMember } from '../src/server/repositories/social-spaces';
 import { updatePrivacySettings, canViewLastSeen, canViewProfilePhoto, shouldSendReadReceipt, muteUser, isUserMuted, unmuteUser } from '../src/server/repositories/privacy';
 
 const enabled = Boolean(process.env.DATABASE_URL);
@@ -70,4 +71,27 @@ test('PostgreSQL integration: mute state is owner-scoped and reversible',{skip:!
   assert.equal(await isUserMuted(client,{muterId:muter,mutedId:muted}),false);
   await client.query('ROLLBACK');
  } catch(e){await client.query('ROLLBACK');throw e;} finally{client.release();}
+});
+
+test('PostgreSQL integration: community-linked group enforces community membership',{skip:!enabled},async()=>{
+ const client=await pool!.connect();
+ const owner=randomUUID(),member=randomUUID(),outsider=randomUUID(),communityId=randomUUID(),groupId=randomUUID();
+ try{
+  await client.query('BEGIN');
+  await fixture(client,owner,'it_'+owner.replaceAll('-','').slice(0,20));
+  await fixture(client,member,'it_'+member.replaceAll('-','').slice(0,20));
+  await fixture(client,outsider,'it_'+outsider.replaceAll('-','').slice(0,20));
+  await createCommunity(client,{id:communityId,slug:'c-'+communityId.replaceAll('-','').slice(0,20),name:'Integration community',ownerId:owner});
+  await createGroup(client,{id:groupId,ownerId:owner,name:'Integration group'});
+  await client.query("INSERT INTO community_members(community_id,user_id,role) VALUES($1,$2,'member')",[communityId,member]);
+  assert.equal(await linkGroupToCommunity(client,{communityId,groupId,actorId:owner}),true);
+  assert.equal(await joinCommunityGroup(client,{communityId,groupId,userId:member}),true);
+  assert.equal(await joinCommunityGroup(client,{communityId,groupId,userId:outsider}),false);
+  assert.equal(await addGroupMember(client,{groupId,actorId:owner,userId:outsider}),false);
+  await client.query("INSERT INTO community_members(community_id,user_id,role) VALUES($1,$2,'member')",[communityId,outsider]);
+  assert.equal(await addGroupMember(client,{groupId,actorId:owner,userId:outsider}),true);
+  const members=await client.query('SELECT user_id FROM conversation_members WHERE conversation_id=$1 ORDER BY user_id',[groupId]);
+  assert.deepEqual(members.rows.map(row=>row.user_id).sort(),[owner,member,outsider].sort());
+  await client.query('ROLLBACK');
+ }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
 });
