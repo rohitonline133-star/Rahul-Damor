@@ -6,6 +6,8 @@ import {
   findPersistentSession,
   revokePersistentSession,
   revokeAllPersistentSessions,
+  listPersistentSessions,
+  revokePersistentSessionById,
 } from '../src/server/repositories/sessions';
 import type { PoolClient } from 'pg';
 
@@ -64,5 +66,27 @@ test('session lifetime and metadata are bounded before database access', async (
   await assert.rejects(() => createPersistentSession(client, 'acct_1', {
     deviceName: 'x'.repeat(121), platform: 'Android',
   }));
+  assert.equal(calls.length, 0);
+});
+
+test('session listing is account-scoped and excludes expired or revoked rows', async () => {
+  const rows = [{ id: 'sess_1', user_id: 'acct_1', expires_at: new Date(), revoked_at: null, created_at: new Date(), device_metadata: { platform: 'Android' } }];
+  const { client, calls } = fakeClient([rows]);
+  assert.deepEqual(await listPersistentSessions(client, 'acct_1'), rows);
+  assert.match(calls[0].sql, /user_id = \$1 AND revoked_at IS NULL AND expires_at > now\(\)/);
+  assert.equal(calls[0].values?.[0], 'acct_1');
+});
+
+test('single-session revocation requires matching account ownership', async () => {
+  const { client, calls } = fakeClient([], 1);
+  assert.equal(await revokePersistentSessionById(client, 'acct_1', 'sess_2'), true);
+  assert.match(calls[0].sql, /WHERE id = \$1 AND user_id = \$2 AND revoked_at IS NULL/);
+  assert.deepEqual(calls[0].values, ['sess_2', 'acct_1']);
+});
+
+test('session listing and revocation reject malformed identifiers before database access', async () => {
+  const { client, calls } = fakeClient();
+  await assert.rejects(() => listPersistentSessions(client, 'bad id'));
+  await assert.rejects(() => revokePersistentSessionById(client, 'acct_1', 'other-session'));
   assert.equal(calls.length, 0);
 });
