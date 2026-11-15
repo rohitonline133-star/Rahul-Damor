@@ -1,0 +1,184 @@
+{
+  "_fixture": {
+    "kind": "synthetic-shape-scaffold",
+    "version": 1,
+    "notProductionData": true,
+    "notes": "Illustrative records only. Do not treat these generic fields as a complete legacy schema."
+  },
+  "users": [
+    {
+      "id": "synthetic-users-001",
+      "_synthetic": true
+    }
+  ],
+  "conversations": [
+    {
+      "id": "synthetic-conversations-001",
+      "_synthetic": true
+    }
+  ],
+  "messages": [
+    {
+      "id": "synthetic-messages-001",
+      "_synthetic": true
+    }
+  ],
+  "statuses": [
+    {
+      "id": "synthetic-statuses-001",
+      "_synthetic": true
+    }
+  ],
+  "communities": [
+    {
+      "id": "synthetic-communities-001",
+      "_synthetic": true
+    }
+  ],
+  "calls": [
+    {
+      "id": "synthetic-calls-001",
+      "_synthetic": true
+    }
+  ],
+  "reports": [
+    {
+      "id": "synthetic-reports-001",
+      "_synthetic": true
+    }
+  ],
+  "notifications": [
+    {
+      "id": "synthetic-notifications-001",
+      "_synthetic": true
+    }
+  ],
+  "posts": [
+    {
+      "id": "synthetic-posts-001",
+      "_synthetic": true
+    }
+  ],
+  "channels": [
+    {
+      "id": "synthetic-channels-001",
+      "_synthetic": true
+    }
+  ],
+  "followers": [
+    {
+      "id": "synthetic-followers-001",
+      "_synthetic": true
+    }
+  ],
+  "follow_requests": [
+    {
+      "id": "synthetic-follow_requests-001",
+      "_synthetic": true
+    }
+  ],
+  "verification_requests": [
+    {
+      "id": "synthetic-verification_requests-001",
+      "_synthetic": true
+    }
+  ],
+  "blocked_users": [
+    {
+      "id": "synthetic-blocked_users-001",
+      "_synthetic": true
+    }
+  ],
+  "muted_users": [
+    {
+      "id": "synthetic-muted_users-001",
+      "_synthetic": true
+    }
+  ],
+  "location_shares": [
+    {
+      "id": "synthetic-location_shares-001",
+      "_synthetic": true
+    }
+  ],
+  "shop_products": [
+    {
+      "id": "synthetic-shop_products-001",
+      "_synthetic": true
+    }
+  ],
+  "shop_orders": [
+    {
+      "id": "synthetic-shop_orders-001",
+      "_synthetic": true
+    }
+  ],
+  "payment_methods": [
+    {
+      "id": "synthetic-payment_methods-001",
+      "_synthetic": true
+    }
+  ],
+  "transactions": [
+    {
+      "id": "synthetic-transactions-001",
+      "_synthetic": true
+    }
+  ],
+  "devices": [
+    {
+      "id": "synthetic-devices-001",
+      "_synthetic": true
+    }
+  ],
+  "custom_lists": [
+    {
+      "id": "synthetic-custom_lists-001",
+      "_synthetic": true
+    }
+  ],
+  "broadcast_lists": [
+    {
+      "id": "synthetic-broadcast_lists-001",
+      "_synthetic": true
+    }
+  ],
+  "phone_verifications": [],
+  "sessions": [],
+  "security_logs": [
+    {
+      "id": "synthetic-security_logs-001",
+      "_synthetic": true
+    }
+  ],
+  "security_notifications": [
+    {
+      "id": "synthetic-security_notifications-001",
+      "_synthetic": true
+    }
+  ],
+  "oauth_accounts": [
+    {
+      "id": "synthetic-oauth_accounts-001",
+      "_synthetic": true
+    }
+  ],
+  "password_resets": [],
+  "shop_cart": {
+    "synthetic-user-001": [
+      {
+        "productId": "synthetic-product-001",
+        "quantity": 1,
+        "_synthetic": true
+      }
+    ]
+  },
+  "subscriptions": {
+    "synthetic-user-001": {
+      "plan": "synthetic-free",
+      "status": "inactive",
+      "_synthetic": true
+    }
+  },
+  "two_factor_auth": {}
+}
