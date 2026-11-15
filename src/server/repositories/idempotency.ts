@@ -47,8 +47,8 @@ export async function claimIdempotencyKey(
 
   if (inserted.rowCount === 1) return { kind: 'claimed' };
 
-  const existing = await client.query<{ request_hash: string; response: unknown; expires_at: Date }>(`
-    SELECT request_hash, response, expires_at
+  const existing = await client.query<{ request_hash: string; response: unknown; expired: boolean }>(`
+    SELECT request_hash, response, (expires_at <= now()) AS expired
     FROM idempotency_keys
     WHERE scope = $1 AND idempotency_key = $2
     FOR UPDATE
@@ -58,7 +58,9 @@ export async function claimIdempotencyKey(
   if (row.request_hash !== input.requestHash) {
     throw new Error('Idempotency key was already used for a different request.');
   }
-  if (row.expires_at.getTime() <= Date.now()) {
+  // Use the database clock for expiry decisions so API host clock skew cannot
+  // extend or prematurely expire an idempotency window.
+  if (row.expired) {
     await client.query(`
       UPDATE idempotency_keys
       SET response = NULL, request_hash = $3,
@@ -79,6 +81,11 @@ export async function completeIdempotencyKey(
   if (!input || !TOKEN.test(input.scope) || !KEY.test(input.key) ||
       !/^[a-f0-9]{64}$/.test(input.requestHash)) {
     throw new Error('Invalid idempotency completion input.');
+  }
+  // JSON null is reserved as the "claimed but not completed" sentinel.
+  // Reject it so a completed null response cannot be mistaken for in-progress.
+  if (input.response === null || input.response === undefined) {
+    throw new Error('Idempotency response must be a non-null JSON value.');
   }
   const serialized = JSON.stringify(input.response);
   if (serialized === undefined || Buffer.byteLength(serialized, 'utf8') > MAX_RESPONSE_BYTES) {
