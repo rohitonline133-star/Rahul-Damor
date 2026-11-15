@@ -30,7 +30,6 @@ test('challenge creation stores only an HMAC digest and supersedes older challen
   assert.equal(calls.length, 2);
   assert.match(calls[0].sql, /SET superseded_at = now\(\)/);
   assert.match(calls[1].sql, /INSERT INTO verification_challenges/);
-  assert.notEqual(calls[1].values?.[3], createHmac('sha256', String(calls[1].values?.[4])).update(issued.code).digest('hex') === issued.code);
   assert.equal(calls[1].values?.[3], createHmac('sha256', String(calls[1].values?.[4])).update(issued.code).digest('hex'));
 });
 
