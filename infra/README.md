@@ -94,3 +94,8 @@ npm run db:audit-legacy -- ./data/database.json ./legacy-audit-manifest.json
 The tool reports a SHA-256 source checksum, byte size, per-collection record counts, duplicate IDs, malformed collection shapes, and unknown top-level keys. It does not print record values or modify the source file. The manifest contains metadata only; store it with the migration evidence, not in a public repository.
 
 Sessions, password-reset tokens, and pending OTP records are marked **never-import**. Two-factor authentication material requires a separately reviewed encryption/key-rotation procedure. The audit is a preflight aid, not a migration or proof of referential integrity. A human-reviewed domain mapping and an independently tested import/rollback tool are still required.
+
+
+## PostgreSQL cutover execution plan
+
+See [POSTGRES_CUTOVER_EXECUTION_PLAN.md](./POSTGRES_CUTOVER_EXECUTION_PLAN.md) for the collection-to-table mapping backlog, phased repository conversion, safe legacy import/rollback gates, integration tests, outbox/realtime implementation sequence, and multi-region qualification criteria. It is an execution plan; the listed application migration and distributed services are not yet implemented.
