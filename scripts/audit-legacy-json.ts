@@ -21,7 +21,7 @@ export interface LegacyAuditManifest {
   sourceSha256: string;
   sourceBytes: number;
   auditedAt: string;
-  collections: Record<string, { shape: 'array' | 'object'; records: number; duplicateIds: number; importPolicy: 'review-required' | 'never-import' }>;
+  collections: Record<string, { shape: 'array' | 'object'; records: number; duplicateIds: number; recordsWithoutStringId: number; importPolicy: 'review-required' | 'never-import' }>;
   unknownKeys: string[];
   errors: string[];
   warnings: string[];
@@ -48,7 +48,7 @@ export function auditLegacyJson(sourcePath: string): LegacyAuditManifest {
   for (const key of ARRAY_COLLECTIONS) {
     const value = source[key];
     if (value === undefined) {
-      collections[key] = { shape: 'array', records: 0, duplicateIds: 0, importPolicy: NEVER_IMPORT.has(key) ? 'never-import' : 'review-required' };
+      collections[key] = { shape: 'array', records: 0, duplicateIds: 0, recordsWithoutStringId: 0, importPolicy: NEVER_IMPORT.has(key) ? 'never-import' : 'review-required' };
       continue;
     }
     if (!Array.isArray(value)) {
@@ -57,16 +57,19 @@ export function auditLegacyJson(sourcePath: string): LegacyAuditManifest {
     }
     const seen = new Set<string>();
     let duplicateIds = 0;
+    let recordsWithoutStringId = 0;
     for (const record of value) {
       if (!record || typeof record !== 'object' || Array.isArray(record)) {
         errors.push(`"${key}" contains a non-object record.`);
         continue;
       }
       const id = (record as Record<string, unknown>).id;
-      if (typeof id === 'string' && id.length > 0) {
-        if (seen.has(id)) duplicateIds += 1;
-        seen.add(id);
+      if (typeof id !== 'string' || id.length === 0) {
+        recordsWithoutStringId += 1;
+        continue;
       }
+      if (seen.has(id)) duplicateIds += 1;
+      seen.add(id);
     }
     if (duplicateIds) errors.push(`"${key}" contains ${duplicateIds} duplicate record ID(s).`);
     collections[key] = { shape: 'array', records: value.length, duplicateIds, importPolicy: NEVER_IMPORT.has(key) ? 'never-import' : 'review-required' };
@@ -75,14 +78,14 @@ export function auditLegacyJson(sourcePath: string): LegacyAuditManifest {
   for (const key of OBJECT_COLLECTIONS) {
     const value = source[key];
     if (value === undefined) {
-      collections[key] = { shape: 'object', records: 0, duplicateIds: 0, importPolicy: 'review-required' };
+      collections[key] = { shape: 'object', records: 0, duplicateIds: 0, recordsWithoutStringId: 0, importPolicy: 'review-required' };
       continue;
     }
     if (!value || typeof value !== 'object' || Array.isArray(value)) {
       errors.push(`"${key}" must be an object/map.`);
       continue;
     }
-    collections[key] = { shape: 'object', records: Object.keys(value).length, duplicateIds: 0, importPolicy: 'review-required' };
+    collections[key] = { shape: 'object', records: Object.keys(value).length, duplicateIds: 0, recordsWithoutStringId: 0, importPolicy: 'review-required' };
   }
 
   const unknownKeys = Object.keys(source).filter((key) => !KNOWN_COLLECTIONS.has(key)).sort();
