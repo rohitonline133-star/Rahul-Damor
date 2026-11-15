@@ -12,7 +12,7 @@ test('payment attempt amount and currency must match the authenticated pending o
  assert.equal(bad.calls.length,1);
 });
 test('captured webhook atomically updates payment, order and outbox',async()=>{
- const f=fake([[{provider_event_id:'evt_1'}],[{id:'a1',order_id:'o1',user_id:'u1',amount_minor:'2500',currency:'INR',status:'pending'}],[{id:'o1',user_id:'u1',total_minor:'2500',currency:'INR',payment_status:'pending',order_status:'pending'}],[],[],[],[],[{event_id:'out1'}],[]]);
+ const f=fake([[{provider_event_id:'evt_1'}],[{id:'a1',order_id:'o1',user_id:'u1',amount_minor:'2500',currency:'INR',status:'pending'}],[{id:'o1',user_id:'u1',total_minor:'2500',currency:'INR',payment_status:'pending',order_status:'pending'}],[],[],[],[{event_id:'out1'}],[]]);
  assert.equal(await applyRazorpayPaymentWebhook(f.client,{eventId:'evt_1',eventType:'payment.captured',providerOrderId:'order_123',providerPaymentId:'pay_123',amountMinor:2500,currency:'INR'}),'processed');
  assert.match(f.calls[3].sql,/status='captured'/);assert.match(f.calls[4].sql,/payment_status='paid'/);assert.match(f.calls[6].sql,/event_outbox/);
 });
