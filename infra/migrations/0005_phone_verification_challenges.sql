@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS verification_challenges (
   verified_at timestamptz,
   verification_token_hash text UNIQUE,
   verification_expires_at timestamptz,
+  verification_token_consumed_at timestamptz,
   consumed_at timestamptz,
   superseded_at timestamptz,
   CHECK (expires_at > created_at),
