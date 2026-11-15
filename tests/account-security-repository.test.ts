@@ -19,7 +19,7 @@ test('recovery code hashing requires a server-side pepper', () => {
 });
 
 test('encrypted TOTP secret is stored and only returned after enablement', async () => {
-  const {client,calls}=fakeClient([[],[{secret_ciphertext:'cipher',secret_nonce:'a'.repeat(24),
+  const {client,calls}=fakeClient([[],[],[{secret_ciphertext:'cipher',secret_nonce:'a'.repeat(24),
     secret_auth_tag:'b'.repeat(32),encryption_key_version:'v1'}]]);
   await saveEncryptedTotpSecret(client,'acct_1',{ciphertext:'cipher',nonce:'a'.repeat(24),authTag:'b'.repeat(32),keyVersion:'v1'});
   assert.match(calls[0].sql,/INSERT INTO account_two_factor/);
