@@ -58,3 +58,23 @@ Before production, replace every local single-instance dependency with a tested 
 ## Detailed Active-Active design
 
 See [ACTIVE_ACTIVE_DESIGN.md](./ACTIVE_ACTIVE_DESIGN.md) for the consistency model, partition ownership, failure fencing, database migration gates, realtime event architecture, operational requirements, phased acceptance criteria, and honest capacity qualification process. This is a design document, not deployed infrastructure.
+
+## PostgreSQL foundation (development / CI only)
+
+The branch now contains an additive foundational schema at `infra/migrations/0001_core.sql`, a checksum-verified advisory-lock migration runner (`npm run db:migrate`), and a bounded PostgreSQL pool/transaction helper at `src/server/postgres.ts`.
+
+For local development, set a private local password and start the Compose dependencies:
+
+```sh
+export GB_POSTGRES_PASSWORD='use-a-local-development-password'
+docker compose -f infra/docker-compose.yml up -d postgres
+export DATABASE_URL='postgresql://gb_app:YOUR_LOCAL_PASSWORD@127.0.0.1:5432/gb_official'
+export PGSSLMODE=disable
+npm run db:migrate
+```
+
+Use `PGSSLMODE=disable` only for loopback/local development. The migration runner defaults to TLS certificate verification (`verify-full`) outside local development. Never commit real passwords or database URLs.
+
+**Important migration boundary:** this is a schema and connection/migration foundation, not a completed application data migration. Existing `server.ts` request handlers still read and mutate the local JSON `DbSchema` synchronously. The new PostgreSQL helper is not yet wired into those handlers, legacy JSON records have not been imported, and production startup remains deliberately blocked. Do not run this migration against production data or claim PostgreSQL-backed application operation until the handler/repository refactor, data migration, rollback plan, and integration tests are complete.
+
+CI provisions a disposable PostgreSQL 17 service, applies the migration twice to verify idempotency/checksum handling, then runs unit tests, TypeScript validation, and the production build. CI database credentials are test-only.
