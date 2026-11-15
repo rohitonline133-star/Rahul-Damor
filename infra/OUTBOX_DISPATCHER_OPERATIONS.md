@@ -1,6 +1,6 @@
 # Outbox dispatcher operations
 
-**Status:** implemented worker code; not production-verified. Application domain routes do not yet create outbox rows, and no regional broker topology is provisioned.
+**Status:** implemented worker code; not production-verified. Application domain routes do not yet call the producer helper, consumers are not implemented, and no regional broker topology is provisioned.
 
 ## Required environment
 
@@ -24,7 +24,7 @@ The worker publishes an envelope with event ID, type, schema version, aggregate 
 - Delivery is at-least-once. A crash after broker acknowledgement but before the database update can publish again; stable message IDs and idempotent consumers are mandatory.
 - Failed publishes release the claim and record only a fixed safe error code. Attempts are bounded. Rows at the limit are marked dead-lettered, including rows whose worker crashed on its final leased attempt.
 - The worker does not log event payloads, tokens, user identifiers, or connection strings.
-- This worker does not create outbox records. Each application mutation must insert its event in the same PostgreSQL transaction as the domain write before delivery is meaningful.
+- This worker does not create outbox records. Use `insertOutboxEvent(client, input)` from `src/server/outbox.ts` with the same PostgreSQL transaction/client as the domain mutation. Domain routes have not yet been converted to do this.
 
 ## Required production gates
 
