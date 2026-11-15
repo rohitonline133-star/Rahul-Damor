@@ -70,3 +70,55 @@ export async function submitModerationReport(client:PoolClient,input:{
  await insertOutboxEvent(client,{aggregateType:'moderation_report',aggregateId:input.id,eventType:'submitted',partitionKey:'moderation-queue',payload:{reportId:input.id,targetType:input.targetType,category:input.category}});
  return {id:input.id};
 }
+
+export async function requestFollow(client:PoolClient,input:{requestId:string;requesterId:string;targetUserId:string}):Promise<'followed'|'requested'|'already_following'>{
+ validId(input.requestId,'follow request ID');validId(input.requesterId,'requester ID');validId(input.targetUserId,'target user ID');
+ if(input.requesterId===input.targetUserId)throw new Error('Cannot follow yourself.');
+ const target=await client.query<{is_private:boolean;exists:boolean}>(`SELECT COALESCE(p.is_private,false) AS is_private,true AS exists
+ FROM accounts a LEFT JOIN user_profiles p ON p.user_id=a.id
+ WHERE a.id=$2 AND a.account_status='active'
+ AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.blocker_id=$1 AND b.blocked_id=$2) OR (b.blocker_id=$2 AND b.blocked_id=$1))`,
+ [input.requesterId,input.targetUserId]);
+ if(!target.rows[0])throw new Error('Target account unavailable.');
+ const status=target.rows[0].is_private?'pending':'accepted';
+ const inserted=await client.query(`INSERT INTO follows(follower_id,following_id,status)
+ VALUES($1,$2,$3) ON CONFLICT(follower_id,following_id) DO UPDATE
+ SET status=EXCLUDED.status WHERE follows.status='rejected'
+ RETURNING status`,[input.requesterId,input.targetUserId,status]);
+ if(!inserted.rows[0]){
+  const existing=await client.query<{status:string}>(`SELECT status FROM follows WHERE follower_id=$1 AND following_id=$2`,[input.requesterId,input.targetUserId]);
+  if(existing.rows[0]?.status==='accepted')return 'already_following';
+  if(existing.rows[0]?.status==='pending')return 'requested';
+  throw new Error('Follow request could not be created.');
+ }
+ if(status==='pending'){
+  await client.query(`INSERT INTO follow_requests(id,requester_id,target_user_id,status)
+  VALUES($1,$2,$3,'pending') ON CONFLICT(requester_id,target_user_id) DO UPDATE
+  SET status='pending',created_at=now(),reviewed_at=NULL`,[input.requestId,input.requesterId,input.targetUserId]);
+ }
+ await insertOutboxEvent(client,{aggregateType:'follow',aggregateId:input.requesterId,
+ eventType:status==='accepted'?'created':'requested',partitionKey:input.targetUserId,
+ payload:{requesterId:input.requesterId,targetUserId:input.targetUserId,status}});
+ return status==='accepted'?'followed':'requested';
+}
+export async function reviewFollowRequest(client:PoolClient,input:{
+ requesterId:string;targetUserId:string;decision:'accepted'|'rejected';
+}):Promise<boolean>{
+ validId(input.requesterId,'requester ID');validId(input.targetUserId,'target user ID');
+ if(input.decision!=='accepted'&&input.decision!=='rejected')throw new Error('Invalid follow decision.');
+ const result=await client.query(`UPDATE follow_requests r SET status=$3,reviewed_at=now()
+ WHERE r.requester_id=$1 AND r.target_user_id=$2 AND r.status='pending'
+ AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.blocker_id=$1 AND b.blocked_id=$2) OR (b.blocker_id=$2 AND b.blocked_id=$1))
+ RETURNING r.requester_id`,[input.requesterId,input.targetUserId,input.decision]);
+ if(!result.rows[0])return false;
+ if(input.decision==='accepted'){
+  await client.query(`INSERT INTO follows(follower_id,following_id,status) VALUES($1,$2,'accepted')
+  ON CONFLICT(follower_id,following_id) DO UPDATE SET status='accepted'`,[input.requesterId,input.targetUserId]);
+ }else{
+  await client.query(`UPDATE follows SET status='rejected' WHERE follower_id=$1 AND following_id=$2`,[input.requesterId,input.targetUserId]);
+ }
+ await insertOutboxEvent(client,{aggregateType:'follow',aggregateId:input.requesterId,
+ eventType:input.decision,partitionKey:input.requesterId,
+ payload:{requesterId:input.requesterId,targetUserId:input.targetUserId,decision:input.decision}});
+ return true;
+}
