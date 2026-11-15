@@ -54,3 +54,7 @@ Run staged tests at 1x, 2x, and 5x expected peak; then run controlled dependency
 Run `docker compose -f infra/docker-compose.yml up -d`. This starts local dependencies only. Stop them with `docker compose -f infra/docker-compose.yml down`. Persistent development data is kept in named volumes; `down -v` deletes it.
 
 Before production, replace every local single-instance dependency with a tested highly available deployment and complete a security and operational review.
+
+## Detailed Active-Active design
+
+See [ACTIVE_ACTIVE_DESIGN.md](./ACTIVE_ACTIVE_DESIGN.md) for the consistency model, partition ownership, failure fencing, database migration gates, realtime event architecture, operational requirements, phased acceptance criteria, and honest capacity qualification process. This is a design document, not deployed infrastructure.
