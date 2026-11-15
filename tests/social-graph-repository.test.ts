@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type {PoolClient} from 'pg';
-import {blockUser,unblockUser,createStatus,recordStatusView,submitModerationReport} from '../src/server/repositories/social-graph';
+import {blockUser,unblockUser,createStatus,recordStatusView,submitModerationReport,requestFollow,reviewFollowRequest} from '../src/server/repositories/social-graph';
 function fake(responses:unknown[][]){const calls:Array<{sql:string;values?:unknown[]}>=[];const client={query:async(sql:string,values?:unknown[])=>{calls.push({sql,values});const rows=responses.shift()??[];return {rows,rowCount:rows.length};}} as unknown as PoolClient;return {client,calls};}
-test('blocking removes reciprocal follows and emits an event',async()=>{const {client,calls}=fake([[{blocker_id:'u1'}],[],[],[{event_id:'e'}]]);assert.equal(await blockUser(client,{blockerId:'u1',blockedId:'u2'}),true);assert.match(calls[1].sql,/DELETE FROM follows/);assert.match(calls[2].sql,/event_outbox/);});
+test('blocking removes reciprocal follows and emits an event',async()=>{const {client,calls}=fake([[{blocker_id:'u1'}],[],[],[{event_id:'e'}]]);assert.equal(await blockUser(client,{blockerId:'u1',blockedId:'u2'}),true);assert.match(calls[1].sql,/DELETE FROM follows/);assert.match(calls[3].sql,/event_outbox/);});
 test('self block is rejected before database access',async()=>{const {client,calls}=fake([]);await assert.rejects(()=>blockUser(client,{blockerId:'u1',blockedId:'u1'}));assert.equal(calls.length,0);});
 test('unblock is owner scoped',async()=>{const {client,calls}=fake([[{blocker_id:'u1'}],[{event_id:'e'}]]);assert.equal(await unblockUser(client,{blockerId:'u1',blockedId:'u2'}),true);assert.match(calls[0].sql,/WHERE blocker_id=\$1 AND blocked_id=\$2/);});
 test('selected-audience status inserts only supplied recipients',async()=>{const {client,calls}=fake([[],[{event_id:'e'}]]);assert.deepEqual(await createStatus(client,{id:'s1',userId:'u1',type:'text',content:'hello',audience:'selected',selectedUserIds:['u2'],expiresAt:new Date(Date.now()+3600000).toISOString()}),{id:'s1'});assert.match(calls[1].sql,/status_audience_members/);});
