@@ -79,3 +79,18 @@ test('login rejects suspended accounts', async () => {
   assert.equal(await loginWithPassword(client, 'sample_user', 'valid-password', metadata), null);
   assert.equal(calls.length, 1);
 });
+
+test('login upgrades legacy 1,000-iteration PBKDF2 hashes before issuing a session', async () => {
+  const salt = 'c'.repeat(32);
+  const password = 'correct-horse-battery';
+  const legacyHash = pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
+  const row = { id: 'acct_legacy', username: 'legacy_user', email: null, phone: null,
+    display_name: 'Legacy', password_hash: legacyHash, password_salt: salt, account_status: 'active' };
+  const { client, calls } = fakeClient([[row], [], []]);
+  const result = await loginWithPassword(client, 'legacy_user', password, metadata);
+  assert.equal(result?.id, 'acct_legacy');
+  assert.match(calls[1].sql, /UPDATE accounts/);
+  assert.equal(calls[1].values?.[0], 'acct_legacy');
+  assert.notEqual(calls[1].values?.[3], legacyHash);
+  assert.match(calls[2].sql, /INSERT INTO user_sessions/);
+});
