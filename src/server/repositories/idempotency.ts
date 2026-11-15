@@ -22,8 +22,9 @@ export function hashIdempotencyRequest(canonicalRequest: string): string {
 /**
  * Claim a key in the caller's transaction before performing the mutation.
  * Keep the row and business mutation in the same transaction. If an existing
- * key has a different request hash, reject it rather than replaying another
- * command's response.
+ * unexpired key has a different request hash, reject it rather than replaying
+ * another command's response. Expired keys may be safely reused for a new
+ * request, regardless of the old request hash.
  */
 export async function claimIdempotencyKey(
   client: PoolClient,
@@ -55,11 +56,10 @@ export async function claimIdempotencyKey(
   `, [input.scope, input.key]);
   const row = existing.rows[0];
   if (!row) throw new Error('Idempotency claim disappeared; retry the transaction.');
-  if (row.request_hash !== input.requestHash) {
-    throw new Error('Idempotency key was already used for a different request.');
-  }
-  // Use the database clock for expiry decisions so API host clock skew cannot
-  // extend or prematurely expire an idempotency window.
+
+  // Check expiry before comparing request hashes: after the retention window,
+  // the same client key represents a fresh operation and may have a new body.
+  // The row lock serializes this replacement with concurrent retries.
   if (row.expired) {
     await client.query(`
       UPDATE idempotency_keys
@@ -68,6 +68,9 @@ export async function claimIdempotencyKey(
       WHERE scope = $1 AND idempotency_key = $2
     `, [input.scope, input.key, input.requestHash, ttlMs]);
     return { kind: 'claimed' };
+  }
+  if (row.request_hash !== input.requestHash) {
+    throw new Error('Idempotency key was already used for a different request.');
   }
   if (row.response === null) return { kind: 'in_progress' };
   return { kind: 'replay', response: row.response };

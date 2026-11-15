@@ -42,7 +42,7 @@ test('completed request returns the stored response for an identical retry', asy
   });
 });
 
-test('same key with a different request hash is rejected', async () => {
+test('same key with a different request hash is rejected while unexpired', async () => {
   const { client } = fakeClient([
     { rows: [], rowCount: 0 },
     { rows: [{ request_hash: 'a'.repeat(64), response: null, expired: false }], rowCount: 1 },
@@ -79,6 +79,18 @@ test('expired claims use the database clock rather than the API host clock', asy
   ]);
   assert.deepEqual(await claimIdempotencyKey(client, input), { kind: 'claimed' });
   assert.match(calls[1].sql, /expires_at <= now\(\)/);
+  assert.match(calls[2].sql, /SET response = NULL, request_hash = \$3/);
+});
+
+test('expired key can be reused for a different request hash', async () => {
+  const nextHash = hashIdempotencyRequest('{"amount":2500,"currency":"INR"}');
+  const { client, calls } = fakeClient([
+    { rows: [], rowCount: 0 },
+    { rows: [{ request_hash: input.requestHash, response: { orderId: 'old_order' }, expired: true }], rowCount: 1 },
+    { rows: [], rowCount: 1 },
+  ]);
+  assert.deepEqual(await claimIdempotencyKey(client, { ...input, requestHash: nextHash }), { kind: 'claimed' });
+  assert.deepEqual(calls[2].values, [input.scope, input.key, nextHash, 24 * 60 * 60 * 1000]);
   assert.match(calls[2].sql, /SET response = NULL, request_hash = \$3/);
 });
 
