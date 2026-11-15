@@ -130,3 +130,42 @@ export async function markNotificationRead(client:PoolClient,input:{
     WHERE id=$1 AND user_id=$2 RETURNING id`,[input.notificationId,input.userId]);
   return Boolean(result.rows[0]);
 }
+
+export type NotificationPage = {
+  items: Array<{id:string;actorId:string|null;type:string;payload:Record<string,unknown>;createdAt:string;readAt:string|null}>;
+  nextCursor: string|null;
+};
+export async function listNotifications(client:PoolClient,input:{
+  userId:string;limit?:number;before?:{createdAt:string;id:string};
+}):Promise<NotificationPage>{
+  requireId(input.userId,'user ID');
+  const limit=input.limit ?? 30;
+  if(!Number.isInteger(limit)||limit<1||limit>100) throw new Error('Invalid notification page size.');
+  if(input.before){
+    requireId(input.before.id,'notification cursor ID');
+    if(Number.isNaN(Date.parse(input.before.createdAt))) throw new Error('Invalid notification cursor timestamp.');
+  }
+  const result=await client.query<{
+    id:string;actor_id:string|null;notification_type:string;payload:Record<string,unknown>;
+    created_at:Date|string;read_at:Date|string|null;
+  }>(`SELECT id,actor_id,notification_type,payload,created_at,read_at
+    FROM user_notifications
+    WHERE user_id=$1 AND ($2::timestamptz IS NULL OR (created_at,id)<($2::timestamptz,$3::text))
+    ORDER BY created_at DESC,id DESC LIMIT $4`,
+    [input.userId,input.before?.createdAt ?? null,input.before?.id ?? null,limit+1]);
+  const hasMore=result.rows.length>limit;
+  const rows=result.rows.slice(0,limit);
+  const items=rows.map(row=>({
+    id:row.id,actorId:row.actor_id,type:row.notification_type,payload:row.payload,
+    createdAt:row.created_at instanceof Date?row.created_at.toISOString():row.created_at,
+    readAt:row.read_at instanceof Date?row.read_at.toISOString():row.read_at
+  }));
+  const last=items[items.length-1];
+  return {items,nextCursor:hasMore&&last?JSON.stringify({createdAt:last.createdAt,id:last.id}):null};
+}
+export async function markAllNotificationsRead(client:PoolClient,input:{userId:string}):Promise<number>{
+  requireId(input.userId,'user ID');
+  const result=await client.query(`UPDATE user_notifications SET read_at=now()
+    WHERE user_id=$1 AND read_at IS NULL RETURNING id`,[input.userId]);
+  return result.rowCount ?? result.rows.length;
+}

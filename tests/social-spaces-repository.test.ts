@@ -48,3 +48,17 @@ test('input validation rejects oversized groups and malformed slugs before SQL',
   const b=fake([]); await assert.rejects(()=>createCommunity(b.client,{id:'c1',slug:'INVALID SLUG',name:'X',ownerId:'u1'}));
   assert.equal(a.calls.length+b.calls.length,0);
 });
+
+test('notification inbox is recipient-scoped and uses a stable cursor',async()=>{
+  const {client,calls}=fake([[{id:'n1',actor_id:'u2',notification_type:'message.new',payload:{x:1},created_at:'2026-11-15T10:00:00.000Z',read_at:null}]]);
+  const {listNotifications}=await import('../src/server/repositories/social-spaces');
+  const page=await listNotifications(client,{userId:'u1',limit:20});
+  assert.equal(page.items.length,1); assert.equal(page.items[0].id,'n1');
+  assert.equal(page.nextCursor,null); assert.match(calls[0].sql,/WHERE user_id=\$1/); assert.match(calls[0].sql,/ORDER BY created_at DESC,id DESC/);
+});
+test('mark all notifications read only updates unread rows for the user',async()=>{
+  const {client,calls}=fake([[{id:'n1'},{id:'n2'}]]);
+  const {markAllNotificationsRead}=await import('../src/server/repositories/social-spaces');
+  assert.equal(await markAllNotificationsRead(client,{userId:'u1'}),2);
+  assert.match(calls[0].sql,/user_id=\$1 AND read_at IS NULL/);
+});
