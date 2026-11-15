@@ -72,7 +72,8 @@ export function auditLegacyJson(sourcePath: string): LegacyAuditManifest {
       seen.add(id);
     }
     if (duplicateIds) errors.push(`"${key}" contains ${duplicateIds} duplicate record ID(s).`);
-    collections[key] = { shape: 'array', records: value.length, duplicateIds, importPolicy: NEVER_IMPORT.has(key) ? 'never-import' : 'review-required' };
+    if (recordsWithoutStringId) warnings.push(`"${key}" contains ${recordsWithoutStringId} record(s) without a non-empty string ID; manual mapping is required.`);
+    collections[key] = { shape: 'array', records: value.length, duplicateIds, recordsWithoutStringId, importPolicy: NEVER_IMPORT.has(key) ? 'never-import' : 'review-required' };
   }
 
   for (const key of OBJECT_COLLECTIONS) {
