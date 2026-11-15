@@ -1,5 +1,5 @@
 import { Pool } from 'pg';
-import { connect, jetstream, JSONCodec, type NatsConnection } from 'nats';
+import { connect, JSONCodec, type NatsConnection } from 'nats';
 
 type OutboxEvent = {
   event_id: string;
@@ -129,7 +129,7 @@ async function dispatchOne(event: OutboxEvent): Promise<void> {
     data: event.payload,
   };
   try {
-    const ack = await jetstream(nc).publish(
+    const ack = await nc.jetstream().publish(
       subjectFor(event),
       codec.encode(envelope),
       { msgID: event.event_id },
