@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { PoolClient } from 'pg';
-import { createSocialPost, findVisibleSocialPost } from '../src/server/repositories/social-posts';
+import { createSocialPost, findVisibleSocialPost, listVisibleSocialPosts } from '../src/server/repositories/social-posts';
 
 function fakeClient(responses: unknown[][]) {
   const calls: Array<{ sql: string; values?: unknown[] }> = [];
@@ -70,4 +70,24 @@ test('validates identifiers and visibility before database access', async () => 
     id: 'post_1', authorId: 'acct_1', body: { text: 'x' }, visibility: 'everyone' as 'public',
   }));
   assert.equal(calls.length, 0);
+});
+
+test('feed query applies privacy filters and stable keyset cursor', async () => {
+  const { client, calls } = fakeClient([[{ id:'post_2',author_id:'acct_2',body:{text:'Feed'},visibility:'public',created_at:new Date() }]]);
+  const result = await listVisibleSocialPosts(client,{viewerId:'acct_1',limit:30,before:{createdAt:'2026-11-15T10:00:00.000Z',id:'post_9'}});
+  assert.equal(result.length,1);
+  assert.match(calls[0].sql,/FROM user_blocks b/);
+  assert.match(calls[0].sql,/FROM user_mutes m/);
+  assert.match(calls[0].sql,/up\.is_private/);
+  assert.match(calls[0].sql,/f\.status='accepted'/);
+  assert.match(calls[0].sql,/ORDER BY p\.created_at DESC,p\.id DESC/);
+  assert.deepEqual(calls[0].values,['acct_1',new Date('2026-11-15T10:00:00.000Z'),'post_9',30]);
+});
+
+test('feed query rejects invalid limits and cursors before database access', async () => {
+  const {client,calls}=fakeClient([]);
+  await assert.rejects(()=>listVisibleSocialPosts(client,{viewerId:'acct_1',limit:101}));
+  await assert.rejects(()=>listVisibleSocialPosts(client,{viewerId:'acct_1',before:{createdAt:'bad-date',id:'post_1'}}));
+  await assert.rejects(()=>listVisibleSocialPosts(client,{viewerId:'acct_1',before:{createdAt:'2026-11-15T10:00:00Z',id:'bad id'}}));
+  assert.equal(calls.length,0);
 });

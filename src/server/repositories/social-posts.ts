@@ -57,6 +57,32 @@ export async function createSocialPost(
   return { id };
 }
 
+/** Privacy-aware keyset-paginated feed. Caller supplies authenticated viewer ID. */
+export async function listVisibleSocialPosts(client: PoolClient, input: { viewerId: string; limit?: number; before?: { createdAt: string; id: string } }): Promise<Array<{ id: string; author_id: string; body: Record<string, unknown>; visibility: string; created_at: Date }>> {
+  if (!input || !ID_PATTERN.test(input.viewerId)) throw new Error('Invalid viewer ID.');
+  const limit = input.limit ?? 20;
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new Error('Invalid feed page size.');
+  let beforeCreatedAt: Date | null = null;
+  let beforeId: string | null = null;
+  if (input.before) {
+    if (!ID_PATTERN.test(input.before.id) || typeof input.before.createdAt !== 'string') throw new Error('Invalid feed cursor.');
+    const parsed = new Date(input.before.createdAt);
+    if (!Number.isFinite(parsed.getTime())) throw new Error('Invalid feed cursor timestamp.');
+    beforeCreatedAt = parsed; beforeId = input.before.id;
+  }
+  const result = await client.query<{ id: string; author_id: string; body: Record<string, unknown>; visibility: string; created_at: Date }>(`
+    SELECT p.id, p.author_id, p.body, p.visibility, p.created_at
+    FROM posts p JOIN accounts author ON author.id = p.author_id
+    WHERE p.deleted_at IS NULL AND author.account_status = 'active'
+      AND (p.author_id = $1 OR NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id=p.author_id AND b.blocked_id=$1) OR (b.blocker_id=$1 AND b.blocked_id=p.author_id)))
+      AND (p.author_id = $1 OR (COALESCE((SELECT up.is_private FROM user_profiles up WHERE up.user_id=p.author_id),false)=false AND p.visibility='public')
+        OR (p.visibility IN ('public','followers') AND EXISTS (SELECT 1 FROM follows f WHERE f.follower_id=$1 AND f.following_id=p.author_id AND f.status='accepted')))
+      AND (p.author_id = $1 OR NOT EXISTS (SELECT 1 FROM user_mutes m WHERE m.muter_id=$1 AND m.muted_id=p.author_id))
+      AND ($2::timestamptz IS NULL OR (p.created_at,p.id)<($2::timestamptz,$3::text))
+    ORDER BY p.created_at DESC,p.id DESC LIMIT $4
+  `, [input.viewerId,beforeCreatedAt,beforeId,limit]);
+  return result.rows;
+}
 /**
  * Reads a post only when the viewer is its author, it is public, or the viewer
  * follows the author through an accepted follow relationship. Authorization is
