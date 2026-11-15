@@ -156,12 +156,12 @@ export async function consumePhoneVerificationToken(
   }
   const result = await client.query(`
     UPDATE verification_challenges
-    SET verification_token_hash = NULL, verification_expires_at = NULL
+    SET verification_token_consumed_at = now()
     WHERE phone = $1 AND purpose = $2
       AND verification_token_hash = $3
       AND verification_expires_at > now()
       AND verified_at IS NOT NULL
-      AND verification_token_hash IS NOT NULL
+      AND verification_token_consumed_at IS NULL
   `, [phone, purpose, digestToken(verificationToken)]);
   return result.rowCount === 1;
 }
