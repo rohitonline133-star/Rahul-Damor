@@ -44,6 +44,7 @@ test('comment insert checks visibility, bounds content and uses client id idempo
   }), { id: 'comment_1', duplicate: false });
   assert.match(calls[0].sql, /p\.deleted_at IS NULL/);
   assert.match(calls[0].sql, /ON CONFLICT \(author_id, client_comment_id\) DO NOTHING/);
+  assert.deepEqual(calls[0].values, ['post_1', 'acct_2', 'comment_client_123', 'Nice post', 'comment_1']);
   assert.match(calls[1].sql, /commented/);
 });
 
