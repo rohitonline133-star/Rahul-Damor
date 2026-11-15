@@ -111,7 +111,7 @@ Names below are proposed target table groups. Final DDL must be derived from the
 
 ## 5. Current verified state and explicit blockers
 
-Existing work provides local PostgreSQL/Redis/NATS Compose services, foundational migrations, a checksum-verified ordered migration runner, a metadata-only legacy JSON audit, an outbox schema contract, and CI coverage for Compose validation, migrations, unit tests, TypeScript, and build.
+Existing work provides local PostgreSQL/Redis/NATS Compose services, additive foundational migrations for accounts, sessions, conversations, messages, posts, follows, outbox, idempotency, partition ownership, groups, communities, notifications, join requests, profiles, privacy settings, blocks, mutes, follow requests, statuses/views, moderation reports, devices and preferences; a checksum-verified ordered migration runner; a metadata-only legacy JSON audit; an outbox dispatcher; and CI coverage for Compose validation, migrations, unit tests, TypeScript, and build. These are persistence primitives, not proof that all application routes use them.
 
 It does **not** yet provide the complete relational schema, repository conversion, production data import, transactional outbox producers, NATS dispatcher/consumers, shared realtime state, regional database topology, provisioned compute/network/storage, or measured global capacity. Local Compose is a development aid, not a production HA cluster.
 
