@@ -42,7 +42,7 @@ test('challenge limits and phone format are validated before database access', a
   await assert.rejects(() => createPhoneVerificationChallenge(client, { phone: '12345', purpose: 'register' }, 'p'.repeat(32)));
   await assert.rejects(() => createPhoneVerificationChallenge(client, {
     phone: '+14155552671', purpose: 'register', ttlMs: 999999999,
-  }));
+  }, 'p'.repeat(32)));
   assert.equal(calls.length, 0);
 });
 
