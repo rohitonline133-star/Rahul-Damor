@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { createStatus, requestFollow, reviewFollowRequest, blockUser } from '../src/server/repositories/social-graph';
+import { updatePrivacySettings, canViewLastSeen, canViewProfilePhoto, shouldSendReadReceipt, muteUser, isUserMuted, unmuteUser } from '../src/server/repositories/privacy';
 
 const enabled = Boolean(process.env.DATABASE_URL);
 const pool = enabled ? new Pool({ connectionString: process.env.DATABASE_URL, ssl: process.env.PGSSLMODE === 'disable' ? false : { rejectUnauthorized: true } }) : null;
@@ -32,6 +33,41 @@ test('PostgreSQL integration: private follow approval and block cleanup',{skip:!
   assert.equal(await blockUser(client,{blockerId:a,blockedId:b}),true);
   const remaining=await client.query('SELECT 1 FROM follows WHERE follower_id=$1 AND following_id=$2',[a,b]);
   assert.equal(remaining.rowCount,0);
+  await client.query('ROLLBACK');
+ } catch(e){await client.query('ROLLBACK');throw e;} finally{client.release();}
+});
+
+test('PostgreSQL integration: privacy visibility respects mutual follows and blocks',{skip:!enabled},async()=>{
+ const client=await pool!.connect(); const owner=randomUUID(),viewer=randomUUID();
+ try {
+  await client.query('BEGIN');
+  await fixture(client,owner,'it_'+owner.replaceAll('-','').slice(0,20));
+  await fixture(client,viewer,'it_'+viewer.replaceAll('-','').slice(0,20));
+  await client.query('INSERT INTO user_profiles(user_id) VALUES($1),($2)',[owner,viewer]);
+  await updatePrivacySettings(client,{userId:owner,settings:{lastSeenVisibility:'contacts',profilePhotoVisibility:'contacts',statusVisibility:'contacts',readReceiptsEnabled:true}});
+  assert.equal(await canViewLastSeen(client,{ownerId:owner,viewerId:viewer}),false);
+  await client.query("INSERT INTO follows(follower_id,following_id,status) VALUES($1,$2,'accepted'),($2,$1,'accepted')",[owner,viewer]);
+  assert.equal(await canViewLastSeen(client,{ownerId:owner,viewerId:viewer}),true);
+  assert.equal(await canViewProfilePhoto(client,{ownerId:owner,viewerId:viewer}),true);
+  assert.equal(await shouldSendReadReceipt(client,owner),true);
+  await client.query('INSERT INTO user_blocks(blocker_id,blocked_id) VALUES($1,$2)',[owner,viewer]);
+  assert.equal(await canViewLastSeen(client,{ownerId:owner,viewerId:viewer}),false);
+  await updatePrivacySettings(client,{userId:owner,settings:{lastSeenVisibility:'nobody',profilePhotoVisibility:'nobody',statusVisibility:'selected',readReceiptsEnabled:false}});
+  assert.equal(await shouldSendReadReceipt(client,owner),false);
+  await client.query('ROLLBACK');
+ } catch(e){await client.query('ROLLBACK');throw e;} finally{client.release();}
+});
+test('PostgreSQL integration: mute state is owner-scoped and reversible',{skip:!enabled},async()=>{
+ const client=await pool!.connect(); const muter=randomUUID(),muted=randomUUID();
+ try {
+  await client.query('BEGIN');
+  await fixture(client,muter,'it_'+muter.replaceAll('-','').slice(0,20));
+  await fixture(client,muted,'it_'+muted.replaceAll('-','').slice(0,20));
+  assert.equal(await muteUser(client,{muterId:muter,mutedId:muted}),true);
+  assert.equal(await isUserMuted(client,{muterId:muter,mutedId:muted}),true);
+  assert.equal(await isUserMuted(client,{muterId:muted,mutedId:muter}),false);
+  assert.equal(await unmuteUser(client,{muterId:muter,mutedId:muted}),true);
+  assert.equal(await isUserMuted(client,{muterId:muter,mutedId:muted}),false);
   await client.query('ROLLBACK');
  } catch(e){await client.query('ROLLBACK');throw e;} finally{client.release();}
 });
