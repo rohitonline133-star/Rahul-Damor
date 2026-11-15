@@ -2,7 +2,7 @@
 -- tokens are never stored in plaintext and are never imported from legacy JSON.
 CREATE TABLE IF NOT EXISTS verification_challenges (
   id text PRIMARY KEY,
-  phone text NOT NULL CHECK (phone ~ '^\\+[1-9][0-9]{7,14}$'),
+  phone text NOT NULL CHECK (phone ~ '^\+[1-9][0-9]{7,14}$'),
   purpose text NOT NULL CHECK (purpose IN ('register', 'login', 'authenticate')),
   code_hash text NOT NULL CHECK (code_hash ~ '^[a-f0-9]{64}$'),
   code_salt text NOT NULL CHECK (code_salt ~ '^[a-f0-9]{32}$'),
