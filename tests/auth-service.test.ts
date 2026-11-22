@@ -108,7 +108,7 @@ test('verified phone registration consumes a one-time token before creating acco
   });
   assert.equal(result.id, 'acct_1');
   assert.equal(calls.length, 6);
-  assert.match(calls[0].sql, /verification_token_hash = \\$3/);
+  assert.ok(calls[0].sql.includes('verification_token_hash = $3'));
   assert.match(calls[1].sql, /INSERT INTO accounts/);
   assert.match(calls[5].sql, /INSERT INTO user_sessions/);
 });
