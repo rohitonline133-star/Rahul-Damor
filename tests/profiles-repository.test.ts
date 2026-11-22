@@ -19,13 +19,14 @@ test('profile upsert preserves profile and verification fields in PostgreSQL', a
   await upsertUserProfile(client, {
     userId: 'acct_1', avatarUrl: 'https://cdn.example/avatar.png',
     coverUrl: 'https://cdn.example/cover.png', bio: 'Hello',
-    websiteUrl: 'https://example.com', isPrivate: true, isVerified: false,
+    websiteUrl: 'https://example.com', isPrivate: true,
   });
   assert.equal(calls.length, 1);
   assert.match(calls[0].sql, /INSERT INTO user_profiles/);
   assert.match(calls[0].sql, /ON CONFLICT \(user_id\) DO UPDATE/);
   assert.equal(calls[0].values?.[0], 'acct_1');
   assert.equal(calls[0].values?.[5], true);
+  assert.doesNotMatch(calls[0].sql, /is_verified\s*=\s*EXCLUDED/i);
 });
 
 test('profile rejects overlong bio before querying', async () => {
