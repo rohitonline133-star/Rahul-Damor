@@ -84,7 +84,7 @@ app.use('/api', async (req, res, next) => {
     const routeQuota = checkRateLimit('api_route:' + group + ':' + req.method, 240, 60_000, 60_000);
     const authQuota = group === 'auth'
       ? checkRateLimit('api_auth:' + clientIp, 30, 60_000, 60_000)
-      : { allowed: true as const };
+      : { allowed: true as const, retryAfterSeconds: 0 };
     if (!ipQuota.allowed || !routeQuota.allowed || !authQuota.allowed) {
       const retry = Math.max(ipQuota.retryAfterSeconds || 0, routeQuota.retryAfterSeconds || 0, authQuota.retryAfterSeconds || 0);
       res.setHeader('Retry-After', String(retry));
