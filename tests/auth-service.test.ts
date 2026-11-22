@@ -4,12 +4,12 @@ import { pbkdf2Sync } from 'node:crypto';
 import { loginWithPassword, registerAccountWithSession } from '../src/server/auth-service';
 import type { PoolClient } from 'pg';
 
-function fakeClient(responses: unknown[][]) {
+function fakeClient(responses: unknown[][], rowCount = 1) {
   const calls: Array<{ sql: string; values?: unknown[] }> = [];
   const client = {
     query: async (sql: string, values?: unknown[]) => {
       calls.push({ sql, values });
-      return { rows: responses.shift() ?? [], rowCount: 1 };
+      return { rows: responses.shift() ?? [], rowCount };
     },
   } as unknown as PoolClient;
   return { client, calls };
@@ -99,7 +99,7 @@ test('login upgrades legacy 1,000-iteration PBKDF2 hashes before issuing a sessi
 
 
 test('verified phone registration consumes a one-time token before creating account and session', async () => {
-  const { client, calls } = fakeClient([{ id: 'acct_1' }, [{ event_id: 'evt_1' }], [], [], []]);
+  const { client, calls } = fakeClient([[{ id: 'acct_1' }], [], [], [], []]);
   const { registerVerifiedPhoneAccountWithSession } = await import('../src/server/auth-service');
   const result = await registerVerifiedPhoneAccountWithSession(client, {
     id: 'acct_1', username: 'phone_user', phone: '+14155552671',
@@ -114,7 +114,7 @@ test('verified phone registration consumes a one-time token before creating acco
 });
 
 test('verified phone registration rejects a reused or invalid proof before account creation', async () => {
-  const { client, calls } = fakeClient([{ id: 'not-consumed' }]);
+  const { client, calls } = fakeClient([], 0);
   const { registerVerifiedPhoneAccountWithSession } = await import('../src/server/auth-service');
   await assert.rejects(() => registerVerifiedPhoneAccountWithSession(client, {
     id: 'acct_1', username: 'phone_user', phone: '+14155552671',
