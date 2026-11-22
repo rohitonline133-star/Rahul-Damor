@@ -661,21 +661,38 @@ app.post('/api/auth/phone/send-otp', async (req, res) => {
   const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
   const deviceId = (req.headers['x-device-id'] as string) || (req.headers['user-agent'] as string) || 'default_device';
 
-  // Multi-tier Rate Limiting:
-  // 1. Per-phone: Max 5 requests per 10 minutes
-  const phoneRate = checkRateLimit(`otp_phone_${normalized}`, 5, 10 * 60 * 1000, 10 * 60 * 1000);
-  // 2. Per-IP: Max 10 requests per 10 minutes
-  const ipRate = checkRateLimit(`otp_ip_${clientIp}`, 10, 10 * 60 * 1000, 10 * 60 * 1000);
-  // 3. Per-device: Max 5 requests per 10 minutes
-  const deviceRate = checkRateLimit(`otp_device_${deviceId}`, 5, 10 * 60 * 1000, 10 * 60 * 1000);
-
-  if (!phoneRate.allowed || !ipRate.allowed || !deviceRate.allowed) {
-    const retrySec = Math.max(phoneRate.retryAfterSeconds || 0, ipRate.retryAfterSeconds || 0, deviceRate.retryAfterSeconds || 0);
-    logSecurityEvent(null, 'OTP_RATE_LIMIT_EXCEEDED', 'warning', `Rate limit exceeded for ${normalized} from IP ${clientIp}`, req);
-    res.status(429).json({
-      error: `Too many OTP requests. Please wait ${retrySec} seconds before requesting a new code.`,
-      retryAfterSeconds: retrySec,
-    });
+  // OTP issuance is guarded by a PostgreSQL-backed atomic limiter shared across API instances.
+  // Fail closed: never fall back to process-local counters for authentication traffic.
+  const rateLimitSecret = process.env.OTP_RATE_LIMIT_SECRET;
+  if (!process.env.DATABASE_URL || !rateLimitSecret || rateLimitSecret.length < 32) {
+    res.status(503).json({ error: 'Secure OTP rate limiting is not configured.' });
+    return;
+  }
+  try {
+    const [{ withPostgresTransaction }, { consumeOtpSendQuota }] = await Promise.all([
+      import('./src/server/postgres'),
+      import('./src/server/repositories/otp-send-rate-limits'),
+    ]);
+    const quota = await withPostgresTransaction((client) =>
+      consumeOtpSendQuota(client, {
+        phone: normalized,
+        ip: clientIp,
+        deviceId,
+      }, rateLimitSecret)
+    );
+    if (!quota.allowed) {
+      const retrySec = quota.retryAfterSeconds;
+      res.setHeader('Retry-After', String(retrySec));
+      logSecurityEvent(null, 'OTP_RATE_LIMIT_EXCEEDED', 'warning', `OTP send quota exceeded for scope ${quota.scope}`, req);
+      res.status(429).json({
+        error: 'Too many OTP requests. Please wait before requesting another code.',
+        retryAfterSeconds: retrySec,
+      });
+      return;
+    }
+  } catch {
+    logSecurityEvent(null, 'OTP_RATE_LIMIT_UNAVAILABLE', 'failure', 'Shared OTP rate limiter unavailable; request denied.', req);
+    res.status(503).json({ error: 'Secure OTP rate limiting is temporarily unavailable.' });
     return;
   }
 
@@ -716,8 +733,8 @@ app.post('/api/auth/phone/send-otp', async (req, res) => {
   // Generate cryptographically secure 6-digit OTP
   const otpCode = crypto.randomInt(100000, 999999).toString();
   const now = Date.now();
-  const expiresAt = now + 10 * 60 * 1000; // OTP valid for exactly 10 minutes
-  const cooldownUntil = now + 45 * 1000;  // 45s resend cooldown
+  const expiresAt = now + 5 * 60 * 1000; // OTP valid for exactly 5 minutes
+  const cooldownUntil = now + 60 * 1000;  // 60s resend cooldown
 
   // Preserve existing OTP state so a failed database write or SMS dispatch cannot
   // leave an unusable code active or invalidate a previously delivered code.
@@ -756,7 +773,6 @@ app.post('/api/auth/phone/send-otp', async (req, res) => {
     res.status(500).json({ success: false, error: 'Could not securely save the verification request. Please try again.' });
     return;
   }
-  recordFailedAttempt(`otp_phone_${normalized}`);
 
   // Dispatch real SMS via Twilio Messages API
   try {
@@ -766,7 +782,7 @@ app.post('/api/auth/phone/send-otp', async (req, res) => {
     const params = new URLSearchParams({
       To: normalized,
       From: process.env.TWILIO_PHONE_NUMBER!,
-      Body: `Your GB Official verification code is: ${otpCode}. Valid for 10 minutes. Do not share this code.`,
+      Body: `Your GB Official verification code is: ${otpCode}. Valid for 5 minutes. Do not share this code.`,
     });
 
     const twilioRes = await fetch(
@@ -813,7 +829,7 @@ app.post('/api/auth/phone/send-otp', async (req, res) => {
     smsConfigured: true,
     message: `Verification code sent to ${normalized} via carrier SMS.`,
     expiresAt,
-    cooldownSeconds: 45,
+    cooldownSeconds: 60,
     gatewayStatus: 'CONFIGURED (Dispatched via Twilio Carrier)',
   });
 });
@@ -860,11 +876,11 @@ app.post('/api/auth/phone/verify-otp', (req, res) => {
     return;
   }
 
-  // Expiration enforcement (10 minutes)
+  // Expiration enforcement (5 minutes)
   if (record.expiresAt < now) {
     logSecurityEvent(null, 'OTP_EXPIRED', 'warning', `Expired OTP attempted for ${normalized}`, req);
     res.status(400).json({
-      error: 'Verification code has expired (valid for 10 minutes). Please request a new OTP.',
+      error: 'Verification code has expired (valid for 5 minutes). Please request a new OTP.',
       expired: true,
     });
     return;
