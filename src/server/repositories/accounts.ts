@@ -44,8 +44,11 @@ export async function createAccount(client: PoolClient, input: NewAccount): Prom
   const username = requiredText(input.username, 'username', 30);
   if (!USERNAME_PATTERN.test(username)) throw new Error('Invalid account username.');
   const displayName = requiredText(input.displayName, 'display name', 80);
-  const passwordHash = requiredText(input.passwordHash, 'password hash', 512);
-  const passwordSalt = requiredText(input.passwordSalt, 'password salt', 256);
+  const passwordHash = requiredText(input.passwordHash, 'password hash', 128);
+  const passwordSalt = requiredText(input.passwordSalt, 'password salt', 128);
+  if (!/^[a-f0-9]{128}$/i.test(passwordHash) || !/^[a-f0-9]{32,128}$/i.test(passwordSalt)) {
+    throw new Error('Account password material must be a PBKDF2-SHA512 hex digest and salt.');
+  }
   const email = input.email == null ? null : requiredText(input.email, 'email', 254).toLowerCase();
   if (email && !EMAIL_PATTERN.test(email)) throw new Error('Invalid account email.');
   const phone = input.phone == null ? null : requiredText(input.phone, 'phone', 16);
