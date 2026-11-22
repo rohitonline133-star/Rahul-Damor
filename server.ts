@@ -81,7 +81,7 @@ app.use('/api', async (req, res, next) => {
   } else {
     // Local-only development fallback. Never used in production.
     const ipQuota = checkRateLimit('api_ip:' + clientIp, 600, 60_000, 60_000);
-    const routeQuota = checkRateLimit('api_route:' + group + ':' + req.method, 240, 60_000, 60_000);
+    const routeQuota = checkRateLimit('api_route:' + clientIp + ':' + group + ':' + req.method, 240, 60_000, 60_000);
     const authQuota = group === 'auth'
       ? checkRateLimit('api_auth:' + clientIp, 30, 60_000, 60_000)
       : { allowed: true as const, retryAfterSeconds: 0 };
@@ -92,7 +92,7 @@ app.use('/api', async (req, res, next) => {
       return;
     }
     recordFailedAttempt('api_ip:' + clientIp, 60_000);
-    recordFailedAttempt('api_route:' + group + ':' + req.method, 60_000);
+    recordFailedAttempt('api_route:' + clientIp + ':' + group + ':' + req.method, 60_000);
     if (group === 'auth') recordFailedAttempt('api_auth:' + clientIp, 60_000);
   }
   next();
