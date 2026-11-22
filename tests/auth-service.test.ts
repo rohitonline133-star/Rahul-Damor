@@ -18,7 +18,7 @@ function fakeClient(responses: unknown[][]) {
 const metadata = { deviceName: 'Test device', platform: 'Web' };
 
 test('registration creates account, outbox event and hashed persistent session', async () => {
-  const { client, calls } = fakeClient([[{ id: 'acct_1' }], [{ event_id: 'evt_1' }], []]);
+  const { client, calls } = fakeClient([[{ id: 'acct_1' }], [{ event_id: 'evt_1' }], [], [], []]);
   const result = await registerAccountWithSession(client, {
     id: 'acct_1', username: 'sample_user', email: 'USER@example.com',
     displayName: 'Sample User', password: 'correct-horse-battery',
@@ -27,9 +27,11 @@ test('registration creates account, outbox event and hashed persistent session',
   assert.equal(result.id, 'acct_1');
   assert.equal(result.email, 'user@example.com');
   assert.match(result.session.token, /^gb_tok_[a-f0-9]{64}$/);
-  assert.equal(calls.length, 3);
-  assert.match(calls[2].sql, /INSERT INTO user_sessions/);
-  assert.notEqual(calls[2].values?.[2], result.session.token);
+  assert.equal(calls.length, 5);
+  assert.match(calls[2].sql, /INSERT INTO user_profiles/);
+  assert.match(calls[3].sql, /INSERT INTO user_privacy_settings/);
+  assert.match(calls[4].sql, /INSERT INTO user_sessions/);
+  assert.notEqual(calls[4].values?.[2], result.session.token);
 });
 
 test('registration rejects short password before any database query', async () => {
