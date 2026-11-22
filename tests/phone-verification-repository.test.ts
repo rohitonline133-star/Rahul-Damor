@@ -95,3 +95,16 @@ test('expired challenge pruning is bounded', async () => {
   assert.deepEqual(calls[0].values, [100]);
   await assert.rejects(() => prunePhoneVerificationChallenges(client, 100000));
 });
+
+
+test('default challenge policy uses five-minute validity and sixty-second resend cooldown', async () => {
+  const { client } = fakeClient([[], []]);
+  const issuedAt = Date.now();
+  const issued = await createPhoneVerificationChallenge(client, {
+    phone: '+14155552671', purpose: 'register',
+  }, 'p'.repeat(32));
+  const ttl = issued.expiresAt.getTime() - issuedAt;
+  const cooldown = issued.cooldownUntil.getTime() - issuedAt;
+  assert.ok(ttl >= 5 * 60 * 1000 - 1000 && ttl <= 5 * 60 * 1000 + 1000);
+  assert.ok(cooldown >= 60 * 1000 - 1000 && cooldown <= 60 * 1000 + 1000);
+});
