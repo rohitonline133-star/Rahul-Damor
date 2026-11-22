@@ -30,6 +30,75 @@ app.use((_req, res, next) => {
 app.use(express.json({ limit: '25mb', verify: (req, _res, buffer) => { (req as any).rawBody = Buffer.from(buffer); } }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
+// Shared API-wide throttling: every /api route receives an IP and route-group quota.
+// Production requires PostgreSQL + a dedicated HMAC secret; no local-map fallback there.
+app.use('/api', async (req, res, next) => {
+  const clientIp = (req.ip || req.socket.remoteAddress || 'unknown').slice(0, 64);
+  const path = req.path.toLowerCase();
+  const group = path.startsWith('/auth/') ? 'auth'
+    : path.startsWith('/messages') || path.startsWith('/chat') || path.startsWith('/conversations') ? 'messaging'
+    : path.startsWith('/media') || path.startsWith('/upload') ? 'media'
+    : path.startsWith('/payments') || path.startsWith('/shop') ? 'commerce'
+    : path.startsWith('/admin') ? 'admin' : 'general';
+  const authHeader = req.headers.authorization;
+  const bearer = typeof authHeader === 'string' && authHeader.startsWith('Bearer ')
+    ? authHeader.slice(7) : null;
+
+  const secret = process.env.API_RATE_LIMIT_SECRET;
+  if (process.env.DATABASE_URL && secret && secret.length >= 32) {
+    try {
+      const [{ withPostgresTransaction }, { consumeApiRequestQuota }] = await Promise.all([
+        import('./src/server/postgres'),
+        import('./src/server/repositories/api-request-rate-limits'),
+      ]);
+      const quotas = [
+        { scope: 'ip' as const, value: clientIp, maxRequests: 600 },
+        { scope: 'route' as const, value: group + ':' + req.method.toUpperCase(), maxRequests: 240 },
+      ];
+      if (group === 'auth') quotas.push({ scope: 'auth' as const, value: clientIp, maxRequests: 30 });
+      if (bearer && /^gb_tok_[a-f0-9]{64}$/.test(bearer)) {
+        quotas.push({ scope: 'session' as const, value: bearer, maxRequests: 300 });
+      }
+      const quota = await withPostgresTransaction((client) =>
+        consumeApiRequestQuota(client, quotas, secret)
+      );
+      if (!quota.allowed) {
+        res.setHeader('Retry-After', String(quota.retryAfterSeconds));
+        res.status(429).json({
+          error: 'Too many requests. Please wait before trying again.',
+          retryAfterSeconds: quota.retryAfterSeconds,
+        });
+        return;
+      }
+    } catch {
+      // Fail closed when shared enforcement is configured but unavailable.
+      res.status(503).json({ error: 'Shared API rate limiting is temporarily unavailable.' });
+      return;
+    }
+  } else if (process.env.NODE_ENV === 'production') {
+    res.status(503).json({ error: 'Shared API rate limiting is not configured.' });
+    return;
+  } else {
+    // Local-only development fallback. Never used in production.
+    const ipQuota = checkRateLimit('api_ip:' + clientIp, 600, 60_000, 60_000);
+    const routeQuota = checkRateLimit('api_route:' + group + ':' + req.method, 240, 60_000, 60_000);
+    const authQuota = group === 'auth'
+      ? checkRateLimit('api_auth:' + clientIp, 30, 60_000, 60_000)
+      : { allowed: true as const };
+    if (!ipQuota.allowed || !routeQuota.allowed || !authQuota.allowed) {
+      const retry = Math.max(ipQuota.retryAfterSeconds || 0, routeQuota.retryAfterSeconds || 0, authQuota.retryAfterSeconds || 0);
+      res.setHeader('Retry-After', String(retry));
+      res.status(429).json({ error: 'Too many requests. Please wait before trying again.', retryAfterSeconds: retry });
+      return;
+    }
+    recordFailedAttempt('api_ip:' + clientIp, 60_000);
+    recordFailedAttempt('api_route:' + group + ':' + req.method, 60_000);
+    if (group === 'auth') recordFailedAttempt('api_auth:' + clientIp, 60_000);
+  }
+  next();
+});
+
+
 // Ensure data directory exists
 const DATA_DIR = path.join(process.cwd(), 'data');
 if (!fs.existsSync(DATA_DIR)) {
