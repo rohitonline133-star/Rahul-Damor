@@ -11,7 +11,6 @@ export type ProfileRecord = {
   bio?: string;
   websiteUrl?: string | null;
   isPrivate?: boolean;
-  isVerified?: boolean;
 };
 
 export type PrivacyRecord = {
@@ -49,23 +48,18 @@ export async function upsertUserProfile(
   if (input.isPrivate !== undefined && typeof input.isPrivate !== 'boolean') {
     throw new Error('Invalid profile privacy flag.');
   }
-  if (input.isVerified !== undefined && typeof input.isVerified !== 'boolean') {
-    throw new Error('Invalid profile verification flag.');
-  }
 
   await client.query(`
-    INSERT INTO user_profiles (user_id, avatar_url, cover_url, bio, website_url, is_private, is_verified, updated_at)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,now())
+    INSERT INTO user_profiles (user_id, avatar_url, cover_url, bio, website_url, is_private, updated_at)
+    VALUES ($1,$2,$3,$4,$5,$6,now())
     ON CONFLICT (user_id) DO UPDATE SET
       avatar_url = EXCLUDED.avatar_url,
       cover_url = EXCLUDED.cover_url,
       bio = EXCLUDED.bio,
       website_url = EXCLUDED.website_url,
       is_private = EXCLUDED.is_private,
-      is_verified = EXCLUDED.is_verified,
       updated_at = now()
-  `, [input.userId, avatarUrl, coverUrl, bio, websiteUrl,
-    input.isPrivate ?? false, input.isVerified ?? false]);
+  `, [input.userId, avatarUrl, coverUrl, bio, websiteUrl, input.isPrivate ?? false]);
 }
 
 /** Upserts privacy preferences with database-enforced enum constraints. */
