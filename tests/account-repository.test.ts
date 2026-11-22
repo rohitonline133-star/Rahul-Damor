@@ -26,15 +26,15 @@ test('account creation writes parameterized account and outbox records in caller
     email: 'USER@example.com',
     phone: '+14155552671',
     displayName: 'Sample User',
-    passwordHash: 'derived-hash',
-    passwordSalt: 'derived-salt',
+    passwordHash: 'a'.repeat(128),
+    passwordSalt: 'b'.repeat(32),
   });
   assert.deepEqual(result, { id: 'acct_1' });
   assert.equal(calls.length, 2);
   assert.match(calls[0].sql, /INSERT INTO accounts/);
   assert.deepEqual(calls[0].values, [
     'acct_1', 'Sample_User', 'user@example.com', '+14155552671',
-    'Sample User', 'derived-hash', 'derived-salt', 'region-unassigned',
+    'Sample User', 'a'.repeat(128), 'b'.repeat(32), 'region-unassigned',
   ]);
   assert.match(calls[1].sql, /INSERT INTO event_outbox/);
   assert.equal(JSON.stringify(calls[1].values).includes('USER@example.com'), false);
