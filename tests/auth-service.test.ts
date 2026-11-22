@@ -96,3 +96,30 @@ test('login upgrades legacy 1,000-iteration PBKDF2 hashes before issuing a sessi
   assert.notEqual(calls[1].values?.[3], legacyHash);
   assert.match(calls[2].sql, /INSERT INTO user_sessions/);
 });
+
+
+test('verified phone registration consumes a one-time token before creating account and session', async () => {
+  const { client, calls } = fakeClient([{ id: 'acct_1' }, [{ event_id: 'evt_1' }], [], [], []]);
+  const { registerVerifiedPhoneAccountWithSession } = await import('../src/server/auth-service');
+  const result = await registerVerifiedPhoneAccountWithSession(client, {
+    id: 'acct_1', username: 'phone_user', phone: '+14155552671',
+    displayName: 'Phone User', password: 'correct-horse-battery',
+    verificationToken: 'gb_pvtok_' + 'a'.repeat(64), sessionMetadata: metadata,
+  });
+  assert.equal(result.id, 'acct_1');
+  assert.equal(calls.length, 6);
+  assert.match(calls[0].sql, /verification_token_hash = \\$3/);
+  assert.match(calls[1].sql, /INSERT INTO accounts/);
+  assert.match(calls[5].sql, /INSERT INTO user_sessions/);
+});
+
+test('verified phone registration rejects a reused or invalid proof before account creation', async () => {
+  const { client, calls } = fakeClient([{ id: 'not-consumed' }]);
+  const { registerVerifiedPhoneAccountWithSession } = await import('../src/server/auth-service');
+  await assert.rejects(() => registerVerifiedPhoneAccountWithSession(client, {
+    id: 'acct_1', username: 'phone_user', phone: '+14155552671',
+    displayName: 'Phone User', password: 'correct-horse-battery',
+    verificationToken: 'gb_pvtok_' + 'a'.repeat(64), sessionMetadata: metadata,
+  }));
+  assert.equal(calls.length, 1);
+});
