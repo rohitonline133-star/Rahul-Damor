@@ -2,6 +2,7 @@ import { randomBytes, pbkdf2Sync, timingSafeEqual } from 'node:crypto';
 import type { PoolClient } from 'pg';
 import { createAccount, findAccountForLogin, upgradeAccountPasswordHash, type NewAccount } from './repositories/accounts';
 import { createPersistentSession, type IssuedSession, type SessionMetadata } from './repositories/sessions';
+import { consumePhoneVerificationToken } from './repositories/phone-verifications';
 import { upsertUserPrivacySettings, upsertUserProfile, type PrivacyRecord, type ProfileRecord } from './repositories/profiles';
 
 const PASSWORD_MIN = 8;
@@ -71,6 +72,25 @@ export async function registerAccountWithSession(
     displayName: input.displayName.trim(),
     session,
   };
+}
+
+/**
+ * Registers a phone-verified account and creates its session atomically.
+ * The caller MUST wrap this operation in withPostgresTransaction; if any later
+ * insert fails, the verification token consumption must roll back as well.
+ */
+export async function registerVerifiedPhoneAccountWithSession(
+  client: PoolClient,
+  input: RegistrationInput & { verificationToken: string },
+): Promise<AuthenticatedAccount> {
+  if (typeof input.phone !== 'string' || !/^\\+[1-9][0-9]{7,14}$/.test(input.phone)) {
+    throw new Error('A valid verified phone number is required.');
+  }
+  const consumed = await consumePhoneVerificationToken(
+    client, input.phone, 'register', input.verificationToken,
+  );
+  if (!consumed) throw new Error('Phone verification token is invalid, expired, or already used.');
+  return registerAccountWithSession(client, input);
 }
 
 /** Verifies the existing PBKDF2-SHA512 password format without exposing hashes. */
