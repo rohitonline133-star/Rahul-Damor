@@ -83,7 +83,7 @@ export async function registerVerifiedPhoneAccountWithSession(
   client: PoolClient,
   input: RegistrationInput & { verificationToken: string },
 ): Promise<AuthenticatedAccount> {
-  if (typeof input.phone !== 'string' || !/^\\+[1-9][0-9]{7,14}$/.test(input.phone)) {
+  if (typeof input.phone !== 'string' || !/^\+[1-9][0-9]{7,14}$/.test(input.phone)) {
     throw new Error('A valid verified phone number is required.');
   }
   const consumed = await consumePhoneVerificationToken(
