@@ -2,6 +2,7 @@ import { randomBytes, pbkdf2Sync, timingSafeEqual } from 'node:crypto';
 import type { PoolClient } from 'pg';
 import { createAccount, findAccountForLogin, upgradeAccountPasswordHash, type NewAccount } from './repositories/accounts';
 import { createPersistentSession, type IssuedSession, type SessionMetadata } from './repositories/sessions';
+import { upsertUserPrivacySettings, upsertUserProfile, type PrivacyRecord, type ProfileRecord } from './repositories/profiles';
 
 const PASSWORD_MIN = 8;
 const PASSWORD_MAX = 128;
@@ -18,6 +19,8 @@ export type RegistrationInput = {
   password: string;
   homeRegion?: string;
   sessionMetadata: SessionMetadata;
+  profile?: Omit<ProfileRecord, 'userId'>;
+  privacy?: Omit<PrivacyRecord, 'userId'>;
 };
 
 export type AuthenticatedAccount = {
@@ -57,6 +60,8 @@ export async function registerAccountWithSession(
     homeRegion: input.homeRegion,
   };
   const created = await createAccount(client, account);
+  await upsertUserProfile(client, { ...input.profile, userId: created.id });
+  await upsertUserPrivacySettings(client, { ...input.privacy, userId: created.id });
   const session = await createPersistentSession(client, created.id, input.sessionMetadata);
   return {
     id: created.id,
