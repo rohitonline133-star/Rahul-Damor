@@ -35,8 +35,8 @@ test('fourth phone request in the rolling window blocks sends for 30 minutes', a
   const phoneHash = createHmac('sha256', secret).update('phone:' + input.phone).digest('hex');
   const { client, calls } = scriptedClient([
     {}, {}, {},
-    { rows: [{ request_count: 3, window_started_at: new Date(now.getTime() - 1000), blocked_until: null }] },
     { rows: [] }, { rows: [] },
+    { rows: [{ request_count: 3, window_started_at: new Date(now.getTime() - 1000), blocked_until: null }] },
   ]);
   const result = await consumeOtpSendQuota(client, input, secret, now);
   assert.deepEqual(result, { allowed: false, scope: 'phone', retryAfterSeconds: 1800 });
@@ -48,8 +48,8 @@ test('fourth phone request in the rolling window blocks sends for 30 minutes', a
 test('active block is honored without incrementing quotas', async () => {
   const { client, calls } = scriptedClient([
     {}, {}, {},
-    { rows: [{ request_count: 3, window_started_at: now, blocked_until: new Date(now.getTime() + 90000) }] },
     { rows: [] }, { rows: [] },
+    { rows: [{ request_count: 3, window_started_at: now, blocked_until: new Date(now.getTime() + 90000) }] },
   ]);
   assert.deepEqual(await consumeOtpSendQuota(client, input, secret, now),
     { allowed: false, scope: 'phone', retryAfterSeconds: 90 });
