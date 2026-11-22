@@ -99,7 +99,7 @@ test('login upgrades legacy 1,000-iteration PBKDF2 hashes before issuing a sessi
 
 
 test('verified phone registration consumes a one-time token before creating account and session', async () => {
-  const { client, calls } = fakeClient([[], [{ id: 'acct_1' }], [], [], []]);
+  const { client, calls } = fakeClient([[], [{ id: 'acct_1' }], [{ event_id: 'evt_1' }], [], [], []]);
   const { registerVerifiedPhoneAccountWithSession } = await import('../src/server/auth-service');
   const result = await registerVerifiedPhoneAccountWithSession(client, {
     id: 'acct_1', username: 'phone_user', phone: '+14155552671',
