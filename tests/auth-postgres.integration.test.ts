@@ -67,6 +67,5 @@ test('OTP verification, token consumption, account creation and session share on
     await postgresPool.query('DELETE FROM accounts WHERE id = ANY($1::text[])', [[blockerId, accountId]]);
     await postgresPool.query('DELETE FROM event_outbox WHERE aggregate_id = ANY($1::text[])', [[blockerId, accountId]]);
     await postgresPool.query('DELETE FROM verification_challenges WHERE phone = $1', [phone]);
-    await postgresPool.end();
   }
 });
