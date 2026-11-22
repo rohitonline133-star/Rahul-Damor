@@ -50,8 +50,8 @@ export async function createPhoneVerificationChallenge(
       typeof pepper !== 'string' || pepper.length < 32) {
     throw new Error('Invalid phone verification challenge.');
   }
-  const ttlMs = input.ttlMs ?? 10 * 60 * 1000;
-  const cooldownMs = input.cooldownMs ?? 45 * 1000;
+  const ttlMs = input.ttlMs ?? 5 * 60 * 1000;
+  const cooldownMs = input.cooldownMs ?? 60 * 1000;
   const maxAttempts = input.maxAttempts ?? 5;
   if (!Number.isInteger(ttlMs) || ttlMs < 30_000 || ttlMs > MAX_TTL_MS ||
       !Number.isInteger(cooldownMs) || cooldownMs < 0 || cooldownMs > MAX_COOLDOWN_MS ||
