@@ -33,6 +33,5 @@ test('PostgreSQL quota serializes concurrent requests across transactions', {
       'DELETE FROM api_request_rate_limits WHERE scope = $1 AND key_hash = $2',
       ['ip', keyHash],
     );
-    await postgresPool.end();
   }
 });

@@ -53,7 +53,7 @@ app.use('/api', async (req, res, next) => {
       ]);
       const quotas: Array<{ scope: 'ip' | 'route' | 'auth' | 'session'; value: string; maxRequests: number }> = [
         { scope: 'ip', value: clientIp, maxRequests: 600 },
-        { scope: 'route', value: group + ':' + req.method.toUpperCase(), maxRequests: 240 },
+        { scope: 'route', value: clientIp + ':' + group + ':' + req.method.toUpperCase(), maxRequests: 240 },
       ];
       if (group === 'auth') quotas.push({ scope: 'auth' as const, value: clientIp, maxRequests: 30 });
       if (bearer && /^gb_tok_[a-f0-9]{64}$/.test(bearer)) {
